@@ -1,0 +1,357 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+
+const DriverCard = ({ driver, onPress, horizontal = false }) => {
+  const profile = driver.profiles || driver.profile;
+  const fullName = `${profile?.firstname || ''} ${profile?.lastname || ''}`.trim() || 'Driver';
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(
+          <Ionicons key={i} name="star" size={14} color={COLORS.accent} />
+        );
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(
+          <Ionicons key={i} name="star-half" size={14} color={COLORS.accent} />
+        );
+      } else {
+        stars.push(
+          <Ionicons key={i} name="star-outline" size={14} color={COLORS.accent} />
+        );
+      }
+    }
+    return stars;
+  };
+
+  if (horizontal) {
+    return (
+      <TouchableOpacity style={styles.horizontalCard} onPress={onPress}>
+        <View style={styles.horizontalImageContainer}>
+          {profile?.profile_image ? (
+            <Image
+              source={{ uri: profile.profile_image }}
+              style={styles.horizontalImage}
+            />
+          ) : (
+            <View style={[styles.horizontalImage, styles.placeholderImage]}>
+              <Ionicons name="person" size={32} color={COLORS.gray[400]} />
+            </View>
+          )}
+          {driver.verification_status === 'verified' ? (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="shield-checkmark" size={14} color={COLORS.white} />
+            </View>
+          ) : (
+            <View style={styles.unverifiedBadge}>
+              <Ionicons name="alert-circle" size={14} color={COLORS.white} />
+            </View>
+          )}
+        </View>
+        <View style={styles.horizontalContent}>
+          <Text style={styles.name} numberOfLines={1}>
+            {fullName}
+          </Text>
+          {driver.verification_status !== 'verified' && (
+            <Text style={styles.unverifiedText}>Unverified</Text>
+          )}
+          <View style={styles.ratingRow}>
+            {renderStars(driver.rating || 0)}
+            <Text style={styles.ratingText}>
+              ({driver.total_reviews || 0})
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="location" size={12} color={COLORS.textSecondary} />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {profile?.location || 'Namibia'}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="time" size={12} color={COLORS.textSecondary} />
+            <Text style={styles.infoText}>
+              {driver.years_of_experience || 0} yrs exp
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      <View style={styles.cardHeader}>
+        <View style={styles.imageContainer}>
+          {profile?.profile_image ? (
+            <Image
+              source={{ uri: profile.profile_image }}
+              style={styles.image}
+            />
+          ) : (
+            <View style={[styles.image, styles.placeholderImage]}>
+              <Ionicons name="person" size={24} color={COLORS.gray[400]} />
+            </View>
+          )}
+          {driver.verification_status === 'verified' ? (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={COLORS.white} />
+            </View>
+          ) : (
+            <View style={styles.unverifiedBadge}>
+              <Ionicons name="alert-circle" size={12} color={COLORS.white} />
+            </View>
+          )}
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={styles.name} numberOfLines={1}>
+            {fullName}
+          </Text>
+          {driver.verification_status !== 'verified' && (
+            <View style={styles.unverifiedBanner}>
+              <Ionicons name="warning" size={14} color="#B45309" />
+              <Text style={styles.unverifiedBannerText}>
+                Not verified — proceed with caution
+              </Text>
+            </View>
+          )}
+          <View style={styles.ratingRow}>
+            {renderStars(driver.rating || 0)}
+            <Text style={styles.ratingText}>
+              ({driver.total_reviews || 0})
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.infoGrid}>
+          <View style={styles.infoItem}>
+            <Ionicons name="location" size={16} color={COLORS.primary} />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {profile?.location || 'Namibia'}
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons name="time" size={16} color={COLORS.primary} />
+            <Text style={styles.infoText}>
+              {driver.years_of_experience || 0} years
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons name="calendar" size={16} color={COLORS.primary} />
+            <Text style={styles.infoText}>
+              {driver.availability === 'full_time'
+                ? 'Full Time'
+                : driver.availability === 'part_time'
+                ? 'Part Time'
+                : 'Weekends'}
+            </Text>
+          </View>
+          {driver.has_pdp && (
+            <View style={styles.infoItem}>
+              <Ionicons name="card" size={16} color={COLORS.secondary} />
+              <Text style={[styles.infoText, { color: COLORS.secondary }]}>
+                PDP
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {driver.vehicle_types && driver.vehicle_types.length > 0 && (
+          <View style={styles.tagsRow}>
+            {driver.vehicle_types.slice(0, 3).map((type, index) => (
+              <View key={index} style={styles.tag}>
+                <Text style={styles.tagText}>{type}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.cardFooter}>
+        <TouchableOpacity style={styles.viewButton} onPress={onPress}>
+          <Text style={styles.viewButtonText}>View Profile</Text>
+          <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  image: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  placeholderImage: {
+    backgroundColor: COLORS.gray[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  unverifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#F59E0B',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  unverifiedText: {
+    fontSize: FONTS.sizes.xs,
+    color: '#B45309',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  unverifiedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: SPACING.xs,
+  },
+  unverifiedBannerText: {
+    fontSize: FONTS.sizes.xs,
+    color: '#B45309',
+    fontWeight: '500',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  name: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.xs,
+  },
+  cardBody: {
+    gap: SPACING.sm,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.gray[50],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  infoText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  tag: {
+    backgroundColor: COLORS.primaryLight + '20',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  tagText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  cardFooter: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray[100],
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  viewButtonText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  // Horizontal card styles
+  horizontalCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    width: 160,
+    marginRight: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  horizontalImageContainer: {
+    position: 'relative',
+  },
+  horizontalImage: {
+    width: '100%',
+    height: 100,
+    borderTopLeftRadius: BORDER_RADIUS.lg,
+    borderTopRightRadius: BORDER_RADIUS.lg,
+  },
+  horizontalContent: {
+    padding: SPACING.sm,
+  },
+});
+
+export default DriverCard;

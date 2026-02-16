@@ -1,29 +1,63 @@
 {
   "expo": {
-    "name": "drivematch-namibia",
-    "slug": "drivematch-namibia",
+    "name": "NamDriver",
+    "slug": "namdriver",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "description": "NamDriver connects car owners with trusted, verified drivers in Namibia. Browse driver profiles, check reviews, verify credentials, and find the perfect driver for your vehicle.",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1E40AF"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.namstack.namdriver",
+      "requireFullScreen": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "NamDriver needs access to your photo library to upload profile photos and documents.",
+        "NSCameraUsageDescription": "NamDriver needs camera access to take photos of documents for verification."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1E40AF"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.namstack.namdriver",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NamDriver needs access to your photos for profile and document uploads.",
+          "cameraPermission": "NamDriver needs camera access for document verification."
+        }
+      ],
+      "expo-document-picker"
+    ],
+    "privacy": "public",
+    "scheme": "namdriver",
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
