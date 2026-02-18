@@ -27,6 +27,7 @@ import SearchDriversScreen from '../screens/Owner/SearchDriversScreen';
 import DriverDetailsScreen from '../screens/Owner/DriverDetailsScreen';
 import SavedDriversScreen from '../screens/Owner/SavedDriversScreen';
 import WriteReviewScreen from '../screens/Owner/WriteReviewScreen';
+import HireHistoryScreen from '../screens/Owner/HireHistoryScreen';
 
 // Chat Screens
 import ConversationsScreen from '../screens/Chat/ConversationsScreen';
@@ -208,6 +209,11 @@ const AppNavigator = () => {
               name="WriteReview"
               component={WriteReviewScreen}
               options={{ headerShown: true, title: 'Write Review' }}
+            />
+            <Stack.Screen
+              name="HireHistory"
+              component={HireHistoryScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Notifications"

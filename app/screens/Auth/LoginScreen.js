@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const LoginScreen = ({ navigation }) => {
@@ -36,6 +37,37 @@ const LoginScreen = ({ navigation }) => {
     if (error) {
       Alert.alert('Login Failed', error.message);
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email Required', 'Please enter your email address first, then tap "Forgot Password".');
+      return;
+    }
+
+    Alert.alert(
+      'Reset Password',
+      `We will send a password reset link to:\n${email}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Reset Link',
+          onPress: async () => {
+            setLoading(true);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: 'namdriver://reset-password',
+            });
+            setLoading(false);
+
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              Alert.alert('Check Your Email', 'If an account exists with this email, you will receive a password reset link.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -98,7 +130,7 @@ const LoginScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 

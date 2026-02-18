@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { format } from 'date-fns';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { format, isToday, isYesterday } from 'date-fns';
 
 const ChatScreen = ({ route, navigation }) => {
   const { conversationId } = route.params;
@@ -38,7 +38,6 @@ const ChatScreen = ({ route, navigation }) => {
     fetchMessages(conversationId);
     markMessagesAsRead(conversationId, user.id, profile.role);
 
-    // Subscribe to real-time updates
     const subscription = subscribeToMessages(conversationId, (newMessage) => {
       if (newMessage.sender_id !== user.id) {
         markMessagesAsRead(conversationId, user.id, profile.role);
@@ -51,21 +50,25 @@ const ChatScreen = ({ route, navigation }) => {
   }, [conversationId]);
 
   useEffect(() => {
-    // Update navigation header with participant info
     if (currentConversation) {
       const participant = getOtherParticipant();
       navigation.setOptions({
         headerTitle: () => (
-          <View style={styles.headerTitle}>
+          <TouchableOpacity style={styles.headerTitle} activeOpacity={0.7}>
             {participant.image ? (
               <Image source={{ uri: participant.image }} style={styles.headerAvatar} />
             ) : (
-              <View style={[styles.headerAvatar, styles.placeholderAvatar]}>
-                <Ionicons name="person" size={16} color={COLORS.gray[400]} />
+              <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+                <Text style={styles.headerAvatarInitial}>
+                  {(participant.name || 'U')[0].toUpperCase()}
+                </Text>
               </View>
             )}
-            <Text style={styles.headerName}>{participant.name}</Text>
-          </View>
+            <View>
+              <Text style={styles.headerName}>{participant.name}</Text>
+              <Text style={styles.headerStatus}>Tap for info</Text>
+            </View>
+          </TouchableOpacity>
         ),
       });
     }
@@ -93,13 +96,18 @@ const ChatScreen = ({ route, navigation }) => {
   const handleSend = async () => {
     if (!messageText.trim() || sending) return;
 
+    const text = messageText.trim();
+    setMessageText('');
     setSending(true);
-    const { error } = await sendMessage(conversationId, user.id, messageText.trim());
+    await sendMessage(conversationId, user.id, text);
     setSending(false);
+  };
 
-    if (!error) {
-      setMessageText('');
-    }
+  const formatDateLabel = (dateStr) => {
+    const date = new Date(dateStr);
+    if (isToday(date)) return 'Today';
+    if (isYesterday(date)) return 'Yesterday';
+    return format(date, 'EEEE, MMMM d');
   };
 
   const renderMessage = ({ item, index }) => {
@@ -114,26 +122,25 @@ const ChatScreen = ({ route, navigation }) => {
         {showDate && (
           <View style={styles.dateSeparator}>
             <Text style={styles.dateText}>
-              {format(new Date(item.created_at), 'EEEE, MMMM d')}
+              {formatDateLabel(item.created_at)}
             </Text>
           </View>
         )}
         <View
           style={[
-            styles.messageContainer,
-            isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer,
+            styles.messageRow,
+            isOwnMessage ? styles.ownMessageRow : styles.otherMessageRow,
           ]}
         >
           {!isOwnMessage && (
-            <View style={styles.senderAvatar}>
+            <View style={styles.senderAvatarContainer}>
               {item.sender?.profile_image ? (
-                <Image
-                  source={{ uri: item.sender.profile_image }}
-                  style={styles.avatarSmall}
-                />
+                <Image source={{ uri: item.sender.profile_image }} style={styles.avatarSmall} />
               ) : (
                 <View style={[styles.avatarSmall, styles.placeholderAvatarSmall]}>
-                  <Ionicons name="person" size={12} color={COLORS.gray[400]} />
+                  <Text style={styles.avatarInitialSmall}>
+                    {(item.sender?.firstname || 'U')[0].toUpperCase()}
+                  </Text>
                 </View>
               )}
             </View>
@@ -141,30 +148,43 @@ const ChatScreen = ({ route, navigation }) => {
           <View
             style={[
               styles.messageBubble,
-              isOwnMessage ? styles.ownMessage : styles.otherMessage,
+              isOwnMessage ? styles.ownBubble : styles.otherBubble,
             ]}
           >
-            <Text
-              style={[
-                styles.messageText,
-                isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
-              ]}
-            >
+            <Text style={[styles.messageText, isOwnMessage ? styles.ownText : styles.otherText]}>
               {item.content}
             </Text>
-            <Text
-              style={[
-                styles.messageTime,
-                isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime,
-              ]}
-            >
-              {format(new Date(item.created_at), 'HH:mm')}
-            </Text>
+            <View style={styles.messageFooter}>
+              <Text style={[styles.messageTime, isOwnMessage ? styles.ownTime : styles.otherTime]}>
+                {format(new Date(item.created_at), 'HH:mm')}
+              </Text>
+              {isOwnMessage && (
+                <Ionicons
+                  name={item.is_read ? 'checkmark-done' : 'checkmark'}
+                  size={14}
+                  color={item.is_read ? '#7DD3FC' : 'rgba(255,255,255,0.5)'}
+                />
+              )}
+            </View>
           </View>
         </View>
       </View>
     );
   };
+
+  const renderEmpty = () => (
+    <View style={styles.emptyChat}>
+      <View style={styles.emptyChatIcon}>
+        <View style={styles.emptyChatIconInner}>
+          <Ionicons name="chatbubbles-outline" size={32} color={COLORS.primary} />
+        </View>
+      </View>
+      <Text style={styles.emptyChatTitle}>Start a conversation</Text>
+      <Text style={styles.emptyChatText}>
+        Send a message to get connected
+      </Text>
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -177,37 +197,42 @@ const ChatScreen = ({ route, navigation }) => {
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
+        contentContainerStyle={[
+          styles.messagesList,
+          messages.length === 0 && { flex: 1 },
+        ]}
         showsVerticalScrollIndicator={false}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        ListEmptyComponent={renderEmpty}
       />
 
+      {/* Input Area */}
       <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type a message..."
-            placeholderTextColor={COLORS.gray[400]}
-            value={messageText}
-            onChangeText={setMessageText}
-            multiline
-            maxLength={1000}
-          />
+        <View style={styles.inputRow}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type your message..."
+              placeholderTextColor={COLORS.gray[400]}
+              value={messageText}
+              onChangeText={setMessageText}
+              multiline
+              maxLength={1000}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.sendButton, messageText.trim() && styles.sendButtonActive]}
+            onPress={handleSend}
+            disabled={!messageText.trim() || sending}
+          >
+            <Ionicons
+              name="arrow-up"
+              size={20}
+              color={messageText.trim() ? COLORS.white : COLORS.gray[400]}
+            />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!messageText.trim() || sending}
-        >
-          <Ionicons
-            name="send"
-            size={20}
-            color={messageText.trim() ? COLORS.white : COLORS.gray[400]}
-          />
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -218,135 +243,222 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
+  // Header
   headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.sm + 2,
   },
   headerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
-  placeholderAvatar: {
-    backgroundColor: COLORS.gray[100],
+  headerAvatarPlaceholder: {
+    backgroundColor: COLORS.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerAvatarInitial: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   headerName: {
     fontSize: FONTS.sizes.md,
     fontWeight: '600',
     color: COLORS.text,
   },
+  headerOnlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.secondary,
+  },
+  headerStatus: {
+    fontSize: 11,
+    color: COLORS.secondary,
+    fontWeight: '500',
+  },
+
+  // Messages List
   messagesList: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
+
+  // Date Separator
   dateSeparator: {
     alignItems: 'center',
     marginVertical: SPACING.md,
   },
   dateText: {
-    fontSize: FONTS.sizes.sm,
+    fontSize: 11,
     color: COLORS.textSecondary,
-    backgroundColor: COLORS.gray[100],
+    fontWeight: '500',
+    backgroundColor: COLORS.white,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
+    overflow: 'hidden',
   },
-  messageContainer: {
+
+  // Message Rows
+  messageRow: {
     flexDirection: 'row',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs + 2,
     alignItems: 'flex-end',
   },
-  ownMessageContainer: {
+  ownMessageRow: {
     justifyContent: 'flex-end',
   },
-  otherMessageContainer: {
+  otherMessageRow: {
     justifyContent: 'flex-start',
   },
-  senderAvatar: {
+
+  // Sender Avatar
+  senderAvatarContainer: {
     marginRight: SPACING.xs,
+    marginBottom: 2,
   },
   avatarSmall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   placeholderAvatarSmall: {
-    backgroundColor: COLORS.gray[100],
+    backgroundColor: COLORS.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarInitialSmall: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+  // Message Bubbles
   messageBubble: {
-    maxWidth: '75%',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.lg,
+    maxWidth: '78%',
+    paddingHorizontal: 14,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: 20,
   },
-  ownMessage: {
+  ownBubble: {
     backgroundColor: COLORS.primary,
-    borderBottomRightRadius: SPACING.xs,
+    borderBottomRightRadius: 6,
   },
-  otherMessage: {
+  otherBubble: {
     backgroundColor: COLORS.white,
-    borderBottomLeftRadius: SPACING.xs,
-    ...SHADOWS.sm,
+    borderBottomLeftRadius: 6,
   },
   messageText: {
     fontSize: FONTS.sizes.md,
-    lineHeight: 22,
+    lineHeight: 21,
   },
-  ownMessageText: {
+  ownText: {
     color: COLORS.white,
   },
-  otherMessageText: {
+  otherText: {
     color: COLORS.text,
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 3,
+  },
   messageTime: {
-    fontSize: FONTS.sizes.xs,
+    fontSize: 10,
+  },
+  ownTime: {
+    color: 'rgba(255, 255, 255, 0.55)',
+  },
+  otherTime: {
+    color: COLORS.textLight,
+  },
+
+  // Empty State
+  emptyChat: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  emptyChatIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary + '08',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  emptyChatIconInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyChatTitle: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  emptyChatText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
-  ownMessageTime: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'right',
-  },
-  otherMessageTime: {
-    color: COLORS.textSecondary,
-  },
+
+  // Input
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingTop: SPACING.sm,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.lg : SPACING.md,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: COLORS.gray[100],
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: SPACING.sm,
   },
   inputWrapper: {
     flex: 1,
     backgroundColor: COLORS.gray[50],
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: COLORS.gray[200],
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    maxHeight: 100,
+    maxHeight: 120,
   },
   input: {
     fontSize: FONTS.sizes.md,
     color: COLORS.text,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
+    lineHeight: 20,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.gray[200],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: COLORS.gray[200],
+  sendButtonActive: {
+    backgroundColor: COLORS.primary,
   },
 });
 

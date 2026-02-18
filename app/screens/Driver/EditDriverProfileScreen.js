@@ -8,10 +8,15 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
+import supabase from '../../lib/supabase';
 import {
   COLORS,
   FONTS,
@@ -24,8 +29,10 @@ import {
 } from '../../constants/theme';
 
 const EditDriverProfileScreen = ({ navigation }) => {
-  const { profile, driverProfile, updateProfile, updateDriverProfile } = useAuth();
+  const { profile, driverProfile, updateProfile, updateDriverProfile, isDriver } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [profileImage, setProfileImage] = useState(profile?.profile_image || null);
 
   const [formData, setFormData] = useState({
     firstname: profile?.firstname || '',
@@ -41,6 +48,49 @@ const EditDriverProfileScreen = ({ navigation }) => {
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Please allow photo library access to upload a profile photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (result.canceled) return;
+
+    setUploadingImage(true);
+    try {
+      const file = result.assets[0];
+      const fileExt = file.uri.split('.').pop().toLowerCase();
+      const fileName = `${profile.id}/profile_${Date.now()}.${fileExt}`;
+      const contentType = file.mimeType || `image/${fileExt}`;
+
+      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+      const fileData = decode(base64);
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile_images')
+        .upload(fileName, fileData, { contentType, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('profile_images').getPublicUrl(fileName);
+      const imageUrl = urlData.publicUrl;
+
+      await updateProfile({ profile_image: imageUrl });
+      setProfileImage(imageUrl);
+    } catch (err) {
+      Alert.alert('Upload Failed', 'Could not upload your photo. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const toggleVehicleType = (typeId) => {
@@ -69,29 +119,53 @@ const EditDriverProfileScreen = ({ navigation }) => {
       return;
     }
 
-    // Update driver profile
-    const { error: driverError } = await updateDriverProfile({
-      bio: formData.bio,
-      years_of_experience: parseInt(formData.years_of_experience) || 0,
-      availability: formData.availability,
-      vehicle_types: formData.vehicle_types,
-      has_pdp: formData.has_pdp,
-    });
+    // Only update driver profile if user is a driver
+    if (isDriver) {
+      const { error: driverError } = await updateDriverProfile({
+        bio: formData.bio,
+        years_of_experience: parseInt(formData.years_of_experience) || 0,
+        availability: formData.availability,
+        vehicle_types: formData.vehicle_types,
+        has_pdp: formData.has_pdp,
+      });
+
+      if (driverError) {
+        Alert.alert('Error', driverError.message);
+        setLoading(false);
+        return;
+      }
+    }
 
     setLoading(false);
-
-    if (driverError) {
-      Alert.alert('Error', driverError.message);
-    } else {
-      Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
-    }
+    Alert.alert('Success', 'Profile updated successfully', [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Profile Photo */}
+        <View style={styles.photoSection}>
+          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} disabled={uploadingImage}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profilePhoto} />
+            ) : (
+              <View style={[styles.profilePhoto, styles.photoPlaceholder]}>
+                <Ionicons name="person" size={40} color={COLORS.gray[400]} />
+              </View>
+            )}
+            <View style={styles.cameraIcon}>
+              {uploadingImage ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Ionicons name="camera" size={16} color={COLORS.white} />
+              )}
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.photoHint}>Tap to change photo</Text>
+        </View>
+
         {/* Basic Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
@@ -149,112 +223,117 @@ const EditDriverProfileScreen = ({ navigation }) => {
           </ScrollView>
         </View>
 
-        {/* About */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About You</Text>
-          <Text style={styles.label}>Bio</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.bio}
-            onChangeText={(v) => updateField('bio', v)}
-            placeholder="Tell car owners about yourself, your experience, and what makes you a great driver..."
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Experience */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Experience</Text>
-          <Text style={styles.label}>Years of Experience</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.years_of_experience}
-            onChangeText={(v) => updateField('years_of_experience', v.replace(/[^0-9]/g, ''))}
-            keyboardType="numeric"
-            placeholder="0"
-          />
-        </View>
-
-        {/* Availability */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Availability</Text>
-          <View style={styles.optionsRow}>
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.optionCard,
-                  formData.availability === option.id && styles.optionCardSelected,
-                ]}
-                onPress={() => updateField('availability', option.id)}
-              >
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    formData.availability === option.id && styles.optionLabelSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Vehicle Types */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Vehicle Types You Can Drive</Text>
-          <View style={styles.vehicleGrid}>
-            {VEHICLE_TYPES.map((type) => (
-              <TouchableOpacity
-                key={type.id}
-                style={[
-                  styles.vehicleCard,
-                  formData.vehicle_types.includes(type.id) && styles.vehicleCardSelected,
-                ]}
-                onPress={() => toggleVehicleType(type.id)}
-              >
-                <Ionicons
-                  name={type.icon}
-                  size={24}
-                  color={
-                    formData.vehicle_types.includes(type.id)
-                      ? COLORS.white
-                      : COLORS.primary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.vehicleLabel,
-                    formData.vehicle_types.includes(type.id) && styles.vehicleLabelSelected,
-                  ]}
-                >
-                  {type.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* PDP */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.switchRow}
-            onPress={() => updateField('has_pdp', !formData.has_pdp)}
-          >
-            <View>
-              <Text style={styles.switchLabel}>Professional Driving Permit (PDP)</Text>
-              <Text style={styles.switchDescription}>
-                Do you have a valid PDP?
-              </Text>
+        {/* Driver-specific sections - only shown for drivers */}
+        {isDriver && (
+          <>
+            {/* About */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About You</Text>
+              <Text style={styles.label}>Bio</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.bio}
+                onChangeText={(v) => updateField('bio', v)}
+                placeholder="Tell car owners about yourself, your experience, and what makes you a great driver..."
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
             </View>
-            <View style={[styles.switch, formData.has_pdp && styles.switchActive]}>
-              <View style={[styles.switchThumb, formData.has_pdp && styles.switchThumbActive]} />
+
+            {/* Experience */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Experience</Text>
+              <Text style={styles.label}>Years of Experience</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.years_of_experience}
+                onChangeText={(v) => updateField('years_of_experience', v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                placeholder="0"
+              />
             </View>
-          </TouchableOpacity>
-        </View>
+
+            {/* Availability */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Availability</Text>
+              <View style={styles.optionsRow}>
+                {AVAILABILITY_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.optionCard,
+                      formData.availability === option.id && styles.optionCardSelected,
+                    ]}
+                    onPress={() => updateField('availability', option.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        formData.availability === option.id && styles.optionLabelSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Vehicle Types */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Vehicle Types You Can Drive</Text>
+              <View style={styles.vehicleGrid}>
+                {VEHICLE_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={[
+                      styles.vehicleCard,
+                      formData.vehicle_types.includes(type.id) && styles.vehicleCardSelected,
+                    ]}
+                    onPress={() => toggleVehicleType(type.id)}
+                  >
+                    <Ionicons
+                      name={type.icon}
+                      size={24}
+                      color={
+                        formData.vehicle_types.includes(type.id)
+                          ? COLORS.white
+                          : COLORS.primary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.vehicleLabel,
+                        formData.vehicle_types.includes(type.id) && styles.vehicleLabelSelected,
+                      ]}
+                    >
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* PDP */}
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.switchRow}
+                onPress={() => updateField('has_pdp', !formData.has_pdp)}
+              >
+                <View>
+                  <Text style={styles.switchLabel}>Professional Driving Permit (PDP)</Text>
+                  <Text style={styles.switchDescription}>
+                    Do you have a valid PDP?
+                  </Text>
+                </View>
+                <View style={[styles.switch, formData.has_pdp && styles.switchActive]}>
+                  <View style={[styles.switchThumb, formData.has_pdp && styles.switchThumbActive]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Save Button */}
         <View style={styles.footer}>
@@ -279,6 +358,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  photoSection: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
+  },
+  photoWrapper: {
+    position: 'relative',
+  },
+  profilePhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  photoPlaceholder: {
+    backgroundColor: COLORS.gray[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  photoHint: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
   },
   section: {
     padding: SPACING.lg,

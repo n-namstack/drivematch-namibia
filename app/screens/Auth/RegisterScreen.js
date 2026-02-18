@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/
 
 const RegisterScreen = ({ navigation }) => {
   const { signUp } = useAuth();
+  const [legalModal, setLegalModal] = useState(null);
   const [formData, setFormData] = useState({
     firstname: '',
     lastname: '',
@@ -190,8 +192,8 @@ const RegisterScreen = ({ navigation }) => {
           {/* Terms */}
           <Text style={styles.terms}>
             By creating an account, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            <Text style={styles.termsLink} onPress={() => setLegalModal('terms')}>Terms of Service</Text> and{' '}
+            <Text style={styles.termsLink} onPress={() => setLegalModal('privacy')}>Privacy Policy</Text>
           </Text>
 
           {/* Footer */}
@@ -203,6 +205,32 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Legal Modal */}
+      <Modal
+        visible={legalModal !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setLegalModal(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {legalModal === 'privacy' ? 'Privacy Policy' : 'Terms of Service'}
+            </Text>
+            <TouchableOpacity onPress={() => setLegalModal(null)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ flex: 1, padding: SPACING.lg }} showsVerticalScrollIndicator={false}>
+            <Text style={styles.legalText}>
+              {legalModal === 'privacy'
+                ? 'NamDriver collects information you provide when creating an account, including your name, email address, phone number, and profile photo. For drivers, we also collect professional credentials, work history, and uploaded documents.\n\nWe use your information to provide the NamDriver service, connect car owners with drivers, verify driver credentials, and facilitate communication between users.\n\nYour profile information is visible to other NamDriver users. We do not sell your personal information to third parties.\n\nYour data is stored securely using industry-standard encryption. You have the right to access, correct, and delete your personal data at any time through the app settings.\n\nFor privacy-related inquiries, contact us at support@namdriver.com.'
+                : 'By using NamDriver, you agree to these Terms of Service. NamDriver is a platform that connects car owners with professional drivers in Namibia.\n\nYou must provide accurate information when creating an account. You must be at least 18 years old to use NamDriver.\n\nDrivers may submit documents for verification. Verification does not constitute an endorsement or guarantee. Car owners should conduct their own due diligence.\n\nUsers agree not to provide false information, harass other users, or use the platform for illegal purposes.\n\nReviews must be honest and based on actual experience. NamDriver reserves the right to remove fraudulent reviews.\n\nNamDriver provides a platform for connecting users and is not liable for disputes between car owners and drivers.\n\nFor questions about these terms, contact us at support@namdriver.com.'}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -293,6 +321,27 @@ const styles = StyleSheet.create({
   termsLink: {
     color: COLORS.primary,
     fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
+  },
+  modalTitle: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  legalText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
   },
   footer: {
     flexDirection: 'row',

@@ -137,12 +137,18 @@ export const NAMIBIA_LOCATIONS = [
 ];
 
 export const VEHICLE_TYPES = [
+  { id: 'taxi', label: 'Taxi', icon: 'car-outline' },
+  { id: 'yango', label: 'Yango / Ride-hailing', icon: 'phone-portrait-outline' },
   { id: 'sedan', label: 'Sedan', icon: 'car-outline' },
   { id: 'suv', label: 'SUV', icon: 'car-sport-outline' },
+  { id: 'minibus', label: 'Minibus Taxi', icon: 'bus-outline' },
+  { id: 'bus', label: 'Bus', icon: 'bus-outline' },
   { id: 'truck', label: 'Truck', icon: 'cube-outline' },
-  { id: 'minibus', label: 'Minibus', icon: 'bus-outline' },
-  { id: 'taxi', label: 'Taxi', icon: 'car-outline' },
-  { id: 'luxury', label: 'Luxury', icon: 'diamond-outline' },
+  { id: 'long_haul', label: 'Long-haul Truck', icon: 'swap-horizontal-outline' },
+  { id: 'delivery', label: 'Delivery Van', icon: 'cart-outline' },
+  { id: 'luxury', label: 'Luxury / VIP', icon: 'diamond-outline' },
+  { id: 'tour', label: 'Tour / Safari', icon: 'compass-outline' },
+  { id: 'construction', label: 'Construction', icon: 'construct-outline' },
 ];
 
 export const AVAILABILITY_OPTIONS = [

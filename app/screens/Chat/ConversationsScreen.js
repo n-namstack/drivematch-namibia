@@ -99,7 +99,9 @@ const ConversationsScreen = ({ navigation }) => {
               <Text style={styles.timeAgo}>{timeAgo}</Text>
             </View>
             <Text style={styles.lastMessage} numberOfLines={1}>
-              Tap to view conversation
+              {item.last_message
+                ? (item.last_message.sender_id === user?.id ? 'You: ' : '') + item.last_message.content
+                : 'Tap to start chatting'}
             </Text>
           </View>
 

@@ -10,12 +10,14 @@ const useDriverStore = create((set, get) => ({
   loading: false,
   error: null,
   filters: {
+    searchText: null,
     location: null,
     minExperience: null,
     availability: null,
     vehicleTypes: null,
     minRating: null,
     hasPdp: null,
+    availableNow: null,
   },
   pagination: {
     page: 0,
@@ -35,12 +37,14 @@ const useDriverStore = create((set, get) => ({
   clearFilters: () => {
     set({
       filters: {
+        searchText: null,
         location: null,
         minExperience: null,
         availability: null,
         vehicleTypes: null,
         minRating: null,
         hasPdp: null,
+        availableNow: null,
       },
       drivers: [],
       pagination: { page: 0, limit: 20, hasMore: true },
@@ -57,7 +61,7 @@ const useDriverStore = create((set, get) => ({
     try {
       const offset = resetList ? 0 : pagination.page * pagination.limit;
 
-      const { data, error } = await supabase.rpc('search_drivers', {
+      const rpcParams = {
         p_location: filters.location,
         p_min_experience: filters.minExperience,
         p_availability: filters.availability,
@@ -66,7 +70,15 @@ const useDriverStore = create((set, get) => ({
         p_has_pdp: filters.hasPdp,
         p_limit: pagination.limit,
         p_offset: offset,
-      });
+      };
+      if (filters.searchText) {
+        rpcParams.p_search_text = filters.searchText;
+      }
+      if (filters.availableNow) {
+        rpcParams.p_available_now = filters.availableNow;
+      }
+
+      const { data, error } = await supabase.rpc('search_drivers', rpcParams);
 
       if (error) throw error;
 
@@ -86,10 +98,52 @@ const useDriverStore = create((set, get) => ({
     }
   },
 
-  fetchFeaturedDrivers: async () => {
-    set({ loading: true, error: null });
-
+  fetchNearbyDrivers: async (location) => {
     try {
+      const { data, error } = await supabase.rpc('search_drivers', {
+        p_location: location,
+        p_limit: 10,
+        p_offset: 0,
+      });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      return [];
+    }
+  },
+
+  fetchContactedDrivers: async (ownerId) => {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          last_message_at,
+          driver:driver_id (
+            *,
+            profiles:user_id (
+              firstname,
+              lastname,
+              profile_image,
+              location,
+              phone
+            )
+          )
+        `)
+        .eq('owner_id', ownerId)
+        .eq('is_active', true)
+        .order('last_message_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      return [];
+    }
+  },
+
+  fetchFeaturedDrivers: async () => {
+    try {
+      // First try to get featured drivers
       const { data, error } = await supabase
         .from('driver_profiles')
         .select(`
@@ -106,14 +160,37 @@ const useDriverStore = create((set, get) => ({
         .limit(10);
 
       if (error) throw error;
-      set({ featuredDrivers: data, loading: false });
+
+      // If no featured drivers, fall back to top-rated / recently active drivers
+      if (!data || data.length === 0) {
+        const { data: topDrivers, error: topError } = await supabase
+          .from('driver_profiles')
+          .select(`
+            *,
+            profiles:user_id (
+              firstname,
+              lastname,
+              profile_image,
+              location
+            )
+          `)
+          .order('rating', { ascending: false })
+          .limit(10);
+
+        if (!topError) {
+          set({ featuredDrivers: topDrivers || [] });
+          return;
+        }
+      }
+
+      set({ featuredDrivers: data || [] });
     } catch (err) {
-      set({ error: err.message, loading: false });
+      // Featured drivers fetch failed silently
     }
   },
 
   fetchDriverById: async (driverId) => {
-    set({ loading: true, error: null, selectedDriver: null });
+    set({ selectedDriver: null });
 
     try {
       const { data, error } = await supabase
@@ -148,17 +225,14 @@ const useDriverStore = create((set, get) => ({
         .single();
 
       if (error) throw error;
-      set({ selectedDriver: data, loading: false });
+      set({ selectedDriver: data });
       return data;
     } catch (err) {
-      set({ error: err.message, loading: false });
       return null;
     }
   },
 
   fetchSavedDrivers: async (ownerId) => {
-    set({ loading: true, error: null });
-
     try {
       const { data, error } = await supabase
         .from('saved_drivers')
@@ -177,9 +251,9 @@ const useDriverStore = create((set, get) => ({
         .eq('owner_id', ownerId);
 
       if (error) throw error;
-      set({ savedDrivers: data, loading: false });
+      set({ savedDrivers: data });
     } catch (err) {
-      set({ error: err.message, loading: false });
+      // Saved drivers fetch failed silently
     }
   },
 
@@ -235,10 +309,25 @@ const useDriverStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Refresh driver data to get updated rating
-      if (get().selectedDriver?.id === review.driver_id) {
-        await get().fetchDriverById(review.driver_id);
+      // Update the driver's rating and total_reviews
+      const { data: allReviews } = await supabase
+        .from('driver_reviews')
+        .select('rating')
+        .eq('driver_id', review.driver_id);
+
+      if (allReviews && allReviews.length > 0) {
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        await supabase
+          .from('driver_profiles')
+          .update({
+            rating: parseFloat(avgRating.toFixed(2)),
+            total_reviews: allReviews.length,
+          })
+          .eq('id', review.driver_id);
       }
+
+      // Always refresh driver data so UI shows the new review
+      await get().fetchDriverById(review.driver_id);
 
       return { data, error: null };
     } catch (err) {

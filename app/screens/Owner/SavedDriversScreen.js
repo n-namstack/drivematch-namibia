@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,17 +15,25 @@ import { COLORS, FONTS, SPACING } from '../../constants/theme';
 
 const SavedDriversScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { savedDrivers, loading, fetchSavedDrivers } = useDriverStore();
+  const savedDrivers = useDriverStore((s) => s.savedDrivers);
+  const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user?.id) {
-      fetchSavedDrivers(user.id);
+      loadSaved();
     }
   }, [user?.id]);
 
+  const loadSaved = async () => {
+    setLoading(true);
+    await fetchSavedDrivers(user.id);
+    setLoading(false);
+  };
+
   const handleRefresh = () => {
     if (user?.id) {
-      fetchSavedDrivers(user.id);
+      loadSaved();
     }
   };
 
@@ -60,13 +68,13 @@ const SavedDriversScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Saved Drivers</Text>
-        {savedDrivers.length > 0 && (
-          <Text style={styles.count}>{savedDrivers.length} saved</Text>
+        {savedDrivers.filter((item) => item.driver != null).length > 0 && (
+          <Text style={styles.count}>{savedDrivers.filter((item) => item.driver != null).length} saved</Text>
         )}
       </View>
 
       <FlatList
-        data={savedDrivers}
+        data={savedDrivers.filter((item) => item.driver != null)}
         keyExtractor={(item) => item.id}
         renderItem={renderDriver}
         contentContainerStyle={styles.listContent}

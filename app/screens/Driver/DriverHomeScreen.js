@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,73 +10,87 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, VERIFICATION_STATUS } from '../../constants/theme';
 
 const DriverHomeScreen = ({ navigation }) => {
-  const { profile, driverProfile, refreshProfile } = useAuth();
+  const { profile, driverProfile, refreshProfile, updateDriverProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchUnreadCount();
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    if (!profile?.id) return;
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', profile.id)
+      .eq('is_read', false);
+    setUnreadCount(count || 0);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshProfile();
+    await fetchUnreadCount();
     setRefreshing(false);
   };
 
-  const getVerificationStatusInfo = () => {
-    const status = driverProfile?.verification_status || 'pending';
-    return VERIFICATION_STATUS[status] || VERIFICATION_STATUS.pending;
+  const toggleAvailability = async () => {
+    if (toggling) return;
+    setToggling(true);
+    const newValue = !driverProfile?.is_available_now;
+    await updateDriverProfile({ is_available_now: newValue });
+    setToggling(false);
   };
 
-  const statusInfo = getVerificationStatusInfo();
+  const statusInfo = VERIFICATION_STATUS[driverProfile?.verification_status] || VERIFICATION_STATUS.pending;
+  const isAvailable = driverProfile?.is_available_now;
 
   const stats = [
-    {
-      label: 'Profile Views',
-      value: '0', // Would come from analytics
-      icon: 'eye',
-    },
-    {
-      label: 'Messages',
-      value: '0', // Would come from unread count
-      icon: 'chatbubbles',
-    },
     {
       label: 'Rating',
       value: driverProfile?.rating?.toFixed(1) || '0.0',
       icon: 'star',
+      color: COLORS.accent,
     },
     {
       label: 'Reviews',
       value: driverProfile?.total_reviews?.toString() || '0',
-      icon: 'document-text',
+      icon: 'chatbubbles',
+      color: COLORS.secondary,
     },
   ];
 
   const quickActions = [
     {
       id: 'profile',
-      icon: 'person',
+      icon: 'person-outline',
       label: 'Edit Profile',
       color: COLORS.primary,
       onPress: () => navigation.navigate('EditDriverProfile'),
     },
     {
       id: 'documents',
-      icon: 'document',
+      icon: 'document-text-outline',
       label: 'Documents',
       color: COLORS.secondary,
       onPress: () => navigation.navigate('DocumentUpload'),
     },
     {
       id: 'work',
-      icon: 'briefcase',
+      icon: 'briefcase-outline',
       label: 'Work History',
       color: COLORS.accent,
       onPress: () => navigation.navigate('WorkHistory'),
     },
     {
       id: 'messages',
-      icon: 'chatbubbles',
+      icon: 'chatbubbles-outline',
       label: 'Messages',
       color: COLORS.info,
       onPress: () => navigation.navigate('Messages'),
@@ -105,8 +119,43 @@ const DriverHomeScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Notifications')}
           >
             <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
+            {unreadCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* Availability Toggle */}
+        <TouchableOpacity
+          style={[styles.availabilityCard, isAvailable && styles.availabilityCardActive]}
+          onPress={toggleAvailability}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.availabilityIcon, isAvailable && styles.availabilityIconActive]}>
+            <Ionicons
+              name={isAvailable ? 'radio-button-on' : 'radio-button-off'}
+              size={24}
+              color={isAvailable ? COLORS.white : COLORS.gray[400]}
+            />
+          </View>
+          <View style={styles.availabilityInfo}>
+            <Text style={[styles.availabilityTitle, isAvailable && styles.availabilityTitleActive]}>
+              {isAvailable ? 'Available Now' : 'Not Available'}
+            </Text>
+            <Text style={[styles.availabilityDesc, isAvailable && styles.availabilityDescActive]}>
+              {isAvailable
+                ? 'Car owners can see you as available for work'
+                : 'Toggle on to let owners know you\'re ready'}
+            </Text>
+          </View>
+          <View style={[styles.toggleTrack, isAvailable && styles.toggleTrackActive]}>
+            <View style={[styles.toggleThumb, isAvailable && styles.toggleThumbActive]} />
+          </View>
+        </TouchableOpacity>
 
         {/* Verification Status Card */}
         <View style={[styles.statusCard, { borderLeftColor: statusInfo.color }]}>
@@ -142,11 +191,13 @@ const DriverHomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
+        {/* Stats */}
+        <View style={styles.statsRow}>
           {stats.map((stat, index) => (
             <View key={index} style={styles.statItem}>
-              <Ionicons name={stat.icon} size={24} color={COLORS.primary} />
+              <View style={[styles.statIconBg, { backgroundColor: stat.color + '15' }]}>
+                <Ionicons name={stat.icon} size={20} color={stat.color} />
+              </View>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
             </View>
@@ -163,13 +214,8 @@ const DriverHomeScreen = ({ navigation }) => {
                 style={styles.actionCard}
                 onPress={action.onPress}
               >
-                <View
-                  style={[
-                    styles.actionIcon,
-                    { backgroundColor: action.color + '20' },
-                  ]}
-                >
-                  <Ionicons name={action.icon} size={24} color={action.color} />
+                <View style={[styles.actionIcon, { backgroundColor: action.color + '15' }]}>
+                  <Ionicons name={action.icon} size={22} color={action.color} />
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -177,34 +223,21 @@ const DriverHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Tips Section */}
+        {/* Tips */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Tips</Text>
           <View style={styles.tipsContainer}>
-            <View style={styles.tipItem}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
-              <Text style={styles.tipText}>
-                Add a professional profile photo to increase trust
-              </Text>
-            </View>
-            <View style={styles.tipItem}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
-              <Text style={styles.tipText}>
-                Upload your documents for faster verification
-              </Text>
-            </View>
-            <View style={styles.tipItem}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
-              <Text style={styles.tipText}>
-                Add your work history to showcase experience
-              </Text>
-            </View>
-            <View style={styles.tipItem}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
-              <Text style={styles.tipText}>
-                Respond promptly to messages from car owners
-              </Text>
-            </View>
+            {[
+              'Add a professional profile photo to increase trust',
+              'Upload your documents for faster verification',
+              'Add your work history to showcase experience',
+              'Toggle "Available Now" when you\'re ready for work',
+            ].map((tip, i) => (
+              <View key={i} style={styles.tipItem}>
+                <Ionicons name="checkmark-circle" size={18} color={COLORS.secondary} />
+                <Text style={styles.tipText}>{tip}</Text>
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>
@@ -213,13 +246,8 @@ const DriverHomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollView: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -228,139 +256,74 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.md,
   },
-  greeting: {
-    fontSize: FONTS.sizes['2xl'],
-    fontWeight: 'bold',
-    color: COLORS.text,
+  greeting: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
+  subtitle: { fontSize: FONTS.sizes.md, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  notificationButton: { padding: SPACING.sm, position: 'relative' },
+  notifBadge: {
+    position: 'absolute', top: 2, right: 2,
+    backgroundColor: COLORS.error, borderRadius: 10, minWidth: 18, height: 18,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
   },
-  subtitle: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+  notifBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
+
+  // Availability
+  availabilityCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.white, marginHorizontal: SPACING.lg, marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl, padding: SPACING.md, gap: SPACING.md,
+    borderWidth: 1.5, borderColor: COLORS.gray[200], ...SHADOWS.sm,
   },
-  notificationButton: {
-    padding: SPACING.sm,
+  availabilityCardActive: { backgroundColor: COLORS.secondary + '08', borderColor: COLORS.secondary },
+  availabilityIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.gray[100], justifyContent: 'center', alignItems: 'center',
   },
+  availabilityIconActive: { backgroundColor: COLORS.secondary },
+  availabilityInfo: { flex: 1 },
+  availabilityTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.gray[500] },
+  availabilityTitleActive: { color: COLORS.secondary },
+  availabilityDesc: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
+  availabilityDescActive: { color: COLORS.secondaryDark },
+  toggleTrack: { width: 48, height: 28, borderRadius: 14, backgroundColor: COLORS.gray[300], padding: 2 },
+  toggleTrackActive: { backgroundColor: COLORS.secondary },
+  toggleThumb: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.white },
+  toggleThumbActive: { transform: [{ translateX: 20 }] },
+
+  // Status
   statusCard: {
-    backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    borderLeftWidth: 4,
-    ...SHADOWS.sm,
+    backgroundColor: COLORS.white, marginHorizontal: SPACING.lg, marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, borderLeftWidth: 4, ...SHADOWS.sm,
   },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  statusInfo: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
-  },
-  statusValue: {
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
-  },
+  statusHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  statusInfo: { flex: 1 },
+  statusLabel: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary },
+  statusValue: { fontSize: FONTS.sizes.md, fontWeight: 'bold' },
   verifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gray[100],
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.gray[100],
   },
-  verifyButtonText: {
-    color: COLORS.primary,
-    fontSize: FONTS.sizes.md,
-    fontWeight: '500',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
-    gap: SPACING.md,
-  },
-  statItem: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    alignItems: 'center',
-    ...SHADOWS.sm,
-  },
-  statValue: {
-    fontSize: FONTS.sizes['2xl'],
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: SPACING.sm,
-  },
-  statLabel: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  section: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  sectionTitle: {
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
+  verifyButtonText: { color: COLORS.primary, fontSize: FONTS.sizes.sm, fontWeight: '500' },
+
+  // Stats
+  statsRow: { flexDirection: 'row', paddingHorizontal: SPACING.lg, gap: SPACING.md, marginBottom: SPACING.md },
+  statItem: { flex: 1, backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, alignItems: 'center', ...SHADOWS.sm },
+  statIconBg: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.sm },
+  statValue: { fontSize: FONTS.sizes.xl, fontWeight: 'bold', color: COLORS.text },
+  statLabel: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: SPACING.xs },
+
+  // Sections
+  section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
+  sectionTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   actionCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    gap: SPACING.sm,
-    ...SHADOWS.sm,
+    flex: 1, minWidth: '45%', backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md, alignItems: 'center', gap: SPACING.sm, ...SHADOWS.sm,
   },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionLabel: {
-    fontSize: FONTS.sizes.sm,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  tipsContainer: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    gap: SPACING.md,
-    ...SHADOWS.sm,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-  },
+  actionIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  actionLabel: { fontSize: FONTS.sizes.xs, fontWeight: '500', color: COLORS.text },
+  tipsContainer: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.sm },
+  tipItem: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  tipText: { flex: 1, fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, lineHeight: 20 },
 });
 
 export default DriverHomeScreen;

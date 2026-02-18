@@ -17,13 +17,15 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
+      "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "NamDriver needs access to your photo library to upload profile photos and documents.",
-        "NSCameraUsageDescription": "NamDriver needs camera access to take photos of documents for verification."
+        "NSCameraUsageDescription": "NamDriver needs camera access to take photos of documents for verification.",
+        "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
@@ -33,6 +35,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.namstack.namdriver",
+      "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -58,6 +61,13 @@
       "eas": {
         "projectId": ""
       }
-    }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "primaryColor": "#1E40AF"
   }
 }

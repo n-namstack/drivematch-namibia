@@ -185,6 +185,8 @@ export const AuthProvider = ({ children }) => {
   const updateDriverProfile = async (updates) => {
     try {
       setError(null);
+
+      // Try update first
       const { data, error } = await supabase
         .from('driver_profiles')
         .update(updates)
@@ -192,7 +194,22 @@ export const AuthProvider = ({ children }) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If no row exists yet, create one
+        if (error.code === 'PGRST116') {
+          const { data: newData, error: insertError } = await supabase
+            .from('driver_profiles')
+            .insert({ user_id: user.id, ...updates })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          setDriverProfile(newData);
+          return { data: newData, error: null };
+        }
+        throw error;
+      }
+
       setDriverProfile(data);
       return { data, error: null };
     } catch (err) {

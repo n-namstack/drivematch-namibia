@@ -32,6 +32,11 @@ const useChatStore = create((set, get) => ({
               lastname,
               profile_image
             )
+          ),
+          last_msg:messages (
+            content,
+            sender_id,
+            created_at
           )
         `)
         .order('last_message_at', { ascending: false });
@@ -54,7 +59,18 @@ const useChatStore = create((set, get) => ({
       const { data, error } = await query;
 
       if (error) throw error;
-      set({ conversations: data, loading: false });
+
+      // Extract the last message from the messages array for each conversation
+      const processed = (data || []).map((conv) => {
+        const msgs = conv.last_msg || [];
+        const sorted = msgs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return {
+          ...conv,
+          last_message: sorted[0] || null,
+        };
+      });
+
+      set({ conversations: processed, loading: false });
     } catch (err) {
       set({ error: err.message, loading: false });
     }
@@ -214,9 +230,12 @@ const useChatStore = create((set, get) => ({
             .single();
 
           if (data) {
-            set((state) => ({
-              messages: [...state.messages, data],
-            }));
+            set((state) => {
+              // Prevent duplicates — sendMessage already adds own messages
+              const exists = state.messages.some((m) => m.id === data.id);
+              if (exists) return state;
+              return { messages: [...state.messages, data] };
+            });
             callback?.(data);
           }
         }

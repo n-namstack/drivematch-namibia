@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,30 +27,38 @@ import {
 } from '../../constants/theme';
 
 const SearchDriversScreen = ({ navigation }) => {
-  const {
-    drivers,
-    loading,
-    filters,
-    pagination,
-    setFilters,
-    clearFilters,
-    searchDrivers,
-  } = useDriverStore();
+  const drivers = useDriverStore((s) => s.drivers);
+  const loading = useDriverStore((s) => s.loading);
+  const filters = useDriverStore((s) => s.filters);
+  const pagination = useDriverStore((s) => s.pagination);
+  const setFilters = useDriverStore((s) => s.setFilters);
+  const clearFilters = useDriverStore((s) => s.clearFilters);
+  const searchDrivers = useDriverStore((s) => s.searchDrivers);
 
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters);
 
+  const handleSearch = async (reset) => {
+    try {
+      await searchDrivers(reset);
+    } catch (err) {
+      Alert.alert('Search Error', 'Could not load drivers. Please try again.');
+    }
+  };
+
   useEffect(() => {
-    searchDrivers(true);
+    handleSearch(true);
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchText) {
-        setFilters({ location: searchText });
-        searchDrivers(true);
+        setFilters({ searchText: searchText });
+      } else {
+        setFilters({ searchText: null });
       }
+      handleSearch(true);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -57,24 +66,26 @@ const SearchDriversScreen = ({ navigation }) => {
 
   const handleLoadMore = () => {
     if (!loading && pagination.hasMore) {
-      searchDrivers(false);
+      handleSearch(false);
     }
   };
 
   const applyFilters = () => {
     setFilters(tempFilters);
     setShowFilters(false);
-    searchDrivers(true);
+    handleSearch(true);
   };
 
   const resetFilters = () => {
     setTempFilters({
+      searchText: null,
       location: null,
       minExperience: null,
       availability: null,
       vehicleTypes: null,
       minRating: null,
       hasPdp: null,
+      availableNow: null,
     });
   };
 
@@ -126,7 +137,7 @@ const SearchDriversScreen = ({ navigation }) => {
           onPress={() => {
             clearFilters();
             setSearchText('');
-            searchDrivers(true);
+            handleSearch(true);
           }}
         >
           <Text style={styles.clearButtonText}>Clear All Filters</Text>
@@ -143,7 +154,7 @@ const SearchDriversScreen = ({ navigation }) => {
           <Ionicons name="search" size={20} color={COLORS.gray[400]} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by location..."
+            placeholder="Search by name or location..."
             placeholderTextColor={COLORS.gray[400]}
             value={searchText}
             onChangeText={setSearchText}
@@ -155,19 +166,19 @@ const SearchDriversScreen = ({ navigation }) => {
           ) : null}
         </View>
         <TouchableOpacity
-          style={[styles.filterButton, Object.values(filters).some(v => v) && styles.filterButtonActive]}
+          style={[styles.filterButton, Object.entries(filters).some(([k, v]) => k !== 'searchText' && v) && styles.filterButtonActive]}
           onPress={() => setShowFilters(true)}
         >
           <Ionicons
             name="options"
             size={20}
-            color={Object.values(filters).some(v => v) ? COLORS.white : COLORS.primary}
+            color={Object.entries(filters).some(([k, v]) => k !== 'searchText' && v) ? COLORS.white : COLORS.primary}
           />
         </TouchableOpacity>
       </View>
 
       {/* Active Filters */}
-      {Object.values(filters).some(v => v) && (
+      {Object.entries(filters).some(([k, v]) => k !== 'searchText' && v) && (
         <View style={styles.activeFilters}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {filters.location && (
@@ -175,7 +186,7 @@ const SearchDriversScreen = ({ navigation }) => {
                 <Text style={styles.filterChipText}>{filters.location}</Text>
                 <TouchableOpacity onPress={() => {
                   setFilters({ location: null });
-                  searchDrivers(true);
+                  handleSearch(true);
                 }}>
                   <Ionicons name="close" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -188,7 +199,18 @@ const SearchDriversScreen = ({ navigation }) => {
                 </Text>
                 <TouchableOpacity onPress={() => {
                   setFilters({ availability: null });
-                  searchDrivers(true);
+                  handleSearch(true);
+                }}>
+                  <Ionicons name="close" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.availableNow && (
+              <View style={styles.filterChip}>
+                <Text style={styles.filterChipText}>Available Now</Text>
+                <TouchableOpacity onPress={() => {
+                  setFilters({ availableNow: null });
+                  handleSearch(true);
                 }}>
                   <Ionicons name="close" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -199,7 +221,7 @@ const SearchDriversScreen = ({ navigation }) => {
                 <Text style={styles.filterChipText}>Has PDP</Text>
                 <TouchableOpacity onPress={() => {
                   setFilters({ hasPdp: null });
-                  searchDrivers(true);
+                  handleSearch(true);
                 }}>
                   <Ionicons name="close" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -374,6 +396,39 @@ const SearchDriversScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            {/* Available Now */}
+            <View style={styles.filterSection}>
+              <TouchableOpacity
+                style={styles.switchRow}
+                onPress={() =>
+                  setTempFilters({
+                    ...tempFilters,
+                    availableNow: !tempFilters.availableNow,
+                  })
+                }
+              >
+                <View>
+                  <Text style={styles.filterLabel}>Available Now</Text>
+                  <Text style={styles.filterDescription}>
+                    Only show drivers ready to work today
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.switch,
+                    tempFilters.availableNow && styles.switchActive,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.switchThumb,
+                      tempFilters.availableNow && styles.switchThumbActive,
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* PDP */}
