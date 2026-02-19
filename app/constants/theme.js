@@ -136,6 +136,19 @@ export const NAMIBIA_LOCATIONS = [
   'Henties Bay',
 ];
 
+export const LANGUAGES = [
+  'English',
+  'Afrikaans',
+  'Oshiwambo',
+  'Otjiherero',
+  'Nama/Damara',
+  'Rukwangali',
+  'Silozi',
+  'German',
+  'Portuguese',
+  'Setswana',
+];
+
 export const VEHICLE_TYPES = [
   { id: 'taxi', label: 'Taxi', icon: 'car-outline' },
   { id: 'yango', label: 'Yango / Ride-hailing', icon: 'phone-portrait-outline' },

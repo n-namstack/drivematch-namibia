@@ -39,6 +39,12 @@ import ChatScreen from '../screens/Chat/ChatScreen';
 import ProfileSettingsScreen from '../screens/Common/ProfileSettingsScreen';
 import NotificationsScreen from '../screens/Common/NotificationsScreen';
 
+// Job Board Screens
+import JobBoardScreen from '../screens/Jobs/JobBoardScreen';
+import MyJobPostsScreen from '../screens/Jobs/MyJobPostsScreen';
+import CreateJobPostScreen from '../screens/Jobs/CreateJobPostScreen';
+import JobPostDetailsScreen from '../screens/Jobs/JobPostDetailsScreen';
+
 // Admin Screens
 import AdminDashboardScreen from '../screens/Admin/AdminDashboardScreen';
 import VerifyDocumentsScreen from '../screens/Admin/VerifyDocumentsScreen';
@@ -69,6 +75,8 @@ const DriverTabs = () => (
         let iconName;
         if (route.name === 'Home') {
           iconName = focused ? 'home' : 'home-outline';
+        } else if (route.name === 'Jobs') {
+          iconName = focused ? 'briefcase' : 'briefcase-outline';
         } else if (route.name === 'Profile') {
           iconName = focused ? 'person' : 'person-outline';
         } else if (route.name === 'Messages') {
@@ -84,6 +92,7 @@ const DriverTabs = () => (
     })}
   >
     <Tab.Screen name="Home" component={DriverHomeScreen} />
+    <Tab.Screen name="Jobs" component={JobBoardScreen} />
     <Tab.Screen name="Profile" component={DriverProfileScreen} />
     <Tab.Screen name="Messages" component={ConversationsScreen} />
     <Tab.Screen name="Settings" component={ProfileSettingsScreen} />
@@ -100,8 +109,8 @@ const OwnerTabs = () => (
           iconName = focused ? 'home' : 'home-outline';
         } else if (route.name === 'Search') {
           iconName = focused ? 'search' : 'search-outline';
-        } else if (route.name === 'Saved') {
-          iconName = focused ? 'heart' : 'heart-outline';
+        } else if (route.name === 'My Jobs') {
+          iconName = focused ? 'megaphone' : 'megaphone-outline';
         } else if (route.name === 'Messages') {
           iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
         } else if (route.name === 'Settings') {
@@ -116,7 +125,7 @@ const OwnerTabs = () => (
   >
     <Tab.Screen name="Home" component={OwnerHomeScreen} />
     <Tab.Screen name="Search" component={SearchDriversScreen} />
-    <Tab.Screen name="Saved" component={SavedDriversScreen} />
+    <Tab.Screen name="My Jobs" component={MyJobPostsScreen} />
     <Tab.Screen name="Messages" component={ConversationsScreen} />
     <Tab.Screen name="Settings" component={ProfileSettingsScreen} />
   </Tab.Navigator>
@@ -227,6 +236,21 @@ const AppNavigator = () => {
               name="Notifications"
               component={NotificationsScreen}
               options={{ headerShown: true, title: 'Notifications' }}
+            />
+            <Stack.Screen
+              name="CreateJobPost"
+              component={CreateJobPostScreen}
+              options={{ headerShown: true, title: 'Post a Job' }}
+            />
+            <Stack.Screen
+              name="JobPostDetails"
+              component={JobPostDetailsScreen}
+              options={{ headerShown: true, title: 'Job Details' }}
+            />
+            <Stack.Screen
+              name="SavedDrivers"
+              component={SavedDriversScreen}
+              options={{ headerShown: true, title: 'Saved Drivers' }}
             />
           </>
         )}

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,7 +21,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 const ConversationsScreen = ({ navigation }) => {
   const { user, profile, driverProfile } = useAuth();
-  const { conversations, loading, fetchConversations, setCurrentConversation } = useChatStore();
+  const { conversations, loading, fetchConversations, setCurrentConversation, deleteConversation } = useChatStore();
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -65,6 +66,27 @@ const ConversationsScreen = ({ navigation }) => {
     navigation.navigate('Chat', { conversationId: conversation.id });
   };
 
+  const handleDeleteConversation = (conversation) => {
+    const participant = getOtherParticipant(conversation);
+    Alert.alert(
+      'Delete Conversation',
+      `Delete your conversation with ${participant.name}? All messages will be permanently removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await deleteConversation(conversation.id);
+            if (error) {
+              Alert.alert('Error', 'Could not delete conversation. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getOtherParticipant = (conversation) => {
     if (profile?.role === 'owner') {
       // Show driver info
@@ -102,6 +124,7 @@ const ConversationsScreen = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.conversationItem, unreadCount > 0 && styles.unreadItem]}
           onPress={() => handleConversationPress(item)}
+          onLongPress={() => handleDeleteConversation(item)}
         >
           <View style={styles.avatarContainer}>
             {participant.image ? (

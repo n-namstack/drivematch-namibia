@@ -12,20 +12,25 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import useJobStore from '../../store/useJobStore';
 import supabase from '../../lib/supabase';
+import JobCard from '../../components/JobCard';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, VERIFICATION_STATUS } from '../../constants/theme';
 
 const DriverHomeScreen = ({ navigation }) => {
   const { profile, driverProfile, refreshProfile, updateDriverProfile } = useAuth();
+  const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Re-fetch unread count every time the screen gains focus
+  // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
-    }, [profile?.id])
+      fetchJobs(true);
+      if (driverProfile?.id) fetchMyInterests(driverProfile.id);
+    }, [profile?.id, driverProfile?.id])
   );
 
   // Realtime: update notification badge instantly when new notifications arrive
@@ -75,8 +80,12 @@ const DriverHomeScreen = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshProfile();
-    await fetchUnreadCount();
+    await Promise.all([
+      refreshProfile(),
+      fetchUnreadCount(),
+      fetchJobs(true),
+      driverProfile?.id ? fetchMyInterests(driverProfile.id) : Promise.resolve(),
+    ]);
     setRefreshing(false);
   };
 
@@ -277,6 +286,32 @@ const DriverHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Recent Job Opportunities */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Job Opportunities</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Jobs')}>
+              <Text style={styles.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          {jobs.length === 0 ? (
+            <View style={styles.emptyJobs}>
+              <Ionicons name="briefcase-outline" size={32} color={COLORS.gray[300]} />
+              <Text style={styles.emptyJobsText}>No job posts yet</Text>
+            </View>
+          ) : (
+            jobs.slice(0, 3).map((job) => (
+              <JobCard
+                key={job.id}
+                job={job}
+                hasInterest={myInterests.includes(job.id)}
+                compact
+                onPress={() => navigation.navigate('JobPostDetails', { jobId: job.id })}
+              />
+            ))
+          )}
+        </View>
+
         {/* Tips */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Tips</Text>
@@ -375,6 +410,10 @@ const styles = StyleSheet.create({
   },
   actionIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   actionLabel: { fontSize: FONTS.sizes.xs, fontWeight: '500', color: COLORS.text },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '500' },
+  emptyJobs: { alignItems: 'center', paddingVertical: SPACING.lg, backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm },
+  emptyJobsText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
   tipsContainer: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.sm },
   tipItem: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   tipText: { flex: 1, fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, lineHeight: 20 },

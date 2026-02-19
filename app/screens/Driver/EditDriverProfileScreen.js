@@ -26,6 +26,7 @@ import {
   SHADOWS,
   VEHICLE_TYPES,
   AVAILABILITY_OPTIONS,
+  LANGUAGES,
 } from '../../constants/theme';
 
 const EditDriverProfileScreen = ({ navigation }) => {
@@ -48,6 +49,7 @@ const EditDriverProfileScreen = ({ navigation }) => {
     years_of_experience: driverProfile?.years_of_experience?.toString() || '0',
     availability: driverProfile?.availability || 'full_time',
     vehicle_types: driverProfile?.vehicle_types || [],
+    languages: driverProfile?.languages || [],
     has_pdp: driverProfile?.has_pdp || false,
   });
 
@@ -108,6 +110,15 @@ const EditDriverProfileScreen = ({ navigation }) => {
     }
   };
 
+  const toggleLanguage = (lang) => {
+    const current = formData.languages || [];
+    if (current.includes(lang)) {
+      updateField('languages', current.filter((l) => l !== lang));
+    } else {
+      updateField('languages', [...current, lang]);
+    }
+  };
+
   const toggleVehicleType = (typeId) => {
     const current = formData.vehicle_types || [];
     if (current.includes(typeId)) {
@@ -141,6 +152,7 @@ const EditDriverProfileScreen = ({ navigation }) => {
         years_of_experience: parseInt(formData.years_of_experience) || 0,
         availability: formData.availability,
         vehicle_types: formData.vehicle_types,
+        languages: formData.languages,
         has_pdp: formData.has_pdp,
       });
 
@@ -289,6 +301,32 @@ const EditDriverProfileScreen = ({ navigation }) => {
                       ]}
                     >
                       {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Languages */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Languages You Speak</Text>
+              <View style={styles.vehicleGrid}>
+                {LANGUAGES.map((lang) => (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[
+                      styles.languageChip,
+                      formData.languages.includes(lang) && styles.languageChipSelected,
+                    ]}
+                    onPress={() => toggleLanguage(lang)}
+                  >
+                    <Text
+                      style={[
+                        styles.languageChipText,
+                        formData.languages.includes(lang) && styles.languageChipTextSelected,
+                      ]}
+                    >
+                      {lang}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -488,6 +526,23 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   optionLabelSelected: {
+    color: COLORS.white,
+  },
+  languageChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.white,
+    ...SHADOWS.sm,
+  },
+  languageChipSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  languageChipText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text,
+  },
+  languageChipTextSelected: {
     color: COLORS.white,
   },
   vehicleGrid: {

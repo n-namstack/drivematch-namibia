@@ -325,6 +325,29 @@ const useChatStore = create((set, get) => ({
     set({ currentConversation: conversation, messages: [], loading: true });
   },
 
+  deleteConversation: async (conversationId) => {
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+
+      set((state) => ({
+        conversations: state.conversations.filter((c) => c.id !== conversationId),
+        currentConversation:
+          state.currentConversation?.id === conversationId
+            ? null
+            : state.currentConversation,
+      }));
+
+      return { error: null };
+    } catch (err) {
+      return { error: err };
+    }
+  },
+
   clearChat: () => {
     const { realtimeSubscription } = get();
     if (realtimeSubscription) {

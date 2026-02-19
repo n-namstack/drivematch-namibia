@@ -87,6 +87,37 @@ const OwnerHomeScreen = ({ navigation }) => {
           <Text style={styles.searchPlaceholder}>Search by name or location...</Text>
         </TouchableOpacity>
 
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => navigation.navigate('CreateJobPost')}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.primary + '15' }]}>
+              <Ionicons name="megaphone-outline" size={22} color={COLORS.primary} />
+            </View>
+            <Text style={styles.quickActionLabel}>Post a Job</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => navigation.navigate('SavedDrivers')}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.error + '15' }]}>
+              <Ionicons name="heart-outline" size={22} color={COLORS.error} />
+            </View>
+            <Text style={styles.quickActionLabel}>Saved Drivers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => navigation.navigate('My Jobs')}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.secondary + '15' }]}>
+              <Ionicons name="briefcase-outline" size={22} color={COLORS.secondary} />
+            </View>
+            <Text style={styles.quickActionLabel}>My Job Posts</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* How It Works */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How NamDriver Works</Text>
@@ -155,6 +186,34 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg, gap: SPACING.sm, ...SHADOWS.sm,
   },
   searchPlaceholder: { color: COLORS.gray[400], fontSize: FONTS.sizes.md },
+  quickActions: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    alignItems: 'center',
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickActionLabel: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '500',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
   section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, marginTop: SPACING.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
   sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text, marginBottom: SPACING.sm },
