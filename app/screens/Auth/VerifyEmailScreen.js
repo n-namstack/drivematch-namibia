@@ -18,7 +18,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/
 const VerifyEmailScreen = ({ route, navigation }) => {
   const email = route?.params?.email || '';
 
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState(['', '', '', '', '', '', '', '']);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [countdown, setCountdown] = useState(60); // Email was just sent on signup
@@ -64,14 +64,14 @@ const VerifyEmailScreen = ({ route, navigation }) => {
     newCode[index] = digit;
     setCode(newCode);
 
-    if (digit && index < 5) {
+    if (digit && index < 7) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-verify when all 6 digits entered
-    if (digit && index === 5) {
+    // Auto-verify when all 8 digits entered
+    if (digit && index === 7) {
       const fullCode = newCode.join('');
-      if (fullCode.length === 6) {
+      if (fullCode.length === 8) {
         verifyOTP(fullCode);
       }
     }
@@ -97,7 +97,7 @@ const VerifyEmailScreen = ({ route, navigation }) => {
       // onAuthStateChange in AuthContext picks it up and navigates to the main app.
     } catch (err) {
       Alert.alert('Verification Failed', err.message || 'Invalid code. Please try again.');
-      setCode(['', '', '', '', '', '']);
+      setCode(['', '', '', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
       setVerifying(false);
@@ -106,8 +106,8 @@ const VerifyEmailScreen = ({ route, navigation }) => {
 
   const handleVerify = () => {
     const fullCode = code.join('');
-    if (fullCode.length !== 6) {
-      Alert.alert('Error', 'Please enter the full 6-digit code');
+    if (fullCode.length !== 8) {
+      Alert.alert('Error', 'Please enter the full 8-digit code');
       return;
     }
     verifyOTP(fullCode);
@@ -137,7 +137,7 @@ const VerifyEmailScreen = ({ route, navigation }) => {
 
           <Text style={styles.title}>Verify Your Email</Text>
           <Text style={styles.subtitle}>
-            We sent a 6-digit code to{'\n'}
+            We sent a verification code to{'\n'}
             <Text style={styles.emailText}>{maskEmail(email)}</Text>
           </Text>
 
@@ -160,9 +160,9 @@ const VerifyEmailScreen = ({ route, navigation }) => {
 
           {/* Verify Button */}
           <TouchableOpacity
-            style={[styles.verifyButton, code.join('').length !== 6 && styles.verifyButtonDisabled]}
+            style={[styles.verifyButton, code.join('').length !== 8 && styles.verifyButtonDisabled]}
             onPress={handleVerify}
-            disabled={code.join('').length !== 6 || verifying}
+            disabled={code.join('').length !== 8 || verifying}
           >
             {verifying ? (
               <ActivityIndicator color={COLORS.white} />
@@ -251,13 +251,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   codeInput: {
-    width: 48,
-    height: 56,
-    borderRadius: BORDER_RADIUS.lg,
+    width: 40,
+    height: 50,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.white,
     borderWidth: 2,
     borderColor: COLORS.gray[200],
-    fontSize: FONTS.sizes.xl,
+    fontSize: FONTS.sizes.lg,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'center',
