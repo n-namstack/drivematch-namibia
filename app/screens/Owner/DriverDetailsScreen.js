@@ -357,7 +357,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         {/* Vehicle Types */}
         {driver.vehicle_types?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vehicle Types</Text>
+            <Text style={styles.sectionTitle}>Prefered Transportation Type</Text>
             <View style={styles.chipsRow}>
               {driver.vehicle_types.map((type, index) => (
                 <View key={index} style={styles.chip}>
