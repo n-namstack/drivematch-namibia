@@ -20,7 +20,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/
 const SUPPORT_EMAIL = 'support@namdriver.com';
 
 const ProfileSettingsScreen = ({ navigation }) => {
-  const { profile, user, signOut, isDriver } = useAuth();
+  const { profile, signOut } = useAuth();
   const [deleting, setDeleting] = useState(false);
   const [legalModal, setLegalModal] = useState(null);
 
@@ -52,25 +52,9 @@ const ProfileSettingsScreen = ({ navigation }) => {
                   onPress: async () => {
                     setDeleting(true);
                     try {
-                      if (isDriver) {
-                        const { data: dp } = await supabase
-                          .from('driver_profiles')
-                          .select('id')
-                          .eq('user_id', user.id)
-                          .single();
-
-                        if (dp) {
-                          await supabase.from('driver_documents').delete().eq('driver_id', dp.id);
-                          await supabase.from('work_history').delete().eq('driver_id', dp.id);
-                          await supabase.from('driver_reviews').delete().eq('driver_id', dp.id);
-                          await supabase.from('driver_profiles').delete().eq('id', dp.id);
-                        }
-                      }
-
-                      await supabase.from('notifications').delete().eq('user_id', user.id);
-                      await supabase.from('saved_drivers').delete().eq('owner_id', user.id);
-                      await supabase.from('messages').delete().eq('sender_id', user.id);
-                      await supabase.from('profiles').delete().eq('id', user.id);
+                      // Server-side function deletes all data AND the auth.users row
+                      const { error: rpcError } = await supabase.rpc('delete_user_account');
+                      if (rpcError) throw rpcError;
 
                       await signOut();
                     } catch (err) {

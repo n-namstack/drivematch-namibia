@@ -98,20 +98,6 @@ const useDriverStore = create((set, get) => ({
     }
   },
 
-  fetchNearbyDrivers: async (location) => {
-    try {
-      const { data, error } = await supabase.rpc('search_drivers', {
-        p_location: location,
-        p_limit: 10,
-        p_offset: 0,
-      });
-      if (error) throw error;
-      return data || [];
-    } catch (err) {
-      return [];
-    }
-  },
-
   fetchContactedDrivers: async (ownerId) => {
     try {
       const { data, error } = await supabase
@@ -131,7 +117,6 @@ const useDriverStore = create((set, get) => ({
           )
         `)
         .eq('owner_id', ownerId)
-        .eq('is_active', true)
         .order('last_message_at', { ascending: false });
 
       if (error) throw error;
@@ -193,6 +178,9 @@ const useDriverStore = create((set, get) => ({
     set({ selectedDriver: null });
 
     try {
+      // Increment profile view count (don't block or break if it fails)
+      try { await supabase.rpc('increment_profile_view', { p_driver_id: driverId }); } catch (e) {}
+
       const { data, error } = await supabase
         .from('driver_profiles')
         .select(`
@@ -309,30 +297,37 @@ const useDriverStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Update the driver's rating and total_reviews
-      const { data: allReviews } = await supabase
-        .from('driver_reviews')
-        .select('rating')
-        .eq('driver_id', review.driver_id);
-
-      if (allReviews && allReviews.length > 0) {
-        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
-        await supabase
-          .from('driver_profiles')
-          .update({
-            rating: parseFloat(avgRating.toFixed(2)),
-            total_reviews: allReviews.length,
-          })
-          .eq('id', review.driver_id);
-      }
-
-      // Always refresh driver data so UI shows the new review
+      // Refresh driver data so UI shows the new review
+      // (the database trigger auto-updates rating and total_reviews)
       await get().fetchDriverById(review.driver_id);
 
       return { data, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
+  },
+
+  // Reset store on logout to prevent data leakage between accounts
+  resetStore: () => {
+    set({
+      drivers: [],
+      featuredDrivers: [],
+      selectedDriver: null,
+      savedDrivers: [],
+      loading: false,
+      error: null,
+      filters: {
+        searchText: null,
+        location: null,
+        minExperience: null,
+        availability: null,
+        vehicleTypes: null,
+        minRating: null,
+        hasPdp: null,
+        availableNow: null,
+      },
+      pagination: { page: 0, limit: 20, hasMore: true },
+    });
   },
 }));
 

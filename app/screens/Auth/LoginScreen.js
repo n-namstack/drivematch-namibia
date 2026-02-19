@@ -18,7 +18,7 @@ import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const LoginScreen = ({ navigation }) => {
-  const { signIn, error } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +35,12 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Login Failed', error.message);
+      if (error.message?.toLowerCase().includes('email not confirmed')) {
+        // User exists but hasn't verified email — send them to verify
+        navigation.navigate('VerifyEmail', { email });
+      } else {
+        Alert.alert('Login Failed', error.message);
+      }
     }
   };
 
@@ -54,9 +59,7 @@ const LoginScreen = ({ navigation }) => {
           text: 'Send Reset Link',
           onPress: async () => {
             setLoading(true);
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-              redirectTo: 'namdriver://reset-password',
-            });
+            const { error } = await supabase.auth.resetPasswordForEmail(email);
             setLoading(false);
 
             if (error) {

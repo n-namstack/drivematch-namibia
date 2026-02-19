@@ -14,11 +14,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const RegisterScreen = ({ navigation }) => {
-  const { signUp } = useAuth();
   const [legalModal, setLegalModal] = useState(null);
   const [formData, setFormData] = useState({
     firstname: '',
@@ -28,6 +26,7 @@ const RegisterScreen = ({ navigation }) => {
     password: '',
     confirmPassword: '',
   });
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -56,6 +55,11 @@ const RegisterScreen = ({ navigation }) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
+      return false;
+    }
+
+    if (!ageConfirmed) {
+      Alert.alert('Error', 'You must confirm that you are at least 18 years old');
       return false;
     }
 
@@ -172,6 +176,18 @@ const RegisterScreen = ({ navigation }) => {
                 secureTextEntry={!showPassword}
               />
             </View>
+
+            {/* Age Confirmation */}
+            <TouchableOpacity
+              style={styles.ageRow}
+              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
+                {ageConfirmed && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
+              </View>
+              <Text style={styles.ageText}>I confirm that I am at least 18 years old</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.registerButton, loading && styles.registerButtonDisabled]}
@@ -305,6 +321,30 @@ const styles = StyleSheet.create({
   },
   registerButtonDisabled: {
     opacity: 0.7,
+  },
+  ageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.gray[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  ageText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text,
+    flex: 1,
   },
   registerButtonText: {
     color: COLORS.white,

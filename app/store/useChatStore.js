@@ -11,11 +11,82 @@ const useChatStore = create((set, get) => ({
   realtimeSubscription: null,
 
   // Actions
-  fetchConversations: async (userId, userRole) => {
-    set({ loading: true, error: null });
+  fetchConversations: async (userId, userRole, driverProfileId = null) => {
+    const { conversations: cached } = get();
+    // Only show full loading on first load (no cached data)
+    if (cached.length === 0) {
+      set({ loading: true, error: null });
+    }
 
     try {
       let query = supabase
+        .from('conversations')
+        .select(`
+          id,
+          owner_id,
+          driver_id,
+          last_message_at,
+          owner_unread_count,
+          driver_unread_count,
+          owner:owner_id (
+            firstname,
+            lastname,
+            profile_image
+          ),
+          driver:driver_id (
+            id,
+            user_id,
+            profiles:user_id (
+              firstname,
+              lastname,
+              profile_image
+            )
+          ),
+          messages (
+            content,
+            sender_id,
+            created_at
+          )
+        `)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { referencedTable: 'messages', ascending: false })
+        .limit(1, { referencedTable: 'messages' });
+
+      if (userRole === 'owner') {
+        query = query.eq('owner_id', userId);
+      } else if (driverProfileId) {
+        query = query.eq('driver_id', driverProfileId);
+      } else {
+        // Fallback: fetch driver profile id
+        const { data: dp } = await supabase
+          .from('driver_profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+
+        if (dp) {
+          query = query.eq('driver_id', dp.id);
+        }
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const processed = (data || []).map((conv) => ({
+        ...conv,
+        last_message: conv.messages?.[0] || null,
+      }));
+
+      set({ conversations: processed, loading: false });
+    } catch (err) {
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  fetchConversationById: async (conversationId) => {
+    try {
+      const { data, error } = await supabase
         .from('conversations')
         .select(`
           *,
@@ -32,47 +103,16 @@ const useChatStore = create((set, get) => ({
               lastname,
               profile_image
             )
-          ),
-          last_msg:messages (
-            content,
-            sender_id,
-            created_at
           )
         `)
-        .order('last_message_at', { ascending: false });
-
-      if (userRole === 'owner') {
-        query = query.eq('owner_id', userId);
-      } else {
-        // For drivers, we need to find conversations where they are the driver
-        const { data: driverProfile } = await supabase
-          .from('driver_profiles')
-          .select('id')
-          .eq('user_id', userId)
-          .single();
-
-        if (driverProfile) {
-          query = query.eq('driver_id', driverProfile.id);
-        }
-      }
-
-      const { data, error } = await query;
+        .eq('id', conversationId)
+        .single();
 
       if (error) throw error;
-
-      // Extract the last message from the messages array for each conversation
-      const processed = (data || []).map((conv) => {
-        const msgs = conv.last_msg || [];
-        const sorted = msgs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        return {
-          ...conv,
-          last_message: sorted[0] || null,
-        };
-      });
-
-      set({ conversations: processed, loading: false });
+      set({ currentConversation: data });
+      return data;
     } catch (err) {
-      set({ error: err.message, loading: false });
+      return null;
     }
   },
 
@@ -81,7 +121,23 @@ const useChatStore = create((set, get) => ({
       // Check if conversation already exists
       const { data: existing } = await supabase
         .from('conversations')
-        .select('*')
+        .select(`
+          *,
+          owner:owner_id (
+            firstname,
+            lastname,
+            profile_image
+          ),
+          driver:driver_id (
+            id,
+            user_id,
+            profiles:user_id (
+              firstname,
+              lastname,
+              profile_image
+            )
+          )
+        `)
         .eq('owner_id', ownerId)
         .eq('driver_id', driverId)
         .single();
@@ -95,7 +151,23 @@ const useChatStore = create((set, get) => ({
       const { data, error } = await supabase
         .from('conversations')
         .insert({ owner_id: ownerId, driver_id: driverId })
-        .select()
+        .select(`
+          *,
+          owner:owner_id (
+            firstname,
+            lastname,
+            profile_image
+          ),
+          driver:driver_id (
+            id,
+            user_id,
+            profiles:user_id (
+              firstname,
+              lastname,
+              profile_image
+            )
+          )
+        `)
         .single();
 
       if (error) throw error;
@@ -126,10 +198,11 @@ const useChatStore = create((set, get) => ({
           )
         `)
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(100);
 
       if (error) throw error;
-      set({ messages: data, loading: false });
+      set({ messages: data || [], loading: false });
     } catch (err) {
       set({ error: err.message, loading: false });
     }
@@ -170,21 +243,18 @@ const useChatStore = create((set, get) => ({
 
   markMessagesAsRead: async (conversationId, userId, userRole) => {
     try {
-      // Mark messages as read
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
         .neq('sender_id', userId);
 
-      // Reset unread count
       const updateField = userRole === 'owner' ? 'owner_unread_count' : 'driver_unread_count';
       await supabase
         .from('conversations')
         .update({ [updateField]: 0 })
         .eq('id', conversationId);
 
-      // Update local state
       set((state) => ({
         conversations: state.conversations.map((conv) =>
           conv.id === conversationId
@@ -193,12 +263,11 @@ const useChatStore = create((set, get) => ({
         ),
       }));
     } catch (err) {
-      console.error('Error marking messages as read:', err);
+      // Silent fail for read receipts
     }
   },
 
   subscribeToMessages: (conversationId, callback) => {
-    // Unsubscribe from previous subscription if exists
     const { realtimeSubscription } = get();
     if (realtimeSubscription) {
       supabase.removeChannel(realtimeSubscription);
@@ -215,7 +284,6 @@ const useChatStore = create((set, get) => ({
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          // Fetch the complete message with sender info
           const { data } = await supabase
             .from('messages')
             .select(`
@@ -231,7 +299,6 @@ const useChatStore = create((set, get) => ({
 
           if (data) {
             set((state) => {
-              // Prevent duplicates — sendMessage already adds own messages
               const exists = state.messages.some((m) => m.id === data.id);
               if (exists) return state;
               return { messages: [...state.messages, data] };
@@ -255,7 +322,7 @@ const useChatStore = create((set, get) => ({
   },
 
   setCurrentConversation: (conversation) => {
-    set({ currentConversation: conversation, messages: [] });
+    set({ currentConversation: conversation, messages: [], loading: true });
   },
 
   clearChat: () => {
@@ -266,6 +333,22 @@ const useChatStore = create((set, get) => ({
     set({
       currentConversation: null,
       messages: [],
+      realtimeSubscription: null,
+    });
+  },
+
+  // Reset store on logout to prevent data leakage between accounts
+  resetStore: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) {
+      supabase.removeChannel(realtimeSubscription);
+    }
+    set({
+      conversations: [],
+      currentConversation: null,
+      messages: [],
+      loading: false,
+      error: null,
       realtimeSubscription: null,
     });
   },

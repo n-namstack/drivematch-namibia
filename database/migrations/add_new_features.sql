@@ -63,7 +63,7 @@ BEGIN
   FROM driver_profiles dp
   JOIN profiles p ON p.id = dp.user_id
   WHERE
-    p.is_active = true
+    COALESCE(p.is_active, true) = true
     AND (p_search_text IS NULL OR
       p.firstname ILIKE '%' || p_search_text || '%' OR
       p.lastname ILIKE '%' || p_search_text || '%' OR

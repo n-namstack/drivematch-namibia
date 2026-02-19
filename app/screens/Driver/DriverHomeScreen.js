@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -19,18 +21,56 @@ const DriverHomeScreen = ({ navigation }) => {
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Re-fetch unread count every time the screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+    }, [profile?.id])
+  );
+
+  // Realtime: update notification badge instantly when new notifications arrive
   useEffect(() => {
-    fetchUnreadCount();
-  }, []);
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel('driver-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => { fetchUnreadCount(); }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => { fetchUnreadCount(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id]);
 
   const fetchUnreadCount = async () => {
     if (!profile?.id) return;
-    const { count } = await supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', profile.id)
-      .eq('is_read', false);
-    setUnreadCount(count || 0);
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .eq('is_read', false);
+      setUnreadCount(count || 0);
+    } catch (err) {
+      // Notification count fetch failed - non-critical
+    }
   };
 
   const onRefresh = async () => {
@@ -43,9 +83,17 @@ const DriverHomeScreen = ({ navigation }) => {
   const toggleAvailability = async () => {
     if (toggling) return;
     setToggling(true);
-    const newValue = !driverProfile?.is_available_now;
-    await updateDriverProfile({ is_available_now: newValue });
-    setToggling(false);
+    try {
+      const newValue = !driverProfile?.is_available_now;
+      const { error } = await updateDriverProfile({ is_available_now: newValue });
+      if (error) {
+        Alert.alert('Error', 'Could not update availability. Please try again.');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Could not update availability. Please try again.');
+    } finally {
+      setToggling(false);
+    }
   };
 
   const statusInfo = VERIFICATION_STATUS[driverProfile?.verification_status] || VERIFICATION_STATUS.pending;
@@ -63,6 +111,12 @@ const DriverHomeScreen = ({ navigation }) => {
       value: driverProfile?.total_reviews?.toString() || '0',
       icon: 'chatbubbles',
       color: COLORS.secondary,
+    },
+    {
+      label: 'Profile Views',
+      value: driverProfile?.profile_views?.toString() || '0',
+      icon: 'eye',
+      color: '#8B5CF6',
     },
   ];
 

@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -52,26 +53,43 @@ const RoleSelectionScreen = ({ navigation, route }) => {
     }
 
     setLoading(true);
-    const { data, error } = await signUp({
-      ...formData,
-      role: selectedRole,
-    });
-    setLoading(false);
+    try {
+      const { data, error } = await signUp({
+        ...formData,
+        role: selectedRole,
+      });
 
-    if (error) {
-      Alert.alert('Registration Failed', error.message);
-    } else {
-      Alert.alert(
-        'Account Created!',
-        'Please check your email to verify your account.',
-        [{ text: 'OK' }]
-      );
+      if (error) {
+        Alert.alert('Registration Failed', error.message);
+      } else if (data?.user?.identities?.length === 0) {
+        // Email already exists in Supabase
+        Alert.alert(
+          'Email Already Registered',
+          'This email is already registered. Please sign in instead.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Sign In', onPress: () => navigation.navigate('Login') },
+          ]
+        );
+      } else {
+        // Signup succeeded — Supabase sends an OTP to the user's email.
+        // Navigate to email verification screen.
+        navigation.navigate('VerifyEmail', { email: formData.email });
+      }
+    } catch (err) {
+      Alert.alert('Registration Failed', err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -82,7 +100,7 @@ const RoleSelectionScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <Text style={styles.title}>How will you use NamDriver?</Text>
           <Text style={styles.subtitle}>
-            Choose your role. You can always change this later.
+            Choose your role to get started.
           </Text>
         </View>
 
@@ -137,8 +155,10 @@ const RoleSelectionScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           ))}
         </View>
+      </ScrollView>
 
-        {/* Continue Button */}
+      {/* Continue Button - pinned at bottom */}
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[
             styles.continueButton,
@@ -166,10 +186,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.md,
   },
   header: {
     marginBottom: SPACING.xl,
@@ -191,7 +214,6 @@ const styles = StyleSheet.create({
   },
   rolesContainer: {
     gap: SPACING.md,
-    flex: 1,
   },
   roleCard: {
     backgroundColor: COLORS.white,
@@ -246,6 +268,13 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.sm,
     color: COLORS.text,
   },
+  footer: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray[100],
+    backgroundColor: COLORS.background,
+  },
   continueButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
@@ -254,7 +283,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.sm,
-    marginTop: SPACING.lg,
     ...SHADOWS.md,
   },
   continueButtonDisabled: {

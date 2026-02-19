@@ -6,17 +6,20 @@ import Toast from 'react-native-toast-message';
 
 import { AuthProvider } from './app/context/AuthContext';
 import AppNavigator from './app/navigation';
+import ErrorBoundary from './app/components/ErrorBoundary';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <StatusBar style="auto" />
-          <AppNavigator />
-          <Toast />
-        </AuthProvider>
-      </SafeAreaProvider>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <StatusBar style="auto" />
+            <AppNavigator />
+            <Toast />
+          </AuthProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

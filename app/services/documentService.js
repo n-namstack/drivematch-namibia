@@ -80,6 +80,11 @@ export const documentService = {
 
   uploadDocument: async (userId, file, documentType) => {
     try {
+      // Validate file size (max 10MB for documents)
+      if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
+        return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
+      }
+
       const fileExt = file.uri.split('.').pop().toLowerCase();
       const fileName = `${userId}/${documentType}_${Date.now()}.${fileExt}`;
       const contentType = file.mimeType || `image/${fileExt}`;

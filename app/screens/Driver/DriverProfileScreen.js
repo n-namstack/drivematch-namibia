@@ -27,13 +27,17 @@ const DriverProfileScreen = ({ navigation }) => {
   }, []);
 
   const fetchCounts = async () => {
-    if (!driverProfile?.id) return;
-    const [docs, work] = await Promise.all([
-      supabase.from('driver_documents').select('id', { count: 'exact', head: true }).eq('driver_id', driverProfile.id),
-      supabase.from('work_history').select('id', { count: 'exact', head: true }).eq('driver_id', driverProfile.id),
-    ]);
-    setDocumentCount(docs.count || 0);
-    setWorkCount(work.count || 0);
+    try {
+      if (!driverProfile?.id) return;
+      const [docs, work] = await Promise.all([
+        supabase.from('driver_documents').select('id', { count: 'exact', head: true }).eq('driver_id', driverProfile.id),
+        supabase.from('work_history').select('id', { count: 'exact', head: true }).eq('driver_id', driverProfile.id),
+      ]);
+      setDocumentCount(docs.count || 0);
+      setWorkCount(work.count || 0);
+    } catch (err) {
+      // Non-critical - counts will show 0
+    }
   };
 
   const onRefresh = async () => {

@@ -13,6 +13,7 @@ import WelcomeScreen from '../screens/Auth/WelcomeScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import RoleSelectionScreen from '../screens/Auth/RoleSelectionScreen';
+import VerifyEmailScreen from '../screens/Auth/VerifyEmailScreen';
 
 // Driver Screens
 import DriverHomeScreen from '../screens/Driver/DriverHomeScreen';
@@ -28,6 +29,7 @@ import DriverDetailsScreen from '../screens/Owner/DriverDetailsScreen';
 import SavedDriversScreen from '../screens/Owner/SavedDriversScreen';
 import WriteReviewScreen from '../screens/Owner/WriteReviewScreen';
 import HireHistoryScreen from '../screens/Owner/HireHistoryScreen';
+import AllDriversScreen from '../screens/Owner/AllDriversScreen';
 
 // Chat Screens
 import ConversationsScreen from '../screens/Chat/ConversationsScreen';
@@ -55,6 +57,7 @@ const AuthStack = () => (
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
     <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+    <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
   </Stack.Navigator>
 );
 
@@ -214,6 +217,11 @@ const AppNavigator = () => {
               name="HireHistory"
               component={HireHistoryScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AllDrivers"
+              component={AllDriversScreen}
+              options={{ headerShown: true, title: 'All Drivers' }}
             />
             <Stack.Screen
               name="Notifications"

@@ -26,10 +26,15 @@ const DocumentUploadScreen = ({ navigation }) => {
   }, []);
 
   const fetchDocuments = async () => {
-    if (!driverProfile?.id) return;
-    const { data } = await documentService.fetchDriverDocuments(driverProfile.id);
-    if (data) setDocuments(data);
-    setLoading(false);
+    try {
+      if (!driverProfile?.id) return;
+      const { data } = await documentService.fetchDriverDocuments(driverProfile.id);
+      if (data) setDocuments(data);
+    } catch (err) {
+      // Will show empty document list
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getDocumentStatus = (docType) => {

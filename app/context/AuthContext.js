@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import supabase from '../lib/supabase';
+import useDriverStore from '../store/useDriverStore';
+import useChatStore from '../store/useChatStore';
 
 const AuthContext = createContext({});
 
@@ -19,9 +21,24 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          // Refresh token failed - sign out
+          setUser(null);
+          setProfile(null);
+          setDriverProfile(null);
+          setLoading(false);
+          return;
+        }
         if (session?.user) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
+          // Don't treat unverified email users as logged in
+          if (!session.user.email_confirmed_at) {
+            setUser(null);
+            setProfile(null);
+            setDriverProfile(null);
+          } else {
+            setUser(session.user);
+            await fetchProfile(session.user.id);
+          }
         } else {
           setUser(null);
           setProfile(null);
@@ -38,13 +55,32 @@ export const AuthProvider = ({ children }) => {
 
   const checkSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        // Invalid or expired token - clear state and force re-login
+        setUser(null);
+        setProfile(null);
+        setDriverProfile(null);
+        await supabase.auth.signOut().catch(() => {});
+        return;
+      }
       if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
+        // Don't treat unverified email users as logged in
+        if (!session.user.email_confirmed_at) {
+          setUser(null);
+          setProfile(null);
+          setDriverProfile(null);
+        } else {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        }
       }
     } catch (err) {
-      console.error('Error checking session:', err);
+      // Session check failed - clear state to force re-login
+      setUser(null);
+      setProfile(null);
+      setDriverProfile(null);
+      await supabase.auth.signOut().catch(() => {});
     } finally {
       setLoading(false);
     }
@@ -155,6 +191,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      // Reset Zustand stores to prevent data leakage between accounts
+      useDriverStore.getState().resetStore();
+      useChatStore.getState().resetStore();
       setUser(null);
       setProfile(null);
       setDriverProfile(null);

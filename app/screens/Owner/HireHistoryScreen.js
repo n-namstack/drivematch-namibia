@@ -26,10 +26,14 @@ const HireHistoryScreen = ({ navigation }) => {
   }, []);
 
   const loadHistory = async () => {
-    setLoading(true);
-    const data = await fetchContactedDrivers(profile?.id);
-    setConversations(data);
-    setLoading(false);
+    try {
+      const data = await fetchContactedDrivers(profile?.id);
+      setConversations(data || []);
+    } catch (err) {
+      // Will show empty state
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderItem = useCallback(({ item }) => {

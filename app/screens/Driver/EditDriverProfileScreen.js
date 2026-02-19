@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,13 +17,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
+import locationService from '../../services/locationService';
 import {
   COLORS,
   FONTS,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
-  NAMIBIA_LOCATIONS,
   VEHICLE_TYPES,
   AVAILABILITY_OPTIONS,
 } from '../../constants/theme';
@@ -33,6 +33,11 @@ const EditDriverProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [profileImage, setProfileImage] = useState(profile?.profile_image || null);
+  const [locations, setLocations] = useState([]);
+
+  useEffect(() => {
+    locationService.getLocations().then(setLocations);
+  }, []);
 
   const [formData, setFormData] = useState({
     firstname: profile?.firstname || '',
@@ -68,8 +73,17 @@ const EditDriverProfileScreen = ({ navigation }) => {
     setUploadingImage(true);
     try {
       const file = result.assets[0];
+
+      // Validate file size (max 5MB)
+      if (file.fileSize && file.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Profile photo must be under 5MB. Please choose a smaller image.');
+        setUploadingImage(false);
+        return;
+      }
+
       const fileExt = file.uri.split('.').pop().toLowerCase();
-      const fileName = `${profile.id}/profile_${Date.now()}.${fileExt}`;
+      // Use a stable filename so new uploads overwrite the old one (no orphaned files)
+      const fileName = `${profile.id}/profile.${fileExt}`;
       const contentType = file.mimeType || `image/${fileExt}`;
 
       const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
@@ -81,8 +95,9 @@ const EditDriverProfileScreen = ({ navigation }) => {
 
       if (uploadError) throw uploadError;
 
+      // Append cache-buster to force UI to reload the image
       const { data: urlData } = supabase.storage.from('profile_images').getPublicUrl(fileName);
-      const imageUrl = urlData.publicUrl;
+      const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       await updateProfile({ profile_image: imageUrl });
       setProfileImage(imageUrl);
@@ -201,7 +216,7 @@ const EditDriverProfileScreen = ({ navigation }) => {
 
           <Text style={styles.label}>Location</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {NAMIBIA_LOCATIONS.slice(0, 10).map((loc) => (
+            {locations.map((loc) => (
               <TouchableOpacity
                 key={loc}
                 style={[

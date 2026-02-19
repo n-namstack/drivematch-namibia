@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
-const DriverCard = ({ driver, onPress, horizontal = false }) => {
+const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) => {
   // Handle both nested (from direct queries) and flat (from RPC) data
   const profile = driver.profiles || driver.profile;
   const firstName = profile?.firstname || driver.firstname || '';
@@ -68,6 +68,55 @@ const DriverCard = ({ driver, onPress, horizontal = false }) => {
             <Text style={styles.infoText}>{driver.years_of_experience || 0} yrs exp</Text>
           </View>
         </View>
+      </TouchableOpacity>
+    );
+  }
+
+  if (compact) {
+    return (
+      <TouchableOpacity style={styles.compactCard} onPress={onPress}>
+        {profileImage ? (
+          <Image source={{ uri: profileImage }} style={styles.compactImage} />
+        ) : (
+          <View style={[styles.compactImage, styles.placeholderImage]}>
+            <Ionicons name="person" size={20} color={COLORS.gray[400]} />
+          </View>
+        )}
+        <View style={styles.compactInfo}>
+          <View style={styles.compactTopRow}>
+            <Text style={styles.compactName} numberOfLines={1}>{fullName}</Text>
+            <View style={[styles.compactAvailableBadge, !isAvailableNow && styles.compactUnavailableBadge]}>
+              <View style={[styles.availableDot, !isAvailableNow && styles.unavailableDot]} />
+              <Text style={[styles.compactAvailableText, !isAvailableNow && styles.compactUnavailableText]}>
+                {isAvailableNow ? 'Available' : 'Unavailable'}
+              </Text>
+            </View>
+            {isVerified && (
+              <Ionicons name="shield-checkmark" size={14} color={COLORS.secondary} />
+            )}
+          </View>
+          <View style={styles.ratingRow}>
+            {renderStars(driver.rating || 0)}
+            <Text style={styles.ratingText}>({driver.total_reviews || 0})</Text>
+          </View>
+          <View style={styles.compactDetails}>
+            <View style={styles.infoRow}>
+              <Ionicons name="location" size={12} color={COLORS.textSecondary} />
+              <Text style={styles.infoText} numberOfLines={1}>{driverLocation}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="time" size={12} color={COLORS.textSecondary} />
+              <Text style={styles.infoText}>{driver.years_of_experience || 0} yrs</Text>
+            </View>
+            {driver.has_pdp && (
+              <View style={styles.infoRow}>
+                <Ionicons name="card" size={12} color={COLORS.secondary} />
+                <Text style={[styles.infoText, { color: COLORS.secondary }]}>PDP</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.gray[400]} />
       </TouchableOpacity>
     );
   }
@@ -204,6 +253,24 @@ const styles = StyleSheet.create({
   availableBadgeText: { fontSize: 9, color: COLORS.white, fontWeight: '600' },
   horizontalContent: { padding: SPACING.sm },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  compactCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg, padding: SPACING.sm, marginBottom: SPACING.sm,
+    gap: SPACING.sm, ...SHADOWS.sm,
+  },
+  compactImage: { width: 44, height: 44, borderRadius: 22 },
+  compactInfo: { flex: 1 },
+  compactTopRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  compactName: { fontSize: FONTS.sizes.md, fontWeight: '600', color: COLORS.text, flex: 1 },
+  compactAvailableBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: COLORS.secondary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BORDER_RADIUS.full,
+  },
+  compactUnavailableBadge: { backgroundColor: COLORS.gray[100] },
+  compactAvailableText: { fontSize: 10, fontWeight: '600', color: COLORS.secondary },
+  compactUnavailableText: { color: COLORS.gray[400] },
+  unavailableDot: { backgroundColor: COLORS.gray[400] },
+  compactDetails: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: 2 },
 });
 
 export default DriverCard;

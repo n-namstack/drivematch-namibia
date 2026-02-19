@@ -14,9 +14,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, VERIFICATION_STATUS } from '../../constants/theme';
 
 const VerifyDocumentsScreen = ({ navigation }) => {
+  const { profile } = useAuth();
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -45,7 +47,7 @@ const VerifyDocumentsScreen = ({ navigation }) => {
       if (error) throw error;
       setDrivers(data || []);
     } catch (err) {
-      // Fetch failed
+      Alert.alert('Error', 'Could not load pending drivers.');
     } finally {
       setLoading(false);
     }
@@ -87,6 +89,14 @@ const VerifyDocumentsScreen = ({ navigation }) => {
               }
 
               setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+
+              // Log admin action
+              await supabase.from('admin_actions').insert({
+                admin_id: profile?.id,
+                action_type: 'verify_document',
+                target_type: 'driver',
+                target_id: driverId,
+              }).catch(() => {}); // Non-critical
             } catch (err) {
               Alert.alert('Error', 'Could not verify driver. Please try again.');
             } finally {
@@ -131,6 +141,14 @@ const VerifyDocumentsScreen = ({ navigation }) => {
               }
 
               setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+
+              // Log admin action
+              await supabase.from('admin_actions').insert({
+                admin_id: profile?.id,
+                action_type: 'reject_document',
+                target_type: 'driver',
+                target_id: driverId,
+              }).catch(() => {}); // Non-critical
             } catch (err) {
               Alert.alert('Error', 'Could not reject verification. Please try again.');
             } finally {

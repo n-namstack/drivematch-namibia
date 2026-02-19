@@ -68,7 +68,7 @@ const AdminDashboardScreen = ({ navigation }) => {
       });
       setRecentDrivers(recent.data || []);
     } catch (err) {
-      // Dashboard load failed
+      Alert.alert('Error', 'Could not load dashboard data.');
     } finally {
       setLoading(false);
     }

@@ -9,21 +9,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { format, isToday, isYesterday } from 'date-fns';
+import ReportModal from '../../components/ReportModal';
 
 const ChatScreen = ({ route, navigation }) => {
   const { conversationId } = route.params;
   const { user, profile } = useAuth();
+  const [showReport, setShowReport] = useState(false);
   const {
     messages,
     currentConversation,
     loading,
     fetchMessages,
+    fetchConversationById,
     sendMessage,
     markMessagesAsRead,
     subscribeToMessages,
@@ -33,10 +38,18 @@ const ChatScreen = ({ route, navigation }) => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const flatListRef = useRef(null);
+  const hasScrolledRef = useRef(false);
 
   useEffect(() => {
-    fetchMessages(conversationId);
-    markMessagesAsRead(conversationId, user.id, profile.role);
+    const init = async () => {
+      // Fetch conversation details if not already loaded
+      if (!currentConversation || currentConversation.id !== conversationId) {
+        await fetchConversationById(conversationId);
+      }
+      await fetchMessages(conversationId);
+      markMessagesAsRead(conversationId, user.id, profile.role);
+    };
+    init();
 
     const subscription = subscribeToMessages(conversationId, (newMessage) => {
       if (newMessage.sender_id !== user.id) {
@@ -54,7 +67,15 @@ const ChatScreen = ({ route, navigation }) => {
       const participant = getOtherParticipant();
       navigation.setOptions({
         headerTitle: () => (
-          <TouchableOpacity style={styles.headerTitle} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.headerTitle}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (profile?.role === 'owner' && currentConversation?.driver?.id) {
+                navigation.navigate('DriverDetails', { driverId: currentConversation.driver.id });
+              }
+            }}
+          >
             {participant.image ? (
               <Image source={{ uri: participant.image }} style={styles.headerAvatar} />
             ) : (
@@ -66,8 +87,12 @@ const ChatScreen = ({ route, navigation }) => {
             )}
             <View>
               <Text style={styles.headerName}>{participant.name}</Text>
-              <Text style={styles.headerStatus}>Tap for info</Text>
             </View>
+          </TouchableOpacity>
+        ),
+        headerRight: () => (
+          <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: SPACING.sm }}>
+            <Ionicons name="flag-outline" size={20} color={COLORS.text} />
           </TouchableOpacity>
         ),
       });
@@ -99,7 +124,13 @@ const ChatScreen = ({ route, navigation }) => {
     const text = messageText.trim();
     setMessageText('');
     setSending(true);
-    await sendMessage(conversationId, user.id, text);
+
+    const { error } = await sendMessage(conversationId, user.id, text);
+    if (error) {
+      setMessageText(text);
+      Alert.alert('Send Failed', error.message || 'Could not send your message. Please try again.');
+    }
+
     setSending(false);
   };
 
@@ -172,25 +203,34 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyChat}>
-      <View style={styles.emptyChatIcon}>
-        <View style={styles.emptyChatIconInner}>
-          <Ionicons name="chatbubbles-outline" size={32} color={COLORS.primary} />
+  const renderEmpty = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyChat}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
+      );
+    }
+    return (
+      <View style={styles.emptyChat}>
+        <View style={styles.emptyChatIcon}>
+          <View style={styles.emptyChatIconInner}>
+            <Ionicons name="chatbubbles-outline" size={32} color={COLORS.primary} />
+          </View>
+        </View>
+        <Text style={styles.emptyChatTitle}>Start a conversation</Text>
+        <Text style={styles.emptyChatText}>
+          Send a message to get connected
+        </Text>
       </View>
-      <Text style={styles.emptyChatTitle}>Start a conversation</Text>
-      <Text style={styles.emptyChatText}>
-        Send a message to get connected
-      </Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <FlatList
         ref={flatListRef}
@@ -202,8 +242,12 @@ const ChatScreen = ({ route, navigation }) => {
           messages.length === 0 && { flex: 1 },
         ]}
         showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() => {
+          if (messages.length > 0) {
+            flatListRef.current?.scrollToEnd({ animated: hasScrolledRef.current });
+            hasScrolledRef.current = true;
+          }
+        }}
         ListEmptyComponent={renderEmpty}
       />
 
@@ -226,14 +270,30 @@ const ChatScreen = ({ route, navigation }) => {
             onPress={handleSend}
             disabled={!messageText.trim() || sending}
           >
-            <Ionicons
-              name="arrow-up"
-              size={20}
-              color={messageText.trim() ? COLORS.white : COLORS.gray[400]}
-            />
+            {sending ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Ionicons
+                name="arrow-up"
+                size={20}
+                color={messageText.trim() ? COLORS.white : COLORS.gray[400]}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
+      <ReportModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        reportedUserId={
+          currentConversation
+            ? profile?.role === 'owner'
+              ? currentConversation.driver?.user_id
+              : currentConversation.owner_id
+            : null
+        }
+        reportedUserName={getOtherParticipant().name}
+      />
     </KeyboardAvoidingView>
   );
 };

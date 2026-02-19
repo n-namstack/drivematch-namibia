@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -15,18 +16,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useDriverStore from '../../store/useDriverStore';
 import DriverCard from '../../components/DriverCard';
+import locationService from '../../services/locationService';
 import {
   COLORS,
   FONTS,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
-  NAMIBIA_LOCATIONS,
   VEHICLE_TYPES,
   AVAILABILITY_OPTIONS,
 } from '../../constants/theme';
 
-const SearchDriversScreen = ({ navigation }) => {
+const SearchDriversScreen = ({ navigation, route }) => {
   const drivers = useDriverStore((s) => s.drivers);
   const loading = useDriverStore((s) => s.loading);
   const filters = useDriverStore((s) => s.filters);
@@ -38,6 +39,12 @@ const SearchDriversScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters);
+  const searchInputRef = useRef(null);
+  const [locations, setLocations] = useState([]);
+
+  useEffect(() => {
+    locationService.getLocations().then(setLocations);
+  }, []);
 
   const handleSearch = async (reset) => {
     try {
@@ -47,18 +54,34 @@ const SearchDriversScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    handleSearch(true);
-  }, []);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searching, setSearching] = useState(false);
 
+  // Reset state when Search tab regains focus
+  useFocusEffect(
+    useCallback(() => {
+      setSearchText('');
+      setSearching(false);
+      setHasSearched(false);
+    }, [])
+  );
+
+  // Debounced search — only triggers when user types
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchText) {
-        setFilters({ searchText: searchText });
-      } else {
-        setFilters({ searchText: null });
+    if (!searchText) {
+      if (hasSearched) {
+        setHasSearched(false);
       }
-      handleSearch(true);
+      return;
+    }
+
+    setSearching(true);
+
+    const timer = setTimeout(async () => {
+      setFilters({ searchText });
+      setHasSearched(true);
+      await handleSearch(true);
+      setSearching(false);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -73,6 +96,7 @@ const SearchDriversScreen = ({ navigation }) => {
   const applyFilters = () => {
     setFilters(tempFilters);
     setShowFilters(false);
+    setHasSearched(true);
     handleSearch(true);
   };
 
@@ -109,13 +133,14 @@ const SearchDriversScreen = ({ navigation }) => {
       <DriverCard
         driver={item}
         onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
+        compact
       />
     ),
     [navigation]
   );
 
   const renderFooter = () => {
-    if (!loading) return null;
+    if (!hasSearched || (!loading && !searching)) return null;
     return (
       <View style={styles.loadingFooter}>
         <ActivityIndicator color={COLORS.primary} />
@@ -124,7 +149,18 @@ const SearchDriversScreen = ({ navigation }) => {
   };
 
   const renderEmpty = () => {
-    if (loading) return null;
+    if (hasSearched && (loading || searching)) return null;
+    if (!hasSearched) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="search" size={64} color={COLORS.gray[300]} />
+          <Text style={styles.emptyTitle}>Search for Drivers</Text>
+          <Text style={styles.emptyText}>
+            Type a name or location above to find drivers
+          </Text>
+        </View>
+      );
+    }
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="search" size={64} color={COLORS.gray[300]} />
@@ -137,7 +173,7 @@ const SearchDriversScreen = ({ navigation }) => {
           onPress={() => {
             clearFilters();
             setSearchText('');
-            handleSearch(true);
+            setHasSearched(false);
           }}
         >
           <Text style={styles.clearButtonText}>Clear All Filters</Text>
@@ -153,11 +189,13 @@ const SearchDriversScreen = ({ navigation }) => {
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color={COLORS.gray[400]} />
           <TextInput
+            ref={searchInputRef}
             style={styles.searchInput}
             placeholder="Search by name or location..."
             placeholderTextColor={COLORS.gray[400]}
             value={searchText}
             onChangeText={setSearchText}
+            autoFocus
           />
           {searchText ? (
             <TouchableOpacity onPress={() => setSearchText('')}>
@@ -231,26 +269,30 @@ const SearchDriversScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Caution Notice */}
-      <View style={styles.cautionBanner}>
-        <Ionicons name="warning" size={18} color="#B45309" />
-        <Text style={styles.cautionText}>
-          Some drivers may not be verified. Look for the{' '}
-          <Text style={{ fontWeight: 'bold' }}>green shield</Text> badge for verified drivers.
-          Always verify credentials before hiring.
-        </Text>
-      </View>
+      {/* Caution Notice - only show when results exist */}
+      {hasSearched && drivers.length > 0 && (
+        <View style={styles.cautionBanner}>
+          <Ionicons name="warning" size={18} color="#B45309" />
+          <Text style={styles.cautionText}>
+            Some drivers may not be verified. Look for the{' '}
+            <Text style={{ fontWeight: 'bold' }}>green shield</Text> badge for verified drivers.
+            Always verify credentials before hiring.
+          </Text>
+        </View>
+      )}
 
       {/* Results Count */}
-      <View style={styles.resultsHeader}>
-        <Text style={styles.resultsCount}>
-          {drivers.length} driver{drivers.length !== 1 ? 's' : ''} found
-        </Text>
-      </View>
+      {hasSearched && (
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsCount}>
+            {drivers.length} driver{drivers.length !== 1 ? 's' : ''} found
+          </Text>
+        </View>
+      )}
 
       {/* Drivers List */}
       <FlatList
-        data={drivers}
+        data={hasSearched ? drivers : []}
         keyExtractor={(item) => item.id}
         renderItem={renderDriver}
         contentContainerStyle={styles.listContent}
@@ -283,7 +325,7 @@ const SearchDriversScreen = ({ navigation }) => {
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Location</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {NAMIBIA_LOCATIONS.slice(0, 10).map((location) => (
+                {locations.map((location) => (
                   <TouchableOpacity
                     key={location}
                     style={[

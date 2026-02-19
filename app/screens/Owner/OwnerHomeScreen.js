@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useDriverStore from '../../store/useDriverStore';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
 
@@ -19,21 +19,31 @@ const OwnerHomeScreen = ({ navigation }) => {
   const { profile } = useAuth();
   const featuredDrivers = useDriverStore((s) => s.featuredDrivers);
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
-  const fetchNearbyDrivers = useDriverStore((s) => s.fetchNearbyDrivers);
-  const [nearbyDrivers, setNearbyDrivers] = useState([]);
+  const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
+
+    // Realtime: auto-refresh when driver profiles change (availability, rating, etc.)
+    const channel = supabase
+      .channel('owner-home-drivers')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'driver_profiles' },
+        () => { fetchFeaturedDrivers(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadData = async () => {
     try {
-      await fetchFeaturedDrivers();
-      if (profile?.location) {
-        const nearby = await fetchNearbyDrivers(profile.location);
-        setNearbyDrivers(nearby || []);
-      }
+      await Promise.all([
+        fetchFeaturedDrivers(),
+        profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
+      ]);
     } catch (err) {
       // Data will load on next refresh
     }
@@ -44,37 +54,6 @@ const OwnerHomeScreen = ({ navigation }) => {
     await loadData();
     setRefreshing(false);
   };
-
-  const quickActions = [
-    {
-      id: 'search',
-      icon: 'search',
-      label: 'Search\nDrivers',
-      color: COLORS.primary,
-      onPress: () => navigation.navigate('Search'),
-    },
-    {
-      id: 'saved',
-      icon: 'heart',
-      label: 'Saved\nDrivers',
-      color: COLORS.error,
-      onPress: () => navigation.navigate('Saved'),
-    },
-    {
-      id: 'history',
-      icon: 'time',
-      label: 'Hire\nHistory',
-      color: COLORS.accent,
-      onPress: () => navigation.navigate('HireHistory'),
-    },
-    {
-      id: 'messages',
-      icon: 'chatbubbles',
-      label: 'Messages',
-      color: COLORS.secondary,
-      onPress: () => navigation.navigate('Messages'),
-    },
-  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -108,83 +87,9 @@ const OwnerHomeScreen = ({ navigation }) => {
           <Text style={styles.searchPlaceholder}>Search by name or location...</Text>
         </TouchableOpacity>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          {quickActions.map((action) => (
-            <TouchableOpacity
-              key={action.id}
-              style={styles.quickActionItem}
-              onPress={action.onPress}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '15' }]}>
-                <Ionicons name={action.icon} size={22} color={action.color} />
-              </View>
-              <Text style={styles.quickActionLabel}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Drivers Near You */}
-        {nearbyDrivers.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Drivers Near You</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-                <Text style={styles.seeAll}>See All</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={nearbyDrivers}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <DriverCard
-                  driver={item}
-                  onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
-                  horizontal
-                />
-              )}
-              contentContainerStyle={styles.driversList}
-            />
-          </View>
-        )}
-
-        {/* Featured / Top Drivers */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Drivers</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {featuredDrivers.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="car-outline" size={48} color={COLORS.gray[300]} />
-              <Text style={styles.emptyText}>No drivers available yet</Text>
-            </View>
-          ) : (
-            <FlatList
-              horizontal
-              data={featuredDrivers}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <DriverCard
-                  driver={item}
-                  onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
-                  horizontal
-                />
-              )}
-              contentContainerStyle={styles.driversList}
-            />
-          )}
-        </View>
-
         {/* How It Works */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How DriveMatch Works</Text>
+          <Text style={styles.sectionTitle}>How NamDriver Works</Text>
           <View style={styles.howItWorksContainer}>
             {[
               { num: '1', title: 'Search', desc: 'Browse drivers by location, experience, and availability' },
@@ -202,6 +107,32 @@ const OwnerHomeScreen = ({ navigation }) => {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* Top Drivers */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Top Drivers</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AllDrivers', { showAll: true })}>
+              <Text style={styles.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {featuredDrivers.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="car-outline" size={48} color={COLORS.gray[300]} />
+              <Text style={styles.emptyText}>No drivers available yet</Text>
+            </View>
+          ) : (
+            featuredDrivers.slice(0, 5).map((item) => (
+              <DriverCard
+                key={item.id}
+                driver={item}
+                onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
+                compact
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -224,21 +155,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg, gap: SPACING.sm, ...SHADOWS.sm,
   },
   searchPlaceholder: { color: COLORS.gray[400], fontSize: FONTS.sizes.md },
-  quickActions: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.lg,
-  },
-  quickActionItem: { alignItems: 'center', gap: SPACING.xs, flex: 1 },
-  quickActionIcon: {
-    width: 50, height: 50, borderRadius: BORDER_RADIUS.lg,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  quickActionLabel: { fontSize: 11, color: COLORS.text, fontWeight: '500', textAlign: 'center' },
-  section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
+  section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, marginTop: SPACING.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text },
+  sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text, marginBottom: SPACING.sm },
   seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '500' },
-  driversList: { paddingRight: SPACING.lg },
   emptyState: { alignItems: 'center', paddingVertical: SPACING['2xl'] },
   emptyText: { marginTop: SPACING.md, fontSize: FONTS.sizes.md, color: COLORS.textSecondary },
   howItWorksContainer: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, gap: SPACING.md, ...SHADOWS.sm },

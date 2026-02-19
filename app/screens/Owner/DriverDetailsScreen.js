@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useDriverStore from '../../store/useDriverStore';
 import useChatStore from '../../store/useChatStore';
+import supabase from '../../lib/supabase';
 import {
   COLORS,
   FONTS,
@@ -24,10 +25,12 @@ import {
   SHADOWS,
   VERIFICATION_STATUS,
 } from '../../constants/theme';
+import ReportModal from '../../components/ReportModal';
 
 const DriverDetailsScreen = ({ route, navigation }) => {
   const { driverId } = route.params;
   const { user, profile: currentUser } = useAuth();
+  const [showReport, setShowReport] = useState(false);
   const selectedDriver = useDriverStore((s) => s.selectedDriver);
   const fetchDriverById = useDriverStore((s) => s.fetchDriverById);
   const saveDriver = useDriverStore((s) => s.saveDriver);
@@ -44,6 +47,23 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       setLoading(false);
     };
     load();
+
+    // Realtime: live updates when this driver's profile changes
+    const channel = supabase
+      .channel(`driver-detail-${driverId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'driver_profiles',
+          filter: `id=eq.${driverId}`,
+        },
+        () => { fetchDriverById(driverId); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [driverId]);
 
   const driver = selectedDriver;
@@ -77,7 +97,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
     try {
       await Share.share({
-        message: `Check out ${name}${verified} on DriveMatch Namibia!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload DriveMatch to connect with professional drivers in Namibia.`,
+        message: `Check out ${name}${verified} on NamDriver!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload NamDriver to connect with professional drivers in Namibia.`,
       });
     } catch (err) {
       // User cancelled share
@@ -85,10 +105,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleToggleSave = async () => {
-    if (isSaved) {
-      await unsaveDriver(currentUser.id, driverId);
-    } else {
-      await saveDriver(currentUser.id, driverId);
+    try {
+      if (isSaved) {
+        const { error } = await unsaveDriver(currentUser.id, driverId);
+        if (error) throw error;
+      } else {
+        const { error } = await saveDriver(currentUser.id, driverId);
+        if (error) throw error;
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Could not save driver. Please try again.');
     }
   };
 
@@ -127,7 +153,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     return stars;
   };
 
-  if (loading || !driver) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -137,8 +163,37 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     );
   }
 
+  if (!driver) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.gray[400]} />
+          <Text style={{ color: COLORS.textSecondary, marginTop: SPACING.md, fontSize: FONTS.sizes.md }}>
+            Could not load driver profile
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: SPACING.md, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.lg }}
+            onPress={() => {
+              setLoading(true);
+              fetchDriverById(driverId).finally(() => setLoading(false));
+            }}
+          >
+            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ marginTop: SPACING.sm }} onPress={() => navigation.goBack()}>
+            <Text style={{ color: COLORS.primary, fontWeight: '500' }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const fullName = `${userProfile?.firstname || ''} ${userProfile?.lastname || ''}`.trim() || 'Driver';
   const statusInfo = VERIFICATION_STATUS[driver.verification_status] || VERIFICATION_STATUS.pending;
+  const actualReviewCount = driver.driver_reviews?.length || driver.total_reviews || 0;
+  const actualRating = actualReviewCount > 0 && driver.driver_reviews?.length
+    ? driver.driver_reviews.reduce((sum, r) => sum + r.rating, 0) / driver.driver_reviews.length
+    : (driver.rating || 0);
 
   return (
     <View style={styles.container}>
@@ -160,6 +215,9 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                   size={22}
                   color={isSaved ? '#FF6B6B' : COLORS.white}
                 />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowReport(true)} style={styles.navButton}>
+                <Ionicons name="flag-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -193,12 +251,12 @@ const DriverDetailsScreen = ({ route, navigation }) => {
             </View>
 
             <View style={styles.ratingRow}>
-              {renderStars(driver.rating)}
+              {renderStars(actualRating)}
               <Text style={styles.ratingValue}>
-                {(driver.rating || 0).toFixed(1)}
+                {actualRating.toFixed(1)}
               </Text>
               <Text style={styles.reviewCount}>
-                ({driver.total_reviews || 0})
+                ({actualReviewCount})
               </Text>
             </View>
           </View>
@@ -219,7 +277,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 <View style={[styles.statIconBg, { backgroundColor: COLORS.accent + '12' }]}>
                   <Ionicons name="chatbubbles-outline" size={18} color={COLORS.accent} />
                 </View>
-                <Text style={styles.statValue}>{driver.total_reviews || 0}</Text>
+                <Text style={styles.statValue}>{actualReviewCount}</Text>
                 <Text style={styles.statLabel}>Reviews</Text>
               </View>
               <View style={styles.statBlock}>
@@ -235,6 +293,13 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 </View>
                 <Text style={styles.statValue}>{driver.work_history?.length || 0}</Text>
                 <Text style={styles.statLabel}>Jobs</Text>
+              </View>
+              <View style={styles.statBlock}>
+                <View style={[styles.statIconBg, { backgroundColor: '#8B5CF6' + '12' }]}>
+                  <Ionicons name="eye-outline" size={18} color="#8B5CF6" />
+                </View>
+                <Text style={styles.statValue}>{driver.profile_views || 0}</Text>
+                <Text style={styles.statLabel}>Views</Text>
               </View>
             </View>
           </View>
@@ -368,16 +433,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Reviews</Text>
-            {driver.driver_reviews && driver.driver_reviews.length > 0 && (
+            {actualReviewCount > 0 && (
               <View style={styles.reviewSummary}>
                 <Ionicons name="star" size={14} color={COLORS.accent} />
                 <Text style={styles.reviewSummaryText}>
-                  {(driver.rating || 0).toFixed(1)} ({driver.driver_reviews.length})
+                  {actualRating.toFixed(1)} ({actualReviewCount})
                 </Text>
               </View>
             )}
           </View>
-          {currentUser?.role === 'owner' && (
+          {currentUser?.role === 'owner' && !driver.driver_reviews?.some(r => r.reviewer_id === currentUser?.id) && (
             <TouchableOpacity
               style={styles.writeReviewBtn}
               onPress={() => navigation.navigate('WriteReview', {
@@ -439,6 +504,13 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           <Text style={styles.actionPrimaryText}>Call Driver</Text>
         </TouchableOpacity>
       </View>
+
+      <ReportModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        reportedUserId={driver?.user_id}
+        reportedUserName={fullName}
+      />
     </View>
   );
 };

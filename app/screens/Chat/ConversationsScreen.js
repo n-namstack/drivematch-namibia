@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,28 +7,57 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { formatDistanceToNow } from 'date-fns';
 
 const ConversationsScreen = ({ navigation }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, driverProfile } = useAuth();
   const { conversations, loading, fetchConversations, setCurrentConversation } = useChatStore();
+  const [refreshing, setRefreshing] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id && profile?.role) {
+        fetchConversations(user.id, profile.role, driverProfile?.id);
+      }
+    }, [user?.id, profile?.role, driverProfile?.id])
+  );
+
+  // Realtime: refresh conversations when new messages arrive or unread counts change
   useEffect(() => {
-    if (user?.id && profile?.role) {
-      fetchConversations(user.id, profile.role);
-    }
-  }, [user?.id, profile?.role]);
+    if (!user?.id || !profile?.role) return;
 
-  const handleRefresh = () => {
+    const channel = supabase
+      .channel('conversations-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversations' },
+        () => { fetchConversations(user.id, profile.role, driverProfile?.id); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => { fetchConversations(user.id, profile.role, driverProfile?.id); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, profile?.role, driverProfile?.id]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
     if (user?.id && profile?.role) {
-      fetchConversations(user.id, profile.role);
+      await fetchConversations(user.id, profile.role, driverProfile?.id);
     }
+    setRefreshing(false);
   };
 
   const handleConversationPress = (conversation) => {
@@ -112,17 +141,28 @@ const ConversationsScreen = ({ navigation }) => {
     [profile?.role]
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="chatbubbles-outline" size={64} color={COLORS.gray[300]} />
-      <Text style={styles.emptyTitle}>No Conversations Yet</Text>
-      <Text style={styles.emptyText}>
-        {profile?.role === 'owner'
-          ? 'Start a conversation by messaging a driver from their profile'
-          : 'Car owners will message you when they are interested in hiring you'}
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={[styles.emptyTitle, { marginTop: SPACING.md }]}>Loading conversations...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="chatbubbles-outline" size={64} color={COLORS.gray[300]} />
+        <Text style={styles.emptyTitle}>No Conversations Yet</Text>
+        <Text style={styles.emptyText}>
+          {profile?.role === 'owner'
+            ? 'Start a conversation by messaging a driver from their profile'
+            : 'Car owners will message you when they are interested in hiring you'}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -137,7 +177,7 @@ const ConversationsScreen = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
         ListEmptyComponent={renderEmpty}
       />
