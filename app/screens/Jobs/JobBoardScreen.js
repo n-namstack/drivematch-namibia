@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,6 +22,18 @@ const JobBoardScreen = ({ navigation }) => {
   const { driverProfile } = useAuth();
   const { jobs, myInterests, loading, pagination, fetchJobs, fetchMyInterests, expressInterest, withdrawInterest } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredJobs = useMemo(() => {
+    if (!searchQuery.trim()) return jobs;
+    const q = searchQuery.toLowerCase().trim();
+    return jobs.filter((job) =>
+      job.title?.toLowerCase().includes(q) ||
+      job.location?.toLowerCase().includes(q) ||
+      job.description?.toLowerCase().includes(q) ||
+      job.vehicle_types?.some((vt) => vt.toLowerCase().includes(q))
+    );
+  }, [jobs, searchQuery]);
 
   useFocusEffect(
     useCallback(() => {
@@ -126,8 +139,28 @@ const JobBoardScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={COLORS.gray[400]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search jobs by title, location..."
+            placeholderTextColor={COLORS.gray[400]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       <FlatList
-        data={jobs}
+        data={filteredJobs}
         keyExtractor={(item) => item.id}
         renderItem={renderJob}
         contentContainerStyle={styles.listContent}
@@ -165,6 +198,26 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   headerSubtitle: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  searchContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text,
+    padding: 0,
+  },
   listContent: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING['2xl'] },
   interestButton: {
     flexDirection: 'row',

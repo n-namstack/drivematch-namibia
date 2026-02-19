@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +24,36 @@ const ConversationsScreen = ({ navigation }) => {
   const { user, profile, driverProfile } = useAuth();
   const { conversations, loading, fetchConversations, setCurrentConversation, deleteConversation } = useChatStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const getOtherParticipant = useCallback((conversation) => {
+    if (profile?.role === 'owner') {
+      const driver = conversation.driver;
+      const driverProf = driver?.profiles;
+      return {
+        name: `${driverProf?.firstname || ''} ${driverProf?.lastname || ''}`.trim() || 'Driver',
+        image: driverProf?.profile_image,
+      };
+    } else {
+      const owner = conversation.owner;
+      return {
+        name: `${owner?.firstname || ''} ${owner?.lastname || ''}`.trim() || 'Car Owner',
+        image: owner?.profile_image,
+      };
+    }
+  }, [profile?.role]);
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase().trim();
+    return conversations.filter((conv) => {
+      const participant = getOtherParticipant(conv);
+      return (
+        participant.name?.toLowerCase().includes(q) ||
+        conv.last_message?.content?.toLowerCase().includes(q)
+      );
+    });
+  }, [conversations, searchQuery, getOtherParticipant]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,25 +116,6 @@ const ConversationsScreen = ({ navigation }) => {
         },
       ]
     );
-  };
-
-  const getOtherParticipant = (conversation) => {
-    if (profile?.role === 'owner') {
-      // Show driver info
-      const driver = conversation.driver;
-      const driverProfile = driver?.profiles;
-      return {
-        name: `${driverProfile?.firstname || ''} ${driverProfile?.lastname || ''}`.trim() || 'Driver',
-        image: driverProfile?.profile_image,
-      };
-    } else {
-      // Show owner info
-      const owner = conversation.owner;
-      return {
-        name: `${owner?.firstname || ''} ${owner?.lastname || ''}`.trim() || 'Car Owner',
-        image: owner?.profile_image,
-      };
-    }
   };
 
   const getUnreadCount = (conversation) => {
@@ -193,8 +205,29 @@ const ConversationsScreen = ({ navigation }) => {
         <Text style={styles.title}>Messages</Text>
       </View>
 
+      {conversations.length > 0 && (
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={COLORS.gray[400]} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search conversations..."
+              placeholderTextColor={COLORS.gray[400]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
       <FlatList
-        data={conversations}
+        data={filteredConversations}
         keyExtractor={(item) => item.id}
         renderItem={renderConversation}
         contentContainerStyle={styles.listContent}
@@ -221,6 +254,26 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes['2xl'],
     fontWeight: 'bold',
     color: COLORS.text,
+  },
+  searchContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text,
+    padding: 0,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,

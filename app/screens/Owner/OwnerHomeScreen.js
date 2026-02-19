@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, marginTop: SPACING.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text, marginBottom: SPACING.sm },
+  sectionTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
   seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '500' },
   emptyState: { alignItems: 'center', paddingVertical: SPACING['2xl'] },
   emptyText: { marginTop: SPACING.md, fontSize: FONTS.sizes.md, color: COLORS.textSecondary },
