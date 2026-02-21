@@ -459,19 +459,11 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               <View key={review.id} style={styles.reviewItem}>
                 <View style={styles.reviewTop}>
                   <View style={styles.reviewerRow}>
-                    {review.reviewer?.profile_image ? (
-                      <Image source={{ uri: review.reviewer.profile_image }} style={styles.reviewerAvatar} />
-                    ) : (
-                      <View style={[styles.reviewerAvatar, styles.reviewerAvatarPlaceholder]}>
-                        <Text style={styles.reviewerInitial}>
-                          {(review.reviewer?.firstname || 'O')[0].toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
+                    <View style={[styles.reviewerAvatar, styles.reviewerAvatarPlaceholder]}>
+                      <Ionicons name="person" size={16} color={COLORS.gray[400]} />
+                    </View>
                     <View style={styles.reviewerMeta}>
-                      <Text style={styles.reviewerName}>
-                        {review.reviewer?.firstname || 'Owner'} {review.reviewer?.lastname || ''}
-                      </Text>
+                      <Text style={styles.reviewerName}>Car Owner</Text>
                       <View style={styles.reviewStars}>
                         {renderStars(review.rating)}
                       </View>

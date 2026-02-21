@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary + '15', paddingHorizontal: SPACING.sm, paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full, alignSelf: 'flex-start', marginTop: SPACING.xs,
   },
-  roleText: { fontSize: 11, fontWeight: '600', color: COLORS.primary, textTransform: 'capitalize' },
+  roleText: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: COLORS.primary, textTransform: 'capitalize' },
   section: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg },
   sectionTitle: {
     fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.textSecondary,

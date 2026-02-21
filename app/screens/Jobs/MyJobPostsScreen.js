@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     marginLeft: SPACING.sm,
   },
-  statusText: { fontSize: 11, fontWeight: '600' },
+  statusText: { fontSize: FONTS.sizes.xs, fontWeight: '600' },
   interestSummary: {
     flexDirection: 'row',
     alignItems: 'center',

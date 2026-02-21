@@ -193,7 +193,7 @@ const ChatScreen = ({ route, navigation }) => {
                 <Ionicons
                   name={item.is_read ? 'checkmark-done' : 'checkmark'}
                   size={14}
-                  color={item.is_read ? '#7DD3FC' : 'rgba(255,255,255,0.5)'}
+                  color={item.is_read ? COLORS.info : COLORS.white + '80'}
                 />
               )}
             </View>
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
   headerStatus: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     color: COLORS.secondary,
     fontWeight: '500',
   },
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   dateText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     color: COLORS.textSecondary,
     fontWeight: '500',
     backgroundColor: COLORS.white,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarInitialSmall: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     fontWeight: '600',
     color: COLORS.primary,
   },
@@ -406,17 +406,17 @@ const styles = StyleSheet.create({
   // Message Bubbles
   messageBubble: {
     maxWidth: '78%',
-    paddingHorizontal: 14,
+    paddingHorizontal: SPACING.md - 2,
     paddingVertical: SPACING.sm + 2,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.xl + 4,
   },
   ownBubble: {
     backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 6,
+    borderBottomRightRadius: BORDER_RADIUS.sm + 2,
   },
   otherBubble: {
     backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 6,
+    borderBottomLeftRadius: BORDER_RADIUS.sm + 2,
   },
   messageText: {
     fontSize: FONTS.sizes.md,
@@ -436,10 +436,10 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   messageTime: {
-    fontSize: 10,
+    fontSize: FONTS.sizes.xs - 2,
   },
   ownTime: {
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: COLORS.white + '8C',
   },
   otherTime: {
     color: COLORS.textLight,
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   },
   emptyChatTitle: {
     fontSize: FONTS.sizes.lg,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: COLORS.text,
   },
   emptyChatText: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flex: 1,
     backgroundColor: COLORS.gray[50],
-    borderRadius: 24,
+    borderRadius: BORDER_RADIUS.xl + 8,
     borderWidth: 1,
     borderColor: COLORS.gray[200],
     paddingHorizontal: SPACING.md,

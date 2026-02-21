@@ -98,6 +98,9 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Notifications</Text>
+      </View>
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
@@ -118,7 +121,12 @@ const NotificationsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  list: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm },
+  header: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
+  list: { paddingHorizontal: SPACING.lg },
   notifCard: {
     flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.sm,
@@ -129,7 +137,7 @@ const styles = StyleSheet.create({
   notifContent: { flex: 1 },
   notifTitle: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text },
   notifMessage: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: 2, lineHeight: 19 },
-  notifTime: { fontSize: 11, color: COLORS.textLight, marginTop: SPACING.xs },
+  notifTime: { fontSize: FONTS.sizes.xs, color: COLORS.textLight, marginTop: SPACING.xs },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginTop: 4 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
   emptyIcon: {

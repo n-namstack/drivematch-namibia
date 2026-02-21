@@ -88,7 +88,8 @@ const AllDriversScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <View style={styles.resultsHeader}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>All Drivers</Text>
         <Text style={styles.resultsCount}>
           {drivers.length} driver{drivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
         </Text>
@@ -156,13 +157,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resultsHeader: {
+  header: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
   },
+  headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   resultsCount: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,

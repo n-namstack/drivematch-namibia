@@ -201,12 +201,14 @@ const useDriverStore = create((set, get) => ({
             expiry_date
           ),
           driver_reviews (
-            *,
-            reviewer:reviewer_id (
-              firstname,
-              lastname,
-              profile_image
-            )
+            id,
+            reviewer_id,
+            rating,
+            title,
+            comment,
+            response,
+            response_at,
+            created_at
           )
         `)
         .eq('id', driverId)

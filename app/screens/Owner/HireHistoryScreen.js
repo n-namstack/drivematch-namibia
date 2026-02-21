@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
   },
-  headerTitle: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text },
+  headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   countText: {
     fontSize: FONTS.sizes.sm, color: COLORS.textSecondary,
     paddingHorizontal: SPACING.lg, paddingBottom: SPACING.sm,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: 2 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaText: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary },
-  timeText: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
+  timeText: { fontSize: FONTS.sizes.xs, color: COLORS.textLight, marginTop: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   messageBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.gray[100],
     justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.md,
   },
-  emptyTitle: { fontSize: FONTS.sizes.lg, fontWeight: '600', color: COLORS.text },
-  emptyText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xs },
+  emptyTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text },
+  emptyText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 20 },
   searchButton: {
     backgroundColor: COLORS.primary, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.lg, marginTop: SPACING.lg,

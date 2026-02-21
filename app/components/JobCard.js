@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
   interestedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
     backgroundColor: COLORS.secondary + '15',
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
   },
   interestedText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     fontWeight: '600',
     color: COLORS.secondary,
   },
@@ -188,14 +188,14 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
     backgroundColor: COLORS.primary + '10',
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     color: COLORS.primary,
     fontWeight: '500',
   },
@@ -212,11 +212,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm,
   },
   vehicleChipText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     color: COLORS.gray[600],
   },
   moreText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     color: COLORS.textSecondary,
     alignSelf: 'center',
   },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   interestCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
   },
   interestCountText: {
     fontSize: FONTS.sizes.xs,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm,
   },
   salaryText: {
-    fontSize: 11,
+    fontSize: FONTS.sizes.xs,
     fontWeight: '600',
     color: COLORS.secondary,
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: SPACING.xs - 1,
   },
   metaText: {
     fontSize: FONTS.sizes.xs,

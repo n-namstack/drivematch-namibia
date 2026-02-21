@@ -125,7 +125,7 @@ const DriverHomeScreen = ({ navigation }) => {
       label: 'Profile Views',
       value: driverProfile?.profile_views?.toString() || '0',
       icon: 'eye',
-      color: '#8B5CF6',
+      color: COLORS.info,
     },
   ];
 
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.error, borderRadius: 10, minWidth: 18, height: 18,
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
   },
-  notifBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
+  notifBadgeText: { color: COLORS.white, fontSize: FONTS.sizes.xs, fontWeight: '700' },
 
   // Availability
   availabilityCard: {
