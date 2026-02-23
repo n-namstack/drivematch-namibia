@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,13 @@ import {
   Alert,
   Linking,
   Share,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
-import useDriverStore from '../../store/useDriverStore';
-import useChatStore from '../../store/useChatStore';
-import supabase from '../../lib/supabase';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../context/AuthContext";
+import useDriverStore from "../../store/useDriverStore";
+import useChatStore from "../../store/useChatStore";
+import supabase from "../../lib/supabase";
 import {
   COLORS,
   FONTS,
@@ -24,11 +24,12 @@ import {
   BORDER_RADIUS,
   SHADOWS,
   VERIFICATION_STATUS,
-} from '../../constants/theme';
-import ReportModal from '../../components/ReportModal';
+} from "../../constants/theme";
+import ReportModal from "../../components/ReportModal";
+import SelectionActions from "../../components/DriverSelection";
 
 const DriverDetailsScreen = ({ route, navigation }) => {
-  const { driverId } = route.params;
+  const { driverId, jobPostId } = route.params;
   const { user, profile: currentUser } = useAuth();
   const [showReport, setShowReport] = useState(false);
   const selectedDriver = useDriverStore((s) => s.selectedDriver);
@@ -39,32 +40,47 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const { startConversation, setCurrentConversation } = useChatStore();
   const [messaging, setMessaging] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [interestData, setInterestData] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      // Only fetch driver status if jobPostId is not blank
+      if (jobPostId && driverId) {
+        await fetchDriverAndStatus();
+      } else {
+        setLoading(false);
+      }
+
       await fetchDriverById(driverId);
       setLoading(false);
     };
     load();
 
+    console.log("State updated! New interestData is:", interestData);
+
+
     // Realtime: live updates when this driver's profile changes
     const channel = supabase
       .channel(`driver-detail-${driverId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'driver_profiles',
+          event: "UPDATE",
+          schema: "public",
+          table: "driver_profiles",
           filter: `id=eq.${driverId}`,
         },
-        () => { fetchDriverById(driverId); }
+        () => {
+          fetchDriverById(driverId);
+        },
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [driverId]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobPostId, driverId]);
 
   const driver = selectedDriver;
   const userProfile = driver?.profiles;
@@ -73,7 +89,10 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const handleCall = async () => {
     const phone = userProfile?.phone;
     if (!phone) {
-      Alert.alert('No Phone Number', 'This driver has not added a phone number yet.');
+      Alert.alert(
+        "No Phone Number",
+        "This driver has not added a phone number yet.",
+      );
       return;
     }
     try {
@@ -81,19 +100,27 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       if (supported) {
         await Linking.openURL(`tel:${phone}`);
       } else {
-        Alert.alert('Cannot Call', `Unable to open the dialer. You can reach this driver at: ${phone}`);
+        Alert.alert(
+          "Cannot Call",
+          `Unable to open the dialer. You can reach this driver at: ${phone}`,
+        );
       }
     } catch (err) {
-      Alert.alert('Error', `Could not open the dialer. Driver's number: ${phone}`);
+      Alert.alert(
+        "Error",
+        `Could not open the dialer. Driver's number: ${phone}`,
+      );
     }
   };
 
   const handleShare = async () => {
-    const name = `${userProfile?.firstname || ''} ${userProfile?.lastname || ''}`.trim();
-    const loc = userProfile?.location || 'Namibia';
+    const name =
+      `${userProfile?.firstname || ""} ${userProfile?.lastname || ""}`.trim();
+    const loc = userProfile?.location || "Namibia";
     const exp = driver?.years_of_experience || 0;
     const rating = (driver?.rating || 0).toFixed(1);
-    const verified = driver?.verification_status === 'verified' ? ' (Verified)' : '';
+    const verified =
+      driver?.verification_status === "verified" ? " (Verified)" : "";
 
     try {
       await Share.share({
@@ -114,7 +141,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         if (error) throw error;
       }
     } catch (err) {
-      Alert.alert('Error', 'Could not save driver. Please try again.');
+      Alert.alert("Error", "Could not save driver. Please try again.");
     }
   };
 
@@ -124,13 +151,13 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     try {
       const { data, error } = await startConversation(user.id, driver.id);
       if (error) {
-        Alert.alert('Error', 'Could not start conversation. Please try again.');
+        Alert.alert("Error", "Could not start conversation. Please try again.");
         return;
       }
       setCurrentConversation(data);
-      navigation.navigate('Chat', { conversationId: data.id });
+      navigation.navigate("Chat", { conversationId: data.id });
     } catch (err) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setMessaging(false);
     }
@@ -143,14 +170,63 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     const hasHalf = r % 1 >= 0.5;
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.push(<Ionicons key={i} name="star" size={14} color={COLORS.accent} />);
+        stars.push(
+          <Ionicons key={i} name="star" size={14} color={COLORS.accent} />,
+        );
       } else if (i === fullStars && hasHalf) {
-        stars.push(<Ionicons key={i} name="star-half" size={14} color={COLORS.accent} />);
+        stars.push(
+          <Ionicons key={i} name="star-half" size={14} color={COLORS.accent} />,
+        );
       } else {
-        stars.push(<Ionicons key={i} name="star-outline" size={14} color={COLORS.gray[300]} />);
+        stars.push(
+          <Ionicons
+            key={i}
+            name="star-outline"
+            size={14}
+            color={COLORS.gray[300]}
+          />,
+        );
       }
     }
     return stars;
+  };
+
+  const fetchDriverAndStatus = async () => {
+    setLoading(true);
+    try {
+      // Fetch the specific "Interest" status for this job
+      const { data: interest, error: interestErr } = await supabase
+        .from("job_interests")
+        .select("driver_id, status")
+        .eq("job_post_id", jobPostId)
+        .eq("driver_id", driverId)
+        .single();
+
+      console.log("Driver status: ", interest.status);
+
+      if (!interestErr) {
+        setInterestData({
+          id: interest.driver_id,
+          status: interest.status,
+        });
+
+        console.log("Driver status: ", interest.status);
+        if (interest.status === "pending") {
+          updateToViewed(interest.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching driver profile:", error.message);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleStatusUpdate = (newStatus) => {
+    setInterestData((prev) => ({
+      ...prev,
+      status: newStatus,
+    }));
   };
 
   if (loading) {
@@ -167,33 +243,63 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={COLORS.gray[400]} />
-          <Text style={{ color: COLORS.textSecondary, marginTop: SPACING.md, fontSize: FONTS.sizes.md }}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={48}
+            color={COLORS.gray[400]}
+          />
+          <Text
+            style={{
+              color: COLORS.textSecondary,
+              marginTop: SPACING.md,
+              fontSize: FONTS.sizes.md,
+            }}
+          >
             Could not load driver profile
           </Text>
           <TouchableOpacity
-            style={{ marginTop: SPACING.md, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.lg }}
+            style={{
+              marginTop: SPACING.md,
+              paddingVertical: SPACING.sm,
+              paddingHorizontal: SPACING.lg,
+              backgroundColor: COLORS.primary,
+              borderRadius: BORDER_RADIUS.lg,
+            }}
             onPress={() => {
               setLoading(true);
               fetchDriverById(driverId).finally(() => setLoading(false));
             }}
           >
-            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Retry</Text>
+            <Text style={{ color: COLORS.white, fontWeight: "600" }}>
+              Retry
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={{ marginTop: SPACING.sm }} onPress={() => navigation.goBack()}>
-            <Text style={{ color: COLORS.primary, fontWeight: '500' }}>Go Back</Text>
+          <TouchableOpacity
+            style={{ marginTop: SPACING.sm }}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={{ color: COLORS.primary, fontWeight: "500" }}>
+              Go Back
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  const fullName = `${userProfile?.firstname || ''} ${userProfile?.lastname || ''}`.trim() || 'Driver';
-  const statusInfo = VERIFICATION_STATUS[driver.verification_status] || VERIFICATION_STATUS.pending;
-  const actualReviewCount = driver.driver_reviews?.length || driver.total_reviews || 0;
-  const actualRating = actualReviewCount > 0 && driver.driver_reviews?.length
-    ? driver.driver_reviews.reduce((sum, r) => sum + r.rating, 0) / driver.driver_reviews.length
-    : (driver.rating || 0);
+  const fullName =
+    `${userProfile?.firstname || ""} ${userProfile?.lastname || ""}`.trim() ||
+    "Driver";
+  const statusInfo =
+    VERIFICATION_STATUS[driver.verification_status] ||
+    VERIFICATION_STATUS.pending;
+  const actualReviewCount =
+    driver.driver_reviews?.length || driver.total_reviews || 0;
+  const actualRating =
+    actualReviewCount > 0 && driver.driver_reviews?.length
+      ? driver.driver_reviews.reduce((sum, r) => sum + r.rating, 0) /
+        driver.driver_reviews.length
+      : driver.rating || 0;
 
   return (
     <View style={styles.container}>
@@ -201,22 +307,31 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         {/* Hero Section */}
         <View style={styles.heroSection}>
           {/* Navigation */}
-          <SafeAreaView edges={['top']} style={styles.navBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton}>
+          <SafeAreaView edges={["top"]} style={styles.navBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.navButton}
+            >
               <Ionicons name="chevron-back" size={22} color={COLORS.white} />
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <View style={{ flexDirection: "row", gap: SPACING.sm }}>
               <TouchableOpacity onPress={handleShare} style={styles.navButton}>
                 <Ionicons name="share-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleToggleSave} style={styles.navButton}>
+              <TouchableOpacity
+                onPress={handleToggleSave}
+                style={styles.navButton}
+              >
                 <Ionicons
-                  name={isSaved ? 'heart' : 'heart-outline'}
+                  name={isSaved ? "heart" : "heart-outline"}
                   size={22}
-                  color={isSaved ? '#FF6B6B' : COLORS.white}
+                  color={isSaved ? "#FF6B6B" : COLORS.white}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowReport(true)} style={styles.navButton}>
+              <TouchableOpacity
+                onPress={() => setShowReport(true)}
+                style={styles.navButton}
+              >
                 <Ionicons name="flag-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
             </View>
@@ -226,13 +341,21 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           <View style={styles.heroContent}>
             <View style={styles.avatarWrapper}>
               {userProfile?.profile_image ? (
-                <Image source={{ uri: userProfile.profile_image }} style={styles.avatar} />
+                <Image
+                  source={{ uri: userProfile.profile_image }}
+                  style={styles.avatar}
+                />
               ) : (
                 <View style={[styles.avatar, styles.placeholderAvatar]}>
                   <Ionicons name="person" size={36} color={COLORS.white} />
                 </View>
               )}
-              <View style={[styles.statusDot, { backgroundColor: statusInfo.color }]} />
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: statusInfo.color },
+                ]}
+              />
             </View>
 
             <Text style={styles.heroName}>{fullName}</Text>
@@ -240,24 +363,31 @@ const DriverDetailsScreen = ({ route, navigation }) => {
             <View style={styles.heroMeta}>
               {userProfile?.location && (
                 <View style={styles.heroMetaItem}>
-                  <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.heroMetaText}>{userProfile.location}</Text>
+                  <Ionicons
+                    name="location-outline"
+                    size={14}
+                    color="rgba(255,255,255,0.8)"
+                  />
+                  <Text style={styles.heroMetaText}>
+                    {userProfile.location}
+                  </Text>
                 </View>
               )}
               <View style={styles.heroMetaItem}>
-                <View style={[styles.statusIndicator, { backgroundColor: statusInfo.color }]} />
+                <View
+                  style={[
+                    styles.statusIndicator,
+                    { backgroundColor: statusInfo.color },
+                  ]}
+                />
                 <Text style={styles.heroMetaText}>{statusInfo.label}</Text>
               </View>
             </View>
 
             <View style={styles.ratingRow}>
               {renderStars(actualRating)}
-              <Text style={styles.ratingValue}>
-                {actualRating.toFixed(1)}
-              </Text>
-              <Text style={styles.reviewCount}>
-                ({actualReviewCount})
-              </Text>
+              <Text style={styles.ratingValue}>{actualRating.toFixed(1)}</Text>
+              <Text style={styles.reviewCount}>({actualReviewCount})</Text>
             </View>
           </View>
         </View>
@@ -267,38 +397,83 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           <View style={styles.statsCard}>
             <View style={styles.statRow}>
               <View style={styles.statBlock}>
-                <View style={[styles.statIconBg, { backgroundColor: COLORS.primary + '12' }]}>
-                  <Ionicons name="briefcase-outline" size={18} color={COLORS.primary} />
+                <View
+                  style={[
+                    styles.statIconBg,
+                    { backgroundColor: COLORS.primary + "12" },
+                  ]}
+                >
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={18}
+                    color={COLORS.primary}
+                  />
                 </View>
-                <Text style={styles.statValue}>{driver.years_of_experience || 0}</Text>
+                <Text style={styles.statValue}>
+                  {driver.years_of_experience || 0}
+                </Text>
                 <Text style={styles.statLabel}>Years Exp</Text>
               </View>
               <View style={styles.statBlock}>
-                <View style={[styles.statIconBg, { backgroundColor: COLORS.accent + '12' }]}>
-                  <Ionicons name="chatbubbles-outline" size={18} color={COLORS.accent} />
+                <View
+                  style={[
+                    styles.statIconBg,
+                    { backgroundColor: COLORS.accent + "12" },
+                  ]}
+                >
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={18}
+                    color={COLORS.accent}
+                  />
                 </View>
                 <Text style={styles.statValue}>{actualReviewCount}</Text>
                 <Text style={styles.statLabel}>Reviews</Text>
               </View>
               <View style={styles.statBlock}>
-                <View style={[styles.statIconBg, { backgroundColor: COLORS.secondary + '12' }]}>
-                  <Ionicons name="document-text-outline" size={18} color={COLORS.secondary} />
+                <View
+                  style={[
+                    styles.statIconBg,
+                    { backgroundColor: COLORS.secondary + "12" },
+                  ]}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={18}
+                    color={COLORS.secondary}
+                  />
                 </View>
-                <Text style={styles.statValue}>{driver.driver_documents?.length || 0}</Text>
+                <Text style={styles.statValue}>
+                  {driver.driver_documents?.length || 0}
+                </Text>
                 <Text style={styles.statLabel}>Documents</Text>
               </View>
               <View style={styles.statBlock}>
-                <View style={[styles.statIconBg, { backgroundColor: COLORS.info + '12' }]}>
+                <View
+                  style={[
+                    styles.statIconBg,
+                    { backgroundColor: COLORS.info + "12" },
+                  ]}
+                >
                   <Ionicons name="car-outline" size={18} color={COLORS.info} />
                 </View>
-                <Text style={styles.statValue}>{driver.work_history?.length || 0}</Text>
+                <Text style={styles.statValue}>
+                  {driver.work_history?.length || 0}
+                </Text>
                 <Text style={styles.statLabel}>Jobs</Text>
               </View>
               <View style={styles.statBlock}>
-                <View style={[styles.statIconBg, { backgroundColor: '#8B5CF6' + '12' }]}>
+                <View
+                  style={[
+                    styles.statIconBg,
+                    { backgroundColor: "#8B5CF6" + "12" },
+                  ]}
+                >
                   <Ionicons name="eye-outline" size={18} color="#8B5CF6" />
                 </View>
-                <Text style={styles.statValue}>{driver.profile_views || 0}</Text>
+                <Text style={styles.statValue}>
+                  {driver.profile_views || 0}
+                </Text>
                 <Text style={styles.statLabel}>Views</Text>
               </View>
             </View>
@@ -320,35 +495,80 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           <Text style={styles.sectionTitle}>Details</Text>
           <View style={styles.card}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIcon, { backgroundColor: COLORS.primary + '10' }]}>
-                <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+              <View
+                style={[
+                  styles.detailIcon,
+                  { backgroundColor: COLORS.primary + "10" },
+                ]}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={COLORS.primary}
+                />
               </View>
               <Text style={styles.detailLabel}>Availability</Text>
               <Text style={styles.detailValue}>
-                {driver.availability === 'full_time' ? 'Full Time'
-                  : driver.availability === 'part_time' ? 'Part Time' : 'Weekends Only'}
+                {driver.availability === "full_time"
+                  ? "Full Time"
+                  : driver.availability === "part_time"
+                    ? "Part Time"
+                    : "Weekends Only"}
               </Text>
             </View>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIcon, { backgroundColor: driver.has_pdp ? COLORS.secondary + '10' : COLORS.gray[100] }]}>
+              <View
+                style={[
+                  styles.detailIcon,
+                  {
+                    backgroundColor: driver.has_pdp
+                      ? COLORS.secondary + "10"
+                      : COLORS.gray[100],
+                  },
+                ]}
+              >
                 <Ionicons
-                  name={driver.has_pdp ? 'shield-checkmark-outline' : 'shield-outline'}
+                  name={
+                    driver.has_pdp
+                      ? "shield-checkmark-outline"
+                      : "shield-outline"
+                  }
                   size={16}
                   color={driver.has_pdp ? COLORS.secondary : COLORS.gray[400]}
                 />
               </View>
               <Text style={styles.detailLabel}>PDP</Text>
-              <Text style={[styles.detailValue, { color: driver.has_pdp ? COLORS.secondary : COLORS.textSecondary }]}>
-                {driver.has_pdp ? 'Yes' : 'No'}
+              <Text
+                style={[
+                  styles.detailValue,
+                  {
+                    color: driver.has_pdp
+                      ? COLORS.secondary
+                      : COLORS.textSecondary,
+                  },
+                ]}
+              >
+                {driver.has_pdp ? "Yes" : "No"}
               </Text>
             </View>
             {driver.languages?.length > 0 && (
               <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-                <View style={[styles.detailIcon, { backgroundColor: COLORS.info + '10' }]}>
-                  <Ionicons name="globe-outline" size={16} color={COLORS.info} />
+                <View
+                  style={[
+                    styles.detailIcon,
+                    { backgroundColor: COLORS.info + "10" },
+                  ]}
+                >
+                  <Ionicons
+                    name="globe-outline"
+                    size={16}
+                    color={COLORS.info}
+                  />
                 </View>
                 <Text style={styles.detailLabel}>Languages</Text>
-                <Text style={styles.detailValue}>{driver.languages.join(', ')}</Text>
+                <Text style={styles.detailValue}>
+                  {driver.languages.join(", ")}
+                </Text>
               </View>
             )}
           </View>
@@ -357,11 +577,17 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         {/* Vehicle Types */}
         {driver.vehicle_types?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prefered Transportation Type</Text>
+            <Text style={styles.sectionTitle}>
+              Prefered Transportation Type
+            </Text>
             <View style={styles.chipsRow}>
               {driver.vehicle_types.map((type, index) => (
                 <View key={index} style={styles.chip}>
-                  <Ionicons name="car-outline" size={14} color={COLORS.primary} />
+                  <Ionicons
+                    name="car-outline"
+                    size={14}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.chipText}>{type}</Text>
                 </View>
               ))}
@@ -374,23 +600,50 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Documents</Text>
             {driver.driver_documents.map((doc) => {
-              const docStatus = VERIFICATION_STATUS[doc.verification_status] || VERIFICATION_STATUS.pending;
+              const docStatus =
+                VERIFICATION_STATUS[doc.verification_status] ||
+                VERIFICATION_STATUS.pending;
               return (
                 <View key={doc.id} style={styles.docItem}>
-                  <View style={[styles.docIcon, { backgroundColor: COLORS.primary + '10' }]}>
-                    <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
+                  <View
+                    style={[
+                      styles.docIcon,
+                      { backgroundColor: COLORS.primary + "10" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="document-text-outline"
+                      size={18}
+                      color={COLORS.primary}
+                    />
                   </View>
                   <View style={styles.docInfo}>
                     <Text style={styles.docName}>
-                      {doc.document_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                      {doc.document_type
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase())}
                     </Text>
                     {doc.expiry_date && (
-                      <Text style={styles.docExpiry}>Exp: {doc.expiry_date}</Text>
+                      <Text style={styles.docExpiry}>
+                        Exp: {doc.expiry_date}
+                      </Text>
                     )}
                   </View>
-                  <View style={[styles.docBadge, { backgroundColor: docStatus.color + '15' }]}>
-                    <View style={[styles.docBadgeDot, { backgroundColor: docStatus.color }]} />
-                    <Text style={[styles.docBadgeText, { color: docStatus.color }]}>
+                  <View
+                    style={[
+                      styles.docBadge,
+                      { backgroundColor: docStatus.color + "15" },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.docBadgeDot,
+                        { backgroundColor: docStatus.color },
+                      ]}
+                    />
+                    <Text
+                      style={[styles.docBadgeText, { color: docStatus.color }]}
+                    >
                       {docStatus.label}
                     </Text>
                   </View>
@@ -407,9 +660,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
             {driver.work_history.map((job, index) => (
               <View key={job.id} style={styles.workItem}>
                 <View style={styles.timelineDot}>
-                  <View style={[styles.timelineDotInner, job.is_current && { backgroundColor: COLORS.secondary }]} />
+                  <View
+                    style={[
+                      styles.timelineDotInner,
+                      job.is_current && { backgroundColor: COLORS.secondary },
+                    ]}
+                  />
                 </View>
-                {index < driver.work_history.length - 1 && <View style={styles.timelineLine} />}
+                {index < driver.work_history.length - 1 && (
+                  <View style={styles.timelineLine} />
+                )}
                 <View style={styles.workContent}>
                   <View style={styles.workHeaderRow}>
                     <Text style={styles.workPosition}>{job.position}</Text>
@@ -429,6 +689,22 @@ const DriverDetailsScreen = ({ route, navigation }) => {
           </View>
         )}
 
+        {/** Selection Status */}
+        {jobPostId && interestData ? (
+          <View style={styles.footerContainer}>
+            <SelectionActions
+              driverId={interestData.id}
+              jobPostId={jobPostId}
+              currentStatus={interestData.status}
+              onStatusUpdate={handleStatusUpdate}
+            />
+          </View>
+        ) : (
+          <View style={styles.loadingFooter}>
+            {/* <Text>Loading application status...</Text> */}
+          </View>
+        )}
+
         {/* Reviews */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -442,25 +718,45 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
           </View>
-          {currentUser?.role === 'owner' && !driver.driver_reviews?.some(r => r.reviewer_id === currentUser?.id) && (
-            <TouchableOpacity
-              style={styles.writeReviewBtn}
-              onPress={() => navigation.navigate('WriteReview', {
-                driverId: driver.id,
-                driverName: fullName,
-                driverImage: userProfile?.profile_image,
-              })}
-            >
-              <Ionicons name="create-outline" size={18} color={COLORS.primary} />
-              <Text style={styles.writeReviewText}>Write a Review</Text>
-            </TouchableOpacity>
-          )}
-          {driver.driver_reviews && driver.driver_reviews.length > 0 && driver.driver_reviews.map((review) => (
+          {currentUser?.role === "owner" &&
+            !driver.driver_reviews?.some(
+              (r) => r.reviewer_id === currentUser?.id,
+            ) && (
+              <TouchableOpacity
+                style={styles.writeReviewBtn}
+                onPress={() =>
+                  navigation.navigate("WriteReview", {
+                    driverId: driver.id,
+                    driverName: fullName,
+                    driverImage: userProfile?.profile_image,
+                  })
+                }
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.writeReviewText}>Write a Review</Text>
+              </TouchableOpacity>
+            )}
+          {driver.driver_reviews &&
+            driver.driver_reviews.length > 0 &&
+            driver.driver_reviews.map((review) => (
               <View key={review.id} style={styles.reviewItem}>
                 <View style={styles.reviewTop}>
                   <View style={styles.reviewerRow}>
-                    <View style={[styles.reviewerAvatar, styles.reviewerAvatarPlaceholder]}>
-                      <Ionicons name="person" size={16} color={COLORS.gray[400]} />
+                    <View
+                      style={[
+                        styles.reviewerAvatar,
+                        styles.reviewerAvatarPlaceholder,
+                      ]}
+                    >
+                      <Ionicons
+                        name="person"
+                        size={16}
+                        color={COLORS.gray[400]}
+                      />
                     </View>
                     <View style={styles.reviewerMeta}>
                       <Text style={styles.reviewerName}>Car Owner</Text>
@@ -470,12 +766,22 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                     </View>
                   </View>
                 </View>
-                {review.title && <Text style={styles.reviewTitle}>{review.title}</Text>}
-                {review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}
+                {review.title && (
+                  <Text style={styles.reviewTitle}>{review.title}</Text>
+                )}
+                {review.comment && (
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                )}
                 {review.response && (
                   <View style={styles.reviewReply}>
-                    <Ionicons name="return-down-forward-outline" size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.reviewReplyText}>{review.response}</Text>
+                    <Ionicons
+                      name="return-down-forward-outline"
+                      size={14}
+                      color={COLORS.textSecondary}
+                    />
+                    <Text style={styles.reviewReplyText}>
+                      {review.response}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -487,8 +793,15 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        <TouchableOpacity style={styles.actionSecondary} onPress={handleMessage}>
-          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+        <TouchableOpacity
+          style={styles.actionSecondary}
+          onPress={handleMessage}
+        >
+          <Ionicons
+            name="chatbubble-outline"
+            size={20}
+            color={COLORS.primary}
+          />
           <Text style={styles.actionSecondaryText}>Message</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionPrimary} onPress={handleCall}>
@@ -514,8 +827,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   // Hero
@@ -526,9 +839,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 28,
   },
   navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
   },
@@ -536,17 +849,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   heroContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
   avatarWrapper: {
-    position: 'relative',
+    position: "relative",
     marginBottom: SPACING.md,
   },
   avatar: {
@@ -554,15 +867,15 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
     borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: "rgba(255,255,255,0.3)",
   },
   placeholderAvatar: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusDot: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 2,
     right: 2,
     width: 20,
@@ -572,25 +885,25 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   heroName: {
-    fontSize: FONTS.sizes['2xl'],
-    fontWeight: '700',
+    fontSize: FONTS.sizes["2xl"],
+    fontWeight: "700",
     color: COLORS.white,
     marginBottom: SPACING.xs,
   },
   heroMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.md,
     marginBottom: SPACING.sm,
   },
   heroMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   heroMetaText: {
     fontSize: FONTS.sizes.sm,
-    color: 'rgba(255,255,255,0.85)',
+    color: "rgba(255,255,255,0.85)",
   },
   statusIndicator: {
     width: 7,
@@ -598,19 +911,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 3,
   },
   ratingValue: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.white,
     marginLeft: 4,
   },
   reviewCount: {
     fontSize: FONTS.sizes.xs,
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.7)",
   },
 
   // Stats
@@ -626,24 +939,24 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   statBlock: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 4,
   },
   statIconBg: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 2,
   },
   statValue: {
     fontSize: FONTS.sizes.md,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.text,
   },
   statLabel: {
@@ -657,13 +970,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sectionTitle: {
     fontSize: FONTS.sizes.md,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.text,
     marginBottom: SPACING.sm,
   },
@@ -683,8 +996,8 @@ const styles = StyleSheet.create({
 
   // Details
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: SPACING.sm + 2,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.gray[50],
@@ -694,8 +1007,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   detailLabel: {
     flex: 1,
@@ -705,18 +1018,18 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.text,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   // Chips
   chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: SPACING.sm,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     backgroundColor: COLORS.white,
     paddingHorizontal: SPACING.sm + 4,
@@ -728,14 +1041,14 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: FONTS.sizes.xs,
     color: COLORS.text,
-    fontWeight: '500',
-    textTransform: 'capitalize',
+    fontWeight: "500",
+    textTransform: "capitalize",
   },
 
   // Documents
   docItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.white,
     padding: SPACING.sm + 4,
     borderRadius: BORDER_RADIUS.lg,
@@ -746,8 +1059,8 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   docInfo: {
     flex: 1,
@@ -755,7 +1068,7 @@ const styles = StyleSheet.create({
   docName: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.text,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   docExpiry: {
     fontSize: 11,
@@ -763,8 +1076,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   docBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
@@ -777,18 +1090,18 @@ const styles = StyleSheet.create({
   },
   docBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   // Work History
   workItem: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingLeft: 4,
     marginBottom: SPACING.md,
   },
   timelineDot: {
     width: 20,
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 4,
     zIndex: 1,
   },
@@ -801,7 +1114,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.white,
   },
   timelineLine: {
-    position: 'absolute',
+    position: "absolute",
     left: 8.5,
     top: 18,
     bottom: -SPACING.md,
@@ -816,25 +1129,25 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   workHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   workPosition: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
     flex: 1,
   },
   currentTag: {
-    backgroundColor: COLORS.secondary + '15',
+    backgroundColor: COLORS.secondary + "15",
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full,
   },
   currentTagText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.secondary,
   },
   workCompany: {
@@ -851,31 +1164,31 @@ const styles = StyleSheet.create({
 
   // Reviews
   writeReviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.xs,
-    backgroundColor: COLORS.primary + '10',
+    backgroundColor: COLORS.primary + "10",
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.sm + 2,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.primary + '20',
+    borderColor: COLORS.primary + "20",
   },
   writeReviewText: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
   },
   reviewSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     marginBottom: SPACING.sm,
   },
   reviewSummaryText: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
   },
   reviewItem: {
@@ -888,8 +1201,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   reviewerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.sm,
   },
   reviewerAvatar: {
@@ -898,13 +1211,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   reviewerAvatarPlaceholder: {
-    backgroundColor: COLORS.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: COLORS.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
   },
   reviewerInitial: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
   },
   reviewerMeta: {
@@ -912,17 +1225,17 @@ const styles = StyleSheet.create({
   },
   reviewerName: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.text,
   },
   reviewStars: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 1,
     marginTop: 2,
   },
   reviewTitle: {
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
     marginBottom: SPACING.xs,
   },
@@ -932,7 +1245,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   reviewReply: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.sm,
     backgroundColor: COLORS.gray[50],
     padding: SPACING.sm,
@@ -948,11 +1261,11 @@ const styles = StyleSheet.create({
 
   // Action Bar
   actionBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
@@ -964,24 +1277,24 @@ const styles = StyleSheet.create({
   },
   actionSecondary: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.xs,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.xl,
-    backgroundColor: COLORS.primary + '10',
+    backgroundColor: COLORS.primary + "10",
   },
   actionSecondaryText: {
     fontSize: FONTS.sizes.md,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
   },
   actionPrimary: {
     flex: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.xs,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.xl,
@@ -989,7 +1302,7 @@ const styles = StyleSheet.create({
   },
   actionPrimaryText: {
     fontSize: FONTS.sizes.md,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.white,
   },
 });
