@@ -10,12 +10,33 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+
+const formatDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const parseDate = (dateStr) => {
+  if (!dateStr) return new Date();
+  const date = new Date(dateStr + 'T00:00:00');
+  return isNaN(date.getTime()) ? new Date() : date;
+};
 
 const WorkHistoryScreen = ({ navigation }) => {
   const { driverProfile } = useAuth();
@@ -34,6 +55,10 @@ const WorkHistoryScreen = ({ navigation }) => {
   const [description, setDescription] = useState('');
   const [referenceName, setReferenceName] = useState('');
   const [referencePhone, setReferencePhone] = useState('');
+
+  // Date picker state
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   useEffect(() => {
     fetchWorkHistory();
@@ -68,6 +93,8 @@ const WorkHistoryScreen = ({ navigation }) => {
     setReferenceName('');
     setReferencePhone('');
     setEditingJob(null);
+    setShowStartPicker(false);
+    setShowEndPicker(false);
   };
 
   const openAddModal = () => {
@@ -89,18 +116,8 @@ const WorkHistoryScreen = ({ navigation }) => {
   };
 
   const handleSave = async () => {
-    if (!companyName.trim() || !position.trim() || !startDate.trim()) {
+    if (!companyName.trim() || !position.trim() || !startDate) {
       Alert.alert('Required Fields', 'Please fill in company name, position, and start date.');
-      return;
-    }
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(startDate)) {
-      Alert.alert('Invalid Date', 'Start date must be in YYYY-MM-DD format (e.g. 2023-01-15).');
-      return;
-    }
-    if (endDate && !isCurrent && !dateRegex.test(endDate)) {
-      Alert.alert('Invalid Date', 'End date must be in YYYY-MM-DD format (e.g. 2024-06-30).');
       return;
     }
 
@@ -207,7 +224,7 @@ const WorkHistoryScreen = ({ navigation }) => {
                   <Text style={styles.jobPosition}>{job.position}</Text>
                   <Text style={styles.jobCompany}>{job.company_name}</Text>
                   <Text style={styles.jobDates}>
-                    {job.start_date} — {job.is_current ? 'Present' : job.end_date || 'N/A'}
+                    {formatDisplayDate(job.start_date)} — {job.is_current ? 'Present' : (job.end_date ? formatDisplayDate(job.end_date) : 'N/A')}
                   </Text>
                 </View>
                 {job.is_current && (
@@ -299,15 +316,34 @@ const WorkHistoryScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Start Date * (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 2022-01-15"
-                placeholderTextColor={COLORS.gray[400]}
-                value={startDate}
-                onChangeText={setStartDate}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={styles.label}>Start Date *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowStartPicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+                <Text style={[styles.dateButtonText, !startDate && styles.dateButtonPlaceholder]}>
+                  {startDate ? formatDisplayDate(startDate) : 'Select start date'}
+                </Text>
+              </TouchableOpacity>
+              {showStartPicker && (
+                <DateTimePicker
+                  value={parseDate(startDate)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') setShowStartPicker(false);
+                    if (event.type === 'dismissed') {
+                      setShowStartPicker(false);
+                      return;
+                    }
+                    if (selectedDate) setStartDate(formatDate(selectedDate));
+                    if (Platform.OS === 'ios') setShowStartPicker(false);
+                  }}
+                  accentColor={COLORS.primary}
+                />
+              )}
             </View>
 
             <View style={styles.switchRow}>
@@ -322,15 +358,35 @@ const WorkHistoryScreen = ({ navigation }) => {
 
             {!isCurrent && (
               <View style={styles.formGroup}>
-                <Text style={styles.label}>End Date (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 2024-06-30"
-                  placeholderTextColor={COLORS.gray[400]}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  keyboardType="numbers-and-punctuation"
-                />
+                <Text style={styles.label}>End Date</Text>
+                <TouchableOpacity
+                  style={styles.dateButton}
+                  onPress={() => setShowEndPicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+                  <Text style={[styles.dateButtonText, !endDate && styles.dateButtonPlaceholder]}>
+                    {endDate ? formatDisplayDate(endDate) : 'Select end date'}
+                  </Text>
+                </TouchableOpacity>
+                {showEndPicker && (
+                  <DateTimePicker
+                    value={parseDate(endDate || startDate)}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={startDate ? parseDate(startDate) : undefined}
+                    maximumDate={new Date()}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') setShowEndPicker(false);
+                      if (event.type === 'dismissed') {
+                        setShowEndPicker(false);
+                        return;
+                      }
+                      if (selectedDate) setEndDate(formatDate(selectedDate));
+                      if (Platform.OS === 'ios') setShowEndPicker(false);
+                    }}
+                    accentColor={COLORS.primary}
+                  />
+                )}
               </View>
             )}
 
@@ -607,6 +663,24 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     paddingTop: SPACING.sm,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray[200],
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+  },
+  dateButtonText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.text,
+  },
+  dateButtonPlaceholder: {
+    color: COLORS.gray[400],
   },
   switchRow: {
     flexDirection: 'row',

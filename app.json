@@ -55,7 +55,8 @@
           "cameraPermission": "NamDriver needs camera access for document verification."
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      "@react-native-community/datetimepicker"
     ],
     "privacy": "public",
     "scheme": "namdriver",

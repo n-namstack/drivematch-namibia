@@ -118,28 +118,6 @@ const OwnerHomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* How It Works */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How NamDriver Works</Text>
-          <View style={styles.howItWorksContainer}>
-            {[
-              { num: '1', title: 'Search', desc: 'Browse drivers by location, experience, and availability' },
-              { num: '2', title: 'Connect', desc: 'Message or call drivers directly' },
-              { num: '3', title: 'Hire', desc: 'View credentials, reviews, and hire with confidence' },
-            ].map((step) => (
-              <View key={step.num} style={styles.stepItem}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{step.num}</Text>
-                </View>
-                <View style={styles.stepContent}>
-                  <Text style={styles.stepTitle}>{step.title}</Text>
-                  <Text style={styles.stepDescription}>{step.desc}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* Top Drivers */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -220,13 +198,6 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '500' },
   emptyState: { alignItems: 'center', paddingVertical: SPACING['2xl'] },
   emptyText: { marginTop: SPACING.md, fontSize: FONTS.sizes.md, color: COLORS.textSecondary },
-  howItWorksContainer: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, gap: SPACING.md, ...SHADOWS.sm },
-  stepItem: { flexDirection: 'row', gap: SPACING.md },
-  stepNumber: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
-  stepNumberText: { color: COLORS.white, fontWeight: 'bold', fontSize: FONTS.sizes.md },
-  stepContent: { flex: 1 },
-  stepTitle: { fontSize: FONTS.sizes.md, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },
-  stepDescription: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, lineHeight: 20 },
 });
 
 export default OwnerHomeScreen;

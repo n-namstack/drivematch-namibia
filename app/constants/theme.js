@@ -180,7 +180,7 @@ export const DOCUMENT_TYPES = [
 
 export const VERIFICATION_STATUS = {
   pending: { label: 'Pending Review', color: COLORS.pending },
-  submitted: { label: 'Under Review', color: COLORS.info },
+  submitted: { label: 'Under Review', color: COLORS.warning },
   verified: { label: 'Verified', color: COLORS.verified },
   rejected: { label: 'Rejected', color: COLORS.rejected },
 };
