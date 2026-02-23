@@ -1,53 +1,54 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, View } from 'react-native';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, View } from "react-native";
 
-import { useAuth } from '../context/AuthContext';
-import { COLORS } from '../constants/theme';
+import { useAuth } from "../context/AuthContext";
+import { COLORS } from "../constants/theme";
 
 // Auth Screens
-import WelcomeScreen from '../screens/Auth/WelcomeScreen';
-import LoginScreen from '../screens/Auth/LoginScreen';
-import RegisterScreen from '../screens/Auth/RegisterScreen';
-import RoleSelectionScreen from '../screens/Auth/RoleSelectionScreen';
-import VerifyEmailScreen from '../screens/Auth/VerifyEmailScreen';
+import WelcomeScreen from "../screens/Auth/WelcomeScreen";
+import LoginScreen from "../screens/Auth/LoginScreen";
+import RegisterScreen from "../screens/Auth/RegisterScreen";
+import RoleSelectionScreen from "../screens/Auth/RoleSelectionScreen";
+import VerifyEmailScreen from "../screens/Auth/VerifyEmailScreen";
 
 // Driver Screens
-import DriverHomeScreen from '../screens/Driver/DriverHomeScreen';
-import DriverProfileScreen from '../screens/Driver/DriverProfileScreen';
-import EditDriverProfileScreen from '../screens/Driver/EditDriverProfileScreen';
-import DocumentUploadScreen from '../screens/Driver/DocumentUploadScreen';
-import WorkHistoryScreen from '../screens/Driver/WorkHistoryScreen';
+import DriverHomeScreen from "../screens/Driver/DriverHomeScreen";
+import DriverProfileScreen from "../screens/Driver/DriverProfileScreen";
+import EditDriverProfileScreen from "../screens/Driver/EditDriverProfileScreen";
+import DocumentUploadScreen from "../screens/Driver/DocumentUploadScreen";
+import WorkHistoryScreen from "../screens/Driver/WorkHistoryScreen";
 
 // Owner Screens
-import OwnerHomeScreen from '../screens/Owner/OwnerHomeScreen';
-import SearchDriversScreen from '../screens/Owner/SearchDriversScreen';
-import DriverDetailsScreen from '../screens/Owner/DriverDetailsScreen';
-import SavedDriversScreen from '../screens/Owner/SavedDriversScreen';
-import WriteReviewScreen from '../screens/Owner/WriteReviewScreen';
-import HireHistoryScreen from '../screens/Owner/HireHistoryScreen';
-import AllDriversScreen from '../screens/Owner/AllDriversScreen';
+import OwnerHomeScreen from "../screens/Owner/OwnerHomeScreen";
+import SearchDriversScreen from "../screens/Owner/SearchDriversScreen";
+import DriverDetailsScreen from "../screens/Owner/DriverDetailsScreen";
+import SavedDriversScreen from "../screens/Owner/SavedDriversScreen";
+import WriteReviewScreen from "../screens/Owner/WriteReviewScreen";
+import HireHistoryScreen from "../screens/Owner/HireHistoryScreen";
+import AllDriversScreen from "../screens/Owner/AllDriversScreen";
 
 // Chat Screens
-import ConversationsScreen from '../screens/Chat/ConversationsScreen';
-import ChatScreen from '../screens/Chat/ChatScreen';
+import ConversationsScreen from "../screens/Chat/ConversationsScreen";
+import ChatScreen from "../screens/Chat/ChatScreen";
 
 // Common Screens
-import ProfileSettingsScreen from '../screens/Common/ProfileSettingsScreen';
-import NotificationsScreen from '../screens/Common/NotificationsScreen';
+import ProfileSettingsScreen from "../screens/Common/ProfileSettingsScreen";
+import NotificationsScreen from "../screens/Common/NotificationsScreen";
 
 // Job Board Screens
-import JobBoardScreen from '../screens/Jobs/JobBoardScreen';
-import MyJobPostsScreen from '../screens/Jobs/MyJobPostsScreen';
-import CreateJobPostScreen from '../screens/Jobs/CreateJobPostScreen';
-import JobPostDetailsScreen from '../screens/Jobs/JobPostDetailsScreen';
+import JobBoardScreen from "../screens/Jobs/JobBoardScreen";
+import MyJobPostsScreen from "../screens/Jobs/MyJobPostsScreen";
+import CreateJobPostScreen from "../screens/Jobs/CreateJobPostScreen";
+import JobPostDetailsScreen from "../screens/Jobs/JobPostDetailsScreen";
+import ShortlistedDriversScreen from "../screens/Jobs/ShortlistedDrivers";
 
 // Admin Screens
-import AdminDashboardScreen from '../screens/Admin/AdminDashboardScreen';
-import VerifyDocumentsScreen from '../screens/Admin/VerifyDocumentsScreen';
+import AdminDashboardScreen from "../screens/Admin/AdminDashboardScreen";
+import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -73,16 +74,16 @@ const DriverTabs = () => (
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-        if (route.name === 'Home') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Jobs') {
-          iconName = focused ? 'briefcase' : 'briefcase-outline';
-        } else if (route.name === 'Profile') {
-          iconName = focused ? 'person' : 'person-outline';
-        } else if (route.name === 'Messages') {
-          iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-        } else if (route.name === 'Settings') {
-          iconName = focused ? 'settings' : 'settings-outline';
+        if (route.name === "Home") {
+          iconName = focused ? "home" : "home-outline";
+        } else if (route.name === "Jobs") {
+          iconName = focused ? "briefcase" : "briefcase-outline";
+        } else if (route.name === "Profile") {
+          iconName = focused ? "person" : "person-outline";
+        } else if (route.name === "Messages") {
+          iconName = focused ? "chatbubbles" : "chatbubbles-outline";
+        } else if (route.name === "Settings") {
+          iconName = focused ? "settings" : "settings-outline";
         }
         return <Ionicons name={iconName} size={size} color={color} />;
       },
@@ -105,16 +106,16 @@ const OwnerTabs = () => (
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-        if (route.name === 'Home') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Search') {
-          iconName = focused ? 'search' : 'search-outline';
-        } else if (route.name === 'My Jobs') {
-          iconName = focused ? 'megaphone' : 'megaphone-outline';
-        } else if (route.name === 'Messages') {
-          iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-        } else if (route.name === 'Settings') {
-          iconName = focused ? 'settings' : 'settings-outline';
+        if (route.name === "Home") {
+          iconName = focused ? "home" : "home-outline";
+        } else if (route.name === "Search") {
+          iconName = focused ? "search" : "search-outline";
+        } else if (route.name === "My Jobs") {
+          iconName = focused ? "megaphone" : "megaphone-outline";
+        } else if (route.name === "Messages") {
+          iconName = focused ? "chatbubbles" : "chatbubbles-outline";
+        } else if (route.name === "Settings") {
+          iconName = focused ? "settings" : "settings-outline";
         }
         return <Ionicons name={iconName} size={size} color={color} />;
       },
@@ -137,12 +138,12 @@ const AdminTabs = () => (
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-        if (route.name === 'Dashboard') {
-          iconName = focused ? 'grid' : 'grid-outline';
-        } else if (route.name === 'Verify') {
-          iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
-        } else if (route.name === 'Settings') {
-          iconName = focused ? 'settings' : 'settings-outline';
+        if (route.name === "Dashboard") {
+          iconName = focused ? "grid" : "grid-outline";
+        } else if (route.name === "Verify") {
+          iconName = focused ? "shield-checkmark" : "shield-checkmark-outline";
+        } else if (route.name === "Settings") {
+          iconName = focused ? "settings" : "settings-outline";
         }
         return <Ionicons name={iconName} size={size} color={color} />;
       },
@@ -163,16 +164,23 @@ const AppNavigator = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   const getMainScreens = () => {
-    if (profile?.role === 'driver') {
+    if (profile?.role === "driver") {
       return <Stack.Screen name="DriverMain" component={DriverTabs} />;
-    } else if (profile?.role === 'admin') {
+    } else if (profile?.role === "admin") {
       return <Stack.Screen name="AdminMain" component={AdminTabs} />;
     } else {
       return <Stack.Screen name="OwnerMain" component={OwnerTabs} />;
@@ -195,32 +203,32 @@ const AppNavigator = () => {
             <Stack.Screen
               name="DriverDetails"
               component={DriverDetailsScreen}
-              options={{ headerShown: true, title: 'Driver Profile' }}
+              options={{ headerShown: true, title: "Driver Profile" }}
             />
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
-              options={{ headerShown: true, title: 'Chat' }}
+              options={{ headerShown: true, title: "Chat" }}
             />
             <Stack.Screen
               name="EditDriverProfile"
               component={EditDriverProfileScreen}
-              options={{ headerShown: true, title: 'Edit Profile' }}
+              options={{ headerShown: true, title: "Edit Profile" }}
             />
             <Stack.Screen
               name="DocumentUpload"
               component={DocumentUploadScreen}
-              options={{ headerShown: true, title: 'Upload Documents' }}
+              options={{ headerShown: true, title: "Upload Documents" }}
             />
             <Stack.Screen
               name="WorkHistory"
               component={WorkHistoryScreen}
-              options={{ headerShown: true, title: 'Work History' }}
+              options={{ headerShown: true, title: "Work History" }}
             />
             <Stack.Screen
               name="WriteReview"
               component={WriteReviewScreen}
-              options={{ headerShown: true, title: 'Write Review' }}
+              options={{ headerShown: true, title: "Write Review" }}
             />
             <Stack.Screen
               name="HireHistory"
@@ -230,27 +238,32 @@ const AppNavigator = () => {
             <Stack.Screen
               name="AllDrivers"
               component={AllDriversScreen}
-              options={{ headerShown: true, title: 'All Drivers' }}
+              options={{ headerShown: true, title: "All Drivers" }}
             />
             <Stack.Screen
               name="Notifications"
               component={NotificationsScreen}
-              options={{ headerShown: true, title: 'Notifications' }}
+              options={{ headerShown: true, title: "Notifications" }}
             />
             <Stack.Screen
               name="CreateJobPost"
               component={CreateJobPostScreen}
-              options={{ headerShown: true, title: 'Post a Job' }}
+              options={{ headerShown: true, title: "Post a Job" }}
             />
             <Stack.Screen
               name="JobPostDetails"
               component={JobPostDetailsScreen}
-              options={{ headerShown: true, title: 'Job Details' }}
+              options={{ headerShown: true, title: "Job Details" }}
             />
             <Stack.Screen
               name="SavedDrivers"
               component={SavedDriversScreen}
-              options={{ headerShown: true, title: 'Saved Drivers' }}
+              options={{ headerShown: true, title: "Saved Drivers" }}
+            />
+            <Stack.Screen
+              name="ShortlistedDrivers"
+              component={ShortlistedDriversScreen}
+              options={{ headerShown: true, title: "Shortlisted Drivers" }}
             />
           </>
         )}
