@@ -97,7 +97,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
     try {
       await Share.share({
-        message: `Check out ${name}${verified} on NamDriver!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload NamDriver to connect with professional drivers in Namibia.`,
+        message: `Check out ${name}${verified} on Steero!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload Steero to connect with professional drivers in Namibia.`,
       });
     } catch (err) {
       // User cancelled share

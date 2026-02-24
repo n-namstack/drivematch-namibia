@@ -98,7 +98,7 @@ const RoleSelectionScreen = ({ navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>How will you use NamDriver?</Text>
+          <Text style={styles.title}>How will you use Steero?</Text>
           <Text style={styles.subtitle}>
             Choose your role to get started.
           </Text>

@@ -16,11 +16,13 @@ const WelcomeScreen = ({ navigation }) => {
         {/* Top Section */}
         <View style={styles.topSection}>
           <View style={styles.logoContainer}>
-            <Ionicons name="car-sport" size={32} color={COLORS.primary} />
+            <View style={styles.logoRing}>
+              <Ionicons name="speedometer" size={36} color={COLORS.white} />
+            </View>
           </View>
-          <Text style={styles.appName}>NamDriver</Text>
+          <Text style={styles.appName}>Steero</Text>
           <Text style={styles.tagline}>
-            Find trusted, verified drivers{'\n'}for your vehicle in Namibia
+            Your trusted driver marketplace{'\n'}in Namibia
           </Text>
         </View>
 
@@ -99,13 +101,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#EEF2FF',
+    marginBottom: SPACING.lg,
+    alignItems: 'center',
+  },
+  logoRing: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   appName: {
     fontSize: 32,

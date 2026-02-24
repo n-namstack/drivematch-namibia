@@ -50,7 +50,7 @@ const ReportModal = ({ visible, onClose, reportedUserId, reportedUserName }) => 
 
       Alert.alert(
         'Report Submitted',
-        'Thank you for helping keep NamDriver safe. We will review this report.',
+        'Thank you for helping keep Steero safe. We will review this report.',
         [{ text: 'OK', onPress: onClose }]
       );
       setSelectedReason(null);

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { AppState } from 'react-native';
 import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
 import useChatStore from '../store/useChatStore';
@@ -14,6 +15,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const appState = useRef(AppState.currentState);
+
   useEffect(() => {
     // Check current session on mount
     checkSession();
@@ -21,8 +24,7 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'TOKEN_REFRESHED' && !session) {
-          // Refresh token failed - sign out
+        if (event === 'SIGNED_OUT') {
           setUser(null);
           setProfile(null);
           setDriverProfile(null);
@@ -30,7 +32,6 @@ export const AuthProvider = ({ children }) => {
           return;
         }
         if (session?.user) {
-          // Don't treat unverified email users as logged in
           if (!session.user.email_confirmed_at) {
             setUser(null);
             setProfile(null);
@@ -39,33 +40,40 @@ export const AuthProvider = ({ children }) => {
             setUser(session.user);
             await fetchProfile(session.user.id);
           }
-        } else {
-          setUser(null);
-          setProfile(null);
-          setDriverProfile(null);
         }
         setLoading(false);
       }
     );
 
+    // Refresh session when app comes back to foreground
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            // Session exists — Supabase auto-refreshes the access token
+            setUser(session.user);
+          }
+        });
+      }
+      appState.current = nextState;
+    });
+
     return () => {
       subscription?.unsubscribe();
+      appStateSub.remove();
     };
   }, []);
 
   const checkSession = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        // Invalid or expired token - clear state and force re-login
-        setUser(null);
-        setProfile(null);
-        setDriverProfile(null);
-        await supabase.auth.signOut().catch(() => {});
+      if (error || !session) {
+        // No valid session found — stay logged out but don't destroy tokens.
+        // Supabase will auto-refresh if a refresh token exists in storage.
+        setLoading(false);
         return;
       }
-      if (session?.user) {
-        // Don't treat unverified email users as logged in
+      if (session.user) {
         if (!session.user.email_confirmed_at) {
           setUser(null);
           setProfile(null);
@@ -76,11 +84,8 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (err) {
-      // Session check failed - clear state to force re-login
-      setUser(null);
-      setProfile(null);
-      setDriverProfile(null);
-      await supabase.auth.signOut().catch(() => {});
+      // Network error — don't sign out, just stop loading.
+      // User may still have a valid refresh token for when connectivity returns.
     } finally {
       setLoading(false);
     }
