@@ -49,7 +49,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       try {
         // Fetch driver profile and job interest status in parallel
         await Promise.all([
-          fetchDriverById(driverId),
+          fetchDriverById(driverId, user?.id),
           jobPostId && driverId ? fetchDriverAndStatus() : Promise.resolve(),
         ]);
       } finally {

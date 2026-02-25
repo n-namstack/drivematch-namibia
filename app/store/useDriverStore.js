@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import supabase from '../lib/supabase';
+import profileViewService from '../services/profileViewService';
 
 const useDriverStore = create((set, get) => ({
   // State
@@ -174,12 +175,14 @@ const useDriverStore = create((set, get) => ({
     }
   },
 
-  fetchDriverById: async (driverId) => {
+  fetchDriverById: async (driverId, viewerId = null) => {
     set({ selectedDriver: null });
 
     try {
-      // Increment profile view count (don't block or break if it fails)
-      try { await supabase.rpc('increment_profile_view', { p_driver_id: driverId }); } catch (e) {}
+      // Record unique profile view (deduped per viewer per day, skips self-views)
+      if (viewerId) {
+        profileViewService.recordView(viewerId, driverId);
+      }
 
       const { data, error } = await supabase
         .from('driver_profiles')
