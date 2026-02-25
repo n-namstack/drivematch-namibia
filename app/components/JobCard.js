@@ -87,6 +87,12 @@ const JobCard = ({ job, onPress, hasInterest, compact = false }) => {
             <Text style={styles.tagText}>{EXPERIENCE_LABELS[job.experience_level]}</Text>
           </View>
         )}
+        {job.positions_available > 1 && (
+          <View style={styles.tag}>
+            <Ionicons name="people-outline" size={12} color={COLORS.primary} />
+            <Text style={styles.tagText}>{job.positions_available} positions</Text>
+          </View>
+        )}
       </View>
 
       {/* Vehicle types */}

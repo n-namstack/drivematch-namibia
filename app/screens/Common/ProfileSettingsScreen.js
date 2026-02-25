@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
-const SUPPORT_EMAIL = 'support@steero.app';
+const SUPPORT_EMAIL = 'support@duolink.app';
 
 const ProfileSettingsScreen = ({ navigation }) => {
   const { profile, signOut } = useAuth();
@@ -80,7 +80,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
     Alert.alert('Help Center', 'How can we help you?', [
       {
         text: 'Email Support',
-        onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Steero%20Support%20Request`),
+        onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=DuoLink%20Support%20Request`),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -182,7 +182,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
         </View>
 
         {/* App Version */}
-        <Text style={styles.version}>Steero v1.0.0</Text>
+        <Text style={styles.version}>DuoLink v1.0.0</Text>
       </ScrollView>
 
       {/* Legal Modal */}
@@ -224,17 +224,17 @@ const PrivacyPolicyContent = () => (
 
     <Text style={legalStyles.heading}>1. Information We Collect</Text>
     <Text style={legalStyles.body}>
-      Steero collects information you provide when creating an account, including your name, email address, phone number, location, and profile photo. For drivers, we also collect professional credentials, work history, and uploaded documents such as driver's licenses and identity documents.
+      DuoLink collects information you provide when creating an account, including your name, email address, phone number, location, and profile photo. For drivers, we also collect professional credentials, work history, and uploaded documents such as driver's licenses and identity documents.
     </Text>
 
     <Text style={legalStyles.heading}>2. How We Use Your Information</Text>
     <Text style={legalStyles.body}>
-      We use your information to: provide and maintain the Steero service; connect car owners with drivers; verify driver credentials; facilitate communication between users; send notifications about your account; and improve our services.
+      We use your information to: provide and maintain the DuoLink service; connect car owners with drivers; verify driver credentials; facilitate communication between users; send notifications about your account; and improve our services.
     </Text>
 
     <Text style={legalStyles.heading}>3. Information Sharing</Text>
     <Text style={legalStyles.body}>
-      Your profile information is visible to other Steero users as part of the service. We do not sell your personal information to third parties. We may share information with service providers who assist in operating our platform, or when required by law.
+      Your profile information is visible to other DuoLink users as part of the service. We do not sell your personal information to third parties. We may share information with service providers who assist in operating our platform, or when required by law.
     </Text>
 
     <Text style={legalStyles.heading}>4. Data Storage & Security</Text>
@@ -249,12 +249,12 @@ const PrivacyPolicyContent = () => (
 
     <Text style={legalStyles.heading}>6. Camera & Photo Library</Text>
     <Text style={legalStyles.body}>
-      Steero requests access to your camera and photo library solely for uploading profile photos and document images for verification purposes. These images are stored securely and used only for the stated purpose.
+      DuoLink requests access to your camera and photo library solely for uploading profile photos and document images for verification purposes. These images are stored securely and used only for the stated purpose.
     </Text>
 
     <Text style={legalStyles.heading}>7. Contact Us</Text>
     <Text style={legalStyles.body}>
-      For privacy-related inquiries, contact us at support@steero.app.
+      For privacy-related inquiries, contact us at support@duolink.app.
     </Text>
   </View>
 );
@@ -265,22 +265,22 @@ const TermsOfServiceContent = () => (
 
     <Text style={legalStyles.heading}>1. Acceptance of Terms</Text>
     <Text style={legalStyles.body}>
-      By using Steero, you agree to these Terms of Service. If you do not agree, please do not use the application. Steero reserves the right to update these terms at any time.
+      By using DuoLink, you agree to these Terms of Service. If you do not agree, please do not use the application. DuoLink reserves the right to update these terms at any time.
     </Text>
 
     <Text style={legalStyles.heading}>2. Service Description</Text>
     <Text style={legalStyles.body}>
-      Steero is a platform that connects car owners with professional drivers in Namibia. We facilitate introductions and communication between parties but are not a party to any employment agreement between owners and drivers.
+      DuoLink is a platform that connects car owners with professional drivers in Namibia. We facilitate introductions and communication between parties but are not a party to any employment agreement between owners and drivers.
     </Text>
 
     <Text style={legalStyles.heading}>3. User Accounts</Text>
     <Text style={legalStyles.body}>
-      You must provide accurate, complete information when creating an account. You are responsible for maintaining the security of your account credentials. You must be at least 18 years old to use Steero.
+      You must provide accurate, complete information when creating an account. You are responsible for maintaining the security of your account credentials. You must be at least 18 years old to use DuoLink.
     </Text>
 
     <Text style={legalStyles.heading}>4. Driver Verification</Text>
     <Text style={legalStyles.body}>
-      Drivers may submit documents for verification. While Steero reviews these documents, verification does not constitute an endorsement or guarantee. Car owners should conduct their own due diligence when hiring drivers.
+      Drivers may submit documents for verification. While DuoLink reviews these documents, verification does not constitute an endorsement or guarantee. Car owners should conduct their own due diligence when hiring drivers.
     </Text>
 
     <Text style={legalStyles.heading}>5. User Conduct</Text>
@@ -290,22 +290,22 @@ const TermsOfServiceContent = () => (
 
     <Text style={legalStyles.heading}>6. Reviews & Ratings</Text>
     <Text style={legalStyles.body}>
-      Reviews must be honest and based on actual experience. Steero reserves the right to remove reviews that violate our guidelines, contain inappropriate content, or are determined to be fraudulent.
+      Reviews must be honest and based on actual experience. DuoLink reserves the right to remove reviews that violate our guidelines, contain inappropriate content, or are determined to be fraudulent.
     </Text>
 
     <Text style={legalStyles.heading}>7. Limitation of Liability</Text>
     <Text style={legalStyles.body}>
-      Steero provides a platform for connecting users and is not liable for any disputes, damages, or issues arising from interactions between car owners and drivers. Users engage with each other at their own risk.
+      DuoLink provides a platform for connecting users and is not liable for any disputes, damages, or issues arising from interactions between car owners and drivers. Users engage with each other at their own risk.
     </Text>
 
     <Text style={legalStyles.heading}>8. Termination</Text>
     <Text style={legalStyles.body}>
-      Steero may suspend or terminate accounts that violate these terms. Users may delete their account at any time through the app settings, which will remove their personal data from our systems.
+      DuoLink may suspend or terminate accounts that violate these terms. Users may delete their account at any time through the app settings, which will remove their personal data from our systems.
     </Text>
 
     <Text style={legalStyles.heading}>9. Contact</Text>
     <Text style={legalStyles.body}>
-      For questions about these terms, contact us at support@steero.app.
+      For questions about these terms, contact us at support@duolink.app.
     </Text>
   </View>
 );

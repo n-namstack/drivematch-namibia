@@ -1,10 +1,25 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import supabase from '../lib/supabase';
 import { decode } from 'base64-arraybuffer';
 
 const BUCKET_NAME = 'driver_documents';
+
+const compressImage = async (uri) => {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1200 } }],
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return result.uri;
+};
+
+const isImage = (uri) => {
+  const ext = uri.split('.').pop().toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(ext);
+};
 
 export const documentService = {
   requestCameraPermission: async () => {
@@ -85,11 +100,20 @@ export const documentService = {
         return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
       }
 
-      const fileExt = file.uri.split('.').pop().toLowerCase();
-      const fileName = `${userId}/${documentType}_${Date.now()}.${fileExt}`;
-      const contentType = file.mimeType || `image/${fileExt}`;
+      // Compress images before upload (PDFs pass through unchanged)
+      let uploadUri = file.uri;
+      let fileExt = file.uri.split('.').pop().toLowerCase();
+      let contentType = file.mimeType || `image/${fileExt}`;
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, {
+      if (isImage(file.uri)) {
+        uploadUri = await compressImage(file.uri);
+        fileExt = 'jpeg';
+        contentType = 'image/jpeg';
+      }
+
+      const fileName = `${userId}/${documentType}_${Date.now()}.${fileExt}`;
+
+      const base64 = await FileSystem.readAsStringAsync(uploadUri, {
         encoding: 'base64',
       });
 

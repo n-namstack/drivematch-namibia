@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
@@ -76,19 +77,17 @@ const EditDriverProfileScreen = ({ navigation }) => {
     try {
       const file = result.assets[0];
 
-      // Validate file size (max 5MB)
-      if (file.fileSize && file.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('File Too Large', 'Profile photo must be under 5MB. Please choose a smaller image.');
-        setUploadingImage(false);
-        return;
-      }
+      // Resize to max 800px (profile images don't need to be large) and compress
+      const compressed = await ImageManipulator.manipulateAsync(
+        file.uri,
+        [{ resize: { width: 800 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
 
-      const fileExt = file.uri.split('.').pop().toLowerCase();
-      // Use a stable filename so new uploads overwrite the old one (no orphaned files)
-      const fileName = `${profile.id}/profile.${fileExt}`;
-      const contentType = file.mimeType || `image/${fileExt}`;
+      const fileName = `${profile.id}/profile.jpeg`;
+      const contentType = 'image/jpeg';
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+      const base64 = await FileSystem.readAsStringAsync(compressed.uri, { encoding: 'base64' });
       const fileData = decode(base64);
 
       const { error: uploadError } = await supabase.storage

@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Steero",
-    "slug": "steero",
+    "name": "DuoLink",
+    "slug": "duolink",
     "owner": "namstack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "description": "Steero connects car owners with trusted, verified drivers in Namibia. Browse driver profiles, check reviews, verify credentials, and find the perfect driver for your vehicle.",
+    "description": "DuoLink connects car owners with trusted, verified drivers in Namibia. Browse driver profiles, check reviews, verify credentials, and find the perfect driver for your vehicle.",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -16,7 +16,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.namstack.steero",
+      "bundleIdentifier": "com.namstack.duolink",
       "requireFullScreen": true,
       "buildNumber": "2",
       "config": {
@@ -24,8 +24,8 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Steero needs access to your photo library to upload profile photos and documents.",
-        "NSCameraUsageDescription": "Steero needs camera access to take photos of documents for verification.",
+        "NSPhotoLibraryUsageDescription": "DuoLink needs access to your photo library to upload profile photos and documents.",
+        "NSCameraUsageDescription": "DuoLink needs camera access to take photos of documents for verification.",
         "CFBundleAllowMixedLocalizations": true
       }
     },
@@ -35,7 +35,7 @@
         "backgroundColor": "#1E40AF"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.namstack.steero",
+      "package": "com.namstack.duolink",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
@@ -51,15 +51,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Steero needs access to your photos for profile and document uploads.",
-          "cameraPermission": "Steero needs camera access for document verification."
+          "photosPermission": "DuoLink needs access to your photos for profile and document uploads.",
+          "cameraPermission": "DuoLink needs camera access for document verification."
         }
       ],
       "expo-document-picker",
       "@react-native-community/datetimepicker"
     ],
     "privacy": "public",
-    "scheme": "steero",
+    "scheme": "duolink",
     "extra": {
       "supabaseUrl": "https://lpggxqfljjrqdukmwcrk.supabase.co",
       "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2d4cWZsampycWR1a213Y3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDAxMTYsImV4cCI6MjA4NjgxNjExNn0.6JDwNbaWVfEikP4vBzS0sltQM8Tfc2slrt6VjVfeL7Y",

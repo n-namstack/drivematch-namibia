@@ -139,7 +139,7 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
       ) : (
         <FlatList
           data={drivers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.driver_id}
           renderItem={renderDriver}
           ListEmptyComponent={
             <Text style={styles.empty}>No drivers shortlisted yet.</Text>

@@ -39,6 +39,7 @@ const CreateJobPostScreen = ({ navigation }) => {
   const [experienceLevel, setExperienceLevel] = useState('any');
   const [availabilityType, setAvailabilityType] = useState('full_time');
   const [salaryRange, setSalaryRange] = useState('');
+  const [positionsAvailable, setPositionsAvailable] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
   const toggleVehicleType = (id) => {
@@ -63,6 +64,7 @@ const CreateJobPostScreen = ({ navigation }) => {
       experience_level: experienceLevel,
       availability_type: availabilityType,
       salary_range: salaryRange.trim() || null,
+      positions_available: positionsAvailable,
     });
     setSubmitting(false);
 
@@ -221,6 +223,26 @@ const CreateJobPostScreen = ({ navigation }) => {
             maxLength={50}
           />
 
+          {/* Number of Positions */}
+          <Text style={styles.label}>Number of Positions</Text>
+          <View style={styles.stepperRow}>
+            <TouchableOpacity
+              style={[styles.stepperBtn, positionsAvailable <= 1 && styles.stepperBtnDisabled]}
+              onPress={() => setPositionsAvailable((p) => Math.max(1, p - 1))}
+              disabled={positionsAvailable <= 1}
+            >
+              <Ionicons name="remove" size={20} color={positionsAvailable <= 1 ? COLORS.gray[300] : COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.stepperValue}>{positionsAvailable}</Text>
+            <TouchableOpacity
+              style={[styles.stepperBtn, positionsAvailable >= 20 && styles.stepperBtnDisabled]}
+              onPress={() => setPositionsAvailable((p) => Math.min(20, p + 1))}
+              disabled={positionsAvailable >= 20}
+            >
+              <Ionicons name="add" size={20} color={positionsAvailable >= 20 ? COLORS.gray[300] : COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+
           {/* Submit */}
           <TouchableOpacity
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
@@ -326,6 +348,32 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.lg,
+  },
+  stepperBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.sm,
+  },
+  stepperBtnDisabled: {
+    borderColor: COLORS.gray[200],
+  },
+  stepperValue: {
+    fontSize: FONTS.sizes['2xl'],
+    fontWeight: 'bold',
+    color: COLORS.text,
+    minWidth: 30,
+    textAlign: 'center',
   },
   submitButton: {
     flexDirection: 'row',

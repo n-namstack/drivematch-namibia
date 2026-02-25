@@ -1,4 +1,4 @@
-// Steero Theme Constants
+// DuoLink Theme Constants
 
 export const COLORS = {
   // Primary Brand Colors

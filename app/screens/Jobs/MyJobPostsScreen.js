@@ -153,6 +153,76 @@ const MyJobPostsScreen = ({ navigation }) => {
     );
   };
 
+  // Get hired driver info for a job
+  const JobHiredStatCard = ({ job }) => {
+    const [hiredInfo, setHiredInfo] = useState(null);
+
+    useEffect(() => {
+      if (job?.id) fetchHiredInfo();
+    }, [job.id]);
+
+    const fetchHiredInfo = async () => {
+      try {
+        const { data, count, error } = await supabase
+          .from("job_interests")
+          .select(
+            `
+            driver_id,
+            status,
+            driver_profiles:driver_id(
+              profiles:user_id(firstname, lastname)
+            )
+          `,
+            { count: "exact" },
+          )
+          .eq("job_post_id", job.id)
+          .eq("status", "accepted");
+
+        if (error) throw error;
+        if (count > 0 && data?.[0]) {
+          const dp = data[0].driver_profiles?.profiles;
+          setHiredInfo({
+            count,
+            driverId: data[0].driver_id,
+            name: dp ? `${dp.firstname} ${dp.lastname}`.trim() : null,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching hired info:", error.message);
+      }
+    };
+
+    if (!hiredInfo) return null;
+
+    const positionsAvailable = job.positions_available || 1;
+    const hiredLabel =
+      positionsAvailable > 1
+        ? `${hiredInfo.count} of ${positionsAvailable} positions filled`
+        : `${hiredInfo.name || "1 driver"} hired`;
+
+    return (
+      <TouchableOpacity
+        style={styles.interestSummary}
+        onPress={() =>
+          navigation.navigate("DriverDetails", {
+            driverId: hiredInfo.driverId,
+            jobPostId: job.id,
+          })
+        }
+        activeOpacity={0.7}
+      >
+        <Ionicons name="person" size={16} color={COLORS.success} />
+        <Text style={styles.interestSummaryText}>{hiredLabel}</Text>
+        <View style={styles.viewDriversBtn}>
+          <Text style={[styles.viewDriversText, { color: COLORS.success }]}>
+            View
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.success} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const renderJob = ({ item: job }) => {
     const statusStyle = STATUS_STYLES[job.status] || STATUS_STYLES.open;
     const interestCount = job.interest_count || 0;
@@ -209,51 +279,66 @@ const MyJobPostsScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <FlatList
-          data={myJobs}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <JobShortlistedStatCard job={item} />}
-        />
+        {/* Shortlisted count */}
+        <JobShortlistedStatCard job={job} />
+
+        {/* Hired driver info */}
+        <JobHiredStatCard job={job} />
 
         {/* Actions */}
-        <View style={styles.actions}>
-          {job.status === "open" ? (
+        {job.status === "filled" ? (
+          <View style={styles.filledRow}>
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={COLORS.success}
+            />
+            <Text style={[styles.actionText, { color: COLORS.success }]}>
+              Position Filled
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.actions}>
+            {job.status === "open" ? (
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => handleCloseJob(job)}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={16}
+                  color={COLORS.gray[600]}
+                />
+                <Text style={styles.actionText}>Close</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => handleReopenJob(job)}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={COLORS.secondary}
+                />
+                <Text
+                  style={[styles.actionText, { color: COLORS.secondary }]}
+                >
+                  Reopen
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.actionBtn}
-              onPress={() => handleCloseJob(job)}
+              onPress={() => handleDeleteJob(job)}
             >
-              <Ionicons
-                name="close-circle-outline"
-                size={16}
-                color={COLORS.gray[600]}
-              />
-              <Text style={styles.actionText}>Close</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={() => handleReopenJob(job)}
-            >
-              <Ionicons
-                name="refresh-outline"
-                size={16}
-                color={COLORS.secondary}
-              />
-              <Text style={[styles.actionText, { color: COLORS.secondary }]}>
-                Reopen
+              <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+              <Text style={[styles.actionText, { color: COLORS.error }]}>
+                Delete
               </Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => handleDeleteJob(job)}
-          >
-            <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-            <Text style={[styles.actionText, { color: COLORS.error }]}>
-              Delete
-            </Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -450,6 +535,15 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.gray[100],
   },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  filledRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray[100],
+  },
   actionText: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.gray[600],

@@ -16,13 +16,13 @@ const WelcomeScreen = ({ navigation }) => {
         {/* Top Section */}
         <View style={styles.topSection}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoRing}>
-              <Ionicons name="speedometer" size={36} color={COLORS.white} />
+            <View style={styles.logoOuter}>
+              <Text style={styles.logoText}>DL</Text>
             </View>
           </View>
-          <Text style={styles.appName}>Steero</Text>
+          <Text style={styles.appName}>DuoLink</Text>
           <Text style={styles.tagline}>
-            Your trusted driver marketplace{'\n'}in Namibia
+            Owner. Driver. Connected.{'\n'}Namibia's trusted driver marketplace
           </Text>
         </View>
 
@@ -104,10 +104,10 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     alignItems: 'center',
   },
-  logoRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  logoOuter: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -116,6 +116,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+  },
+  logoText: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 1,
   },
   appName: {
     fontSize: 32,

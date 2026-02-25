@@ -16,18 +16,13 @@ const SelectionActions = ({
   jobPostId,
   currentStatus,
   onStatusUpdate,
+  positionsAvailable = 1,
+  hiredCount = 0,
 }) => {
   if (!driverId || !jobPostId) {
     return null;
   }
   const [loading, setLoading] = useState(null);
-
-  console.log(
-    "Driver id (selection): ",
-    driverId,
-    " | Job post id (selection): ",
-    jobPostId,
-  );
 
   const handleUpdate = async (newStatus) => {
     if (newStatus === "accepted") {
@@ -60,7 +55,6 @@ const SelectionActions = ({
       } else if (data && data.length > 0) {
         onStatusUpdate(newStatus);
       } else {
-        // This happens if the policy blocks the update or IDs are wrong
         Alert.alert(
           "Unauthorized",
           "You don't have permission to update this driver.",
@@ -79,9 +73,9 @@ const SelectionActions = ({
       <View style={styles.decisionContainer}>
         <View style={[styles.statusBanner, styles.bannerSuccess]}>
           <Ionicons name="trophy" size={20} color="#00875A" />
-          <Text style={styles.successText}>🏆 DRIVER HIRED</Text>
+          <Text style={styles.successText}>DRIVER HIRED</Text>
         </View>
-        <Text style={styles.subText}>Selection finalized for this job.</Text>
+        <Text style={styles.subText}>This driver has been hired for this job.</Text>
       </View>
     );
   }
@@ -143,8 +137,8 @@ const SelectionActions = ({
           </TouchableOpacity>
         )}
 
-        {/* STEP 2: Hire */}
-        {currentStatus === "shortlisted" && (
+        {/* STEP 2: Hire (only if positions still available) */}
+        {currentStatus === "shortlisted" && hiredCount < positionsAvailable && (
           <TouchableOpacity
             style={[styles.btn, styles.acceptBtn]}
             onPress={() => handleUpdate("accepted")}
@@ -159,6 +153,12 @@ const SelectionActions = ({
               </>
             )}
           </TouchableOpacity>
+        )}
+        {currentStatus === "shortlisted" && hiredCount >= positionsAvailable && (
+          <View style={[styles.btn, styles.filledBtn]}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+            <Text style={styles.filledText}>All Positions Filled</Text>
+          </View>
         )}
       </View>
     </View>
@@ -200,6 +200,8 @@ const styles = StyleSheet.create({
   },
   shortlistBtn: { backgroundColor: COLORS.primary },
   acceptBtn: { backgroundColor: COLORS.success, borderColor: COLORS.success },
+  filledBtn: { backgroundColor: "#E6F4EA", borderColor: COLORS.success },
+  filledText: { color: COLORS.success, fontSize: 13, fontWeight: "600" },
   whiteText: { color: COLORS.white, fontSize: 16 },
   declineText: { color: COLORS.rejected, fontSize: 16 },
   decisionContainer: {

@@ -41,23 +41,22 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const [messaging, setMessaging] = useState(false);
   const [loading, setLoading] = useState(true);
   const [interestData, setInterestData] = useState(null);
+  const [jobPostInfo, setJobPostInfo] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      // Only fetch driver status if jobPostId is not blank
-      if (jobPostId && driverId) {
-        await fetchDriverAndStatus();
-      } else {
+      try {
+        // Fetch driver profile and job interest status in parallel
+        await Promise.all([
+          fetchDriverById(driverId),
+          jobPostId && driverId ? fetchDriverAndStatus() : Promise.resolve(),
+        ]);
+      } finally {
         setLoading(false);
       }
-
-      await fetchDriverById(driverId);
-      setLoading(false);
     };
     load();
-
-    console.log("State updated! New interestData is:", interestData);
 
 
     // Realtime: live updates when this driver's profile changes
@@ -124,7 +123,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
     try {
       await Share.share({
-        message: `Check out ${name}${verified} on Steero!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload Steero to connect with professional drivers in Namibia.`,
+        message: `Check out ${name}${verified} on DuoLink!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload DuoLink to connect with professional drivers in Namibia.`,
       });
     } catch (err) {
       // User cancelled share
@@ -191,34 +190,58 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     return stars;
   };
 
-  const fetchDriverAndStatus = async () => {
-    setLoading(true);
+  const updateToViewed = async (interestDriverId) => {
     try {
-      // Fetch the specific "Interest" status for this job
-      const { data: interest, error: interestErr } = await supabase
+      await supabase
         .from("job_interests")
-        .select("driver_id, status")
+        .update({ status: "viewed" })
         .eq("job_post_id", jobPostId)
-        .eq("driver_id", driverId)
-        .single();
+        .eq("driver_id", interestDriverId);
+      setInterestData((prev) => ({ ...prev, status: "viewed" }));
+    } catch (err) {
+      console.error("Error updating interest to viewed:", err.message);
+    }
+  };
 
-      console.log("Driver status: ", interest.status);
+  const fetchDriverAndStatus = async () => {
+    try {
+      // Fetch this driver's interest status and job post info in parallel
+      const [interestResult, jobPostResult, hiredCountResult] = await Promise.all([
+        supabase
+          .from("job_interests")
+          .select("driver_id, status")
+          .eq("job_post_id", jobPostId)
+          .eq("driver_id", driverId)
+          .single(),
+        supabase
+          .from("job_posts")
+          .select("positions_available")
+          .eq("id", jobPostId)
+          .single(),
+        supabase
+          .from("job_interests")
+          .select("id", { count: "exact", head: true })
+          .eq("job_post_id", jobPostId)
+          .eq("status", "accepted"),
+      ]);
 
-      if (!interestErr) {
+      if (!interestResult.error && interestResult.data) {
         setInterestData({
-          id: interest.driver_id,
-          status: interest.status,
+          id: interestResult.data.driver_id,
+          status: interestResult.data.status,
         });
 
-        console.log("Driver status: ", interest.status);
-        if (interest.status === "pending") {
-          updateToViewed(interest.id);
+        if (interestResult.data.status === "pending") {
+          updateToViewed(interestResult.data.driver_id);
         }
       }
+
+      setJobPostInfo({
+        positionsAvailable: jobPostResult.data?.positions_available || 1,
+        hiredCount: hiredCountResult.count || 0,
+      });
     } catch (error) {
-      console.error("Error fetching driver profile:", error.message);
-    } finally {
-      setLoading(null);
+      console.error("Error fetching driver status:", error.message);
     }
   };
 
@@ -697,6 +720,8 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               jobPostId={jobPostId}
               currentStatus={interestData.status}
               onStatusUpdate={handleStatusUpdate}
+              positionsAvailable={jobPostInfo?.positionsAvailable || 1}
+              hiredCount={jobPostInfo?.hiredCount || 0}
             />
           </View>
         ) : (

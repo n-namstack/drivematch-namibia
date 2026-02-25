@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.job_posts (
   salary_range TEXT,  -- e.g. "N$3,000 - N$5,000 / month"
   status TEXT NOT NULL DEFAULT 'open'
     CHECK (status IN ('open', 'closed', 'filled')),
+  positions_available INTEGER NOT NULL DEFAULT 1,
   interest_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -29,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.job_interests (
   driver_id UUID NOT NULL REFERENCES public.driver_profiles(id) ON DELETE CASCADE,
   message TEXT,  -- optional short intro from the driver
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'viewed', 'accepted', 'rejected')),
+    CHECK (status IN ('pending', 'viewed', 'shortlisted', 'accepted', 'rejected')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(job_post_id, driver_id)  -- a driver can only express interest once per job
 );

@@ -430,12 +430,19 @@ const useJobStore = create((set, get) => ({
           created_at,
           driver_profiles:driver_id(
             user_id,
+            years_of_experience,
+            availability,
+            vehicle_types,
+            has_pdp,
             profiles:user_id(
               firstname,
               lastname,
               profile_image,
-              location
-      `,
+              location,
+              phone
+            )
+          )
+        `,
           { count: "exact" },
         )
         .eq("job_post_id", jobId)
