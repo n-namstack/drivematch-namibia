@@ -722,6 +722,8 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               onStatusUpdate={handleStatusUpdate}
               positionsAvailable={jobPostInfo?.positionsAvailable || 1}
               hiredCount={jobPostInfo?.hiredCount || 0}
+              ownerId={currentUser?.id}
+              driverName={userProfile ? `${userProfile.firstname} ${userProfile.lastname}` : 'Driver'}
             />
           </View>
         ) : (

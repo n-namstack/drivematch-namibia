@@ -21,6 +21,7 @@ import DriverProfileScreen from "../screens/Driver/DriverProfileScreen";
 import EditDriverProfileScreen from "../screens/Driver/EditDriverProfileScreen";
 import DocumentUploadScreen from "../screens/Driver/DocumentUploadScreen";
 import WorkHistoryScreen from "../screens/Driver/WorkHistoryScreen";
+import DemandMapScreen from "../screens/Driver/DemandMapScreen";
 
 // Owner Screens
 import OwnerHomeScreen from "../screens/Owner/OwnerHomeScreen";
@@ -45,6 +46,12 @@ import MyJobPostsScreen from "../screens/Jobs/MyJobPostsScreen";
 import CreateJobPostScreen from "../screens/Jobs/CreateJobPostScreen";
 import JobPostDetailsScreen from "../screens/Jobs/JobPostDetailsScreen";
 import ShortlistedDriversScreen from "../screens/Jobs/ShortlistedDrivers";
+
+// Management Screens
+import AgreementSetupScreen from "../screens/Management/AgreementSetupScreen";
+import ManagementDashboardScreen from "../screens/Management/ManagementDashboardScreen";
+import LogEarningsScreen from "../screens/Management/LogEarningsScreen";
+import EarningsHistoryScreen from "../screens/Management/EarningsHistoryScreen";
 
 // Admin Screens
 import AdminDashboardScreen from "../screens/Admin/AdminDashboardScreen";
@@ -264,6 +271,31 @@ const AppNavigator = () => {
               name="ShortlistedDrivers"
               component={ShortlistedDriversScreen}
               options={{ headerShown: true, title: "Shortlisted Drivers" }}
+            />
+            <Stack.Screen
+              name="DemandMap"
+              component={DemandMapScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AgreementSetup"
+              component={AgreementSetupScreen}
+              options={{ headerShown: true, title: "Set Up Agreement" }}
+            />
+            <Stack.Screen
+              name="ManagementDashboard"
+              component={ManagementDashboardScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LogEarnings"
+              component={LogEarningsScreen}
+              options={{ headerShown: true, title: "Log Earnings" }}
+            />
+            <Stack.Screen
+              name="EarningsHistory"
+              component={EarningsHistoryScreen}
+              options={{ headerShown: true, title: "Earnings History" }}
             />
           </>
         )}

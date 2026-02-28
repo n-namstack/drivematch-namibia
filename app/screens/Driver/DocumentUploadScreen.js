@@ -1,239 +1,337 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import documentService from '../../services/documentService';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, DOCUMENT_TYPES } from '../../constants/theme';
+import useDocumentStore from '../../store/useDocumentStore';
+import DocumentProgressBar from '../../components/DocumentProgressBar';
+import DocumentChecklist from '../../components/DocumentChecklist';
+import DocumentCapture from '../../components/DocumentCapture';
+import DocumentDetailsInput from '../../components/DocumentDetailsInput';
+import SelfieCapture from '../../components/SelfieCapture';
+import VerificationProgress from '../../components/VerificationProgress';
+import ReviewAndSubmit from '../../components/ReviewAndSubmit';
+import { COLORS, FONTS, SPACING, DOCUMENT_TYPES } from '../../constants/theme';
 
-const DocumentUploadScreen = ({ navigation }) => {
-  const { user, driverProfile } = useAuth();
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(null);
+const DocumentUploadScreen = ({ navigation, route }) => {
+  const { user, driverProfile, refreshProfile } = useAuth();
+  const {
+    documents,
+    wizardPhase,
+    activeDocType,
+    verificationResults,
+    loading,
+    uploading,
+    fetchDocuments,
+    setWizardPhase,
+    startDocumentFlow,
+    uploadAndSave,
+    uploadSelfie,
+    triggerAIVerification,
+    submitForVerification,
+    resetWizard,
+  } = useDocumentStore();
 
+  const [capturedFile, setCapturedFile] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Initial load
   useEffect(() => {
-    fetchDocuments();
+    if (driverProfile?.id) {
+      fetchDocuments(driverProfile.id);
+    }
+    return () => resetWizard();
+  }, [driverProfile?.id]);
+
+  // Handle deep-link from notification
+  useEffect(() => {
+    const initialDocType = route?.params?.initialDocType;
+    if (initialDocType && documents.length > 0) {
+      startDocumentFlow(initialDocType);
+    }
+  }, [route?.params?.initialDocType, documents.length]);
+
+  const currentDocConfig = DOCUMENT_TYPES.find((d) => d.id === activeDocType);
+  const currentDoc = documents.find((d) => d.document_type === activeDocType);
+
+  // Handle document selection from checklist
+  const handleSelectDocument = useCallback((docTypeId) => {
+    startDocumentFlow(docTypeId);
   }, []);
 
-  const fetchDocuments = async () => {
-    try {
-      if (!driverProfile?.id) return;
-      const { data } = await documentService.fetchDriverDocuments(driverProfile.id);
-      if (data) setDocuments(data);
-    } catch (err) {
-      // Will show empty document list
-    } finally {
-      setLoading(false);
+  // Handle captured image from DocumentCapture
+  const handleDocumentCaptured = useCallback((file) => {
+    setCapturedFile(file);
+    const config = DOCUMENT_TYPES.find((d) => d.id === activeDocType);
+    if (config?.requiresExpiry || config?.requiresNumber) {
+      setWizardPhase('details');
+    } else if (config?.requiresSelfie) {
+      // Upload first, then selfie
+      handleUploadAndProceedToSelfie(file, null, null);
+    } else {
+      handleUploadAndFinish(file, null, null);
     }
-  };
+  }, [activeDocType]);
 
-  const getDocumentStatus = (docType) => {
-    const doc = documents.find((d) => d.document_type === docType);
-    if (!doc) return null;
-    return doc.verification_status;
-  };
+  // Handle details submitted
+  const handleDetailsSubmitted = useCallback((details) => {
+    const config = DOCUMENT_TYPES.find((d) => d.id === activeDocType);
+    if (config?.requiresSelfie) {
+      handleUploadAndProceedToSelfie(capturedFile, details.expiryDate, details.documentNumber);
+    } else {
+      handleUploadAndFinish(capturedFile, details.expiryDate, details.documentNumber);
+    }
+  }, [activeDocType, capturedFile]);
 
-  const handleUpload = async (docType) => {
-    Alert.alert(
-      'Upload Document',
-      'Choose how to upload your document',
-      [
-        {
-          text: 'Take Photo',
-          onPress: async () => {
-            setUploading(docType);
-            const { data: imageData, error: imageError } = await documentService.takePhoto();
-            if (imageData && !imageError) {
-              await uploadDocument(docType, imageData);
-            }
-            setUploading(null);
-          },
-        },
-        {
-          text: 'Choose from Library',
-          onPress: async () => {
-            setUploading(docType);
-            const { data: imageData, error: imageError } = await documentService.pickImage();
-            if (imageData && !imageError) {
-              await uploadDocument(docType, imageData);
-            }
-            setUploading(null);
-          },
-        },
-        {
-          text: 'Choose Document',
-          onPress: async () => {
-            setUploading(docType);
-            const { data: docData, error: docError } = await documentService.pickDocument();
-            if (docData && !docError) {
-              await uploadDocument(docType, docData);
-            }
-            setUploading(null);
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
+  // Upload document and go to selfie step
+  const handleUploadAndProceedToSelfie = async (file, expiryDate, docNumber) => {
+    const { data, error } = await uploadAndSave(
+      user.id, driverProfile.id, file, activeDocType, expiryDate, docNumber
     );
+
+    if (error) {
+      Alert.alert('Upload Failed', error.message || 'Could not upload document');
+      return;
+    }
+
+    // Trigger AI verification in background (doc only, selfie will come later)
+    if (data?.document_storage_path) {
+      triggerAIVerification(data.id, data.document_storage_path, activeDocType).catch(() => {});
+    }
+
+    setWizardPhase('selfie');
   };
 
-  const uploadDocument = async (docType, file) => {
-    try {
-      // Upload to storage
-      const { data: uploadData, error: uploadError } = await documentService.uploadDocument(
-        user.id,
-        file,
-        docType
-      );
+  // Upload document and finish (no selfie needed)
+  const handleUploadAndFinish = async (file, expiryDate, docNumber) => {
+    const { data, error } = await uploadAndSave(
+      user.id, driverProfile.id, file, activeDocType, expiryDate, docNumber
+    );
 
-      if (uploadError) {
-        Alert.alert('Upload Failed', uploadError.message);
-        return;
+    if (error) {
+      Alert.alert('Upload Failed', error.message || 'Could not upload document');
+      return;
+    }
+
+    // Trigger AI verification
+    if (data?.document_storage_path) {
+      setAiLoading(true);
+      setWizardPhase('verifying');
+      const result = await triggerAIVerification(data.id, data.document_storage_path, activeDocType);
+      setAiLoading(false);
+
+      if (!result.data) {
+        // AI verification failed or unavailable, just go to overview
+        resetWizard();
+        Alert.alert('Success', 'Document uploaded successfully');
       }
-
-      // Save record to database
-      const { error: saveError } = await documentService.saveDocumentRecord(driverProfile.id, {
-        documentType: docType,
-        url: uploadData.url,
-      });
-
-      if (saveError) {
-        Alert.alert('Error', saveError.message);
-        return;
-      }
-
+    } else {
+      resetWizard();
       Alert.alert('Success', 'Document uploaded successfully');
-      fetchDocuments();
-    } catch (err) {
-      Alert.alert('Error', err.message);
     }
   };
 
+  // Handle selfie captured
+  const handleSelfieCaptured = async (selfieFile) => {
+    const doc = documents.find((d) => d.document_type === activeDocType);
+    if (!doc) return;
+
+    const { data, error } = await uploadSelfie(user.id, driverProfile.id, doc.id, selfieFile);
+
+    if (error) {
+      Alert.alert('Upload Failed', error.message || 'Could not upload selfie');
+      return;
+    }
+
+    // Trigger AI verification with selfie
+    setAiLoading(true);
+    setWizardPhase('verifying');
+    const result = await triggerAIVerification(
+      doc.id,
+      doc.document_storage_path,
+      activeDocType,
+      data?.selfieStoragePath || data?.selfie_storage_path
+    );
+    setAiLoading(false);
+
+    if (!result.data) {
+      resetWizard();
+      Alert.alert('Success', 'Document and selfie uploaded successfully');
+    }
+  };
+
+  // Handle selfie skip
+  const handleSelfieSkip = () => {
+    resetWizard();
+    Alert.alert('Document Uploaded', 'You can add the selfie later for faster verification.');
+  };
+
+  // Handle submit for verification
   const handleSubmitForVerification = async () => {
     const requiredDocs = DOCUMENT_TYPES.filter((d) => d.required);
-    const uploadedRequiredDocs = requiredDocs.filter((d) => getDocumentStatus(d.id));
+    const missingRequired = requiredDocs.filter(
+      (d) => !documents.find((doc) => doc.document_type === d.id)
+    );
 
-    if (uploadedRequiredDocs.length < requiredDocs.length) {
+    if (missingRequired.length > 0) {
       Alert.alert(
         'Missing Documents',
-        'Please upload all required documents before submitting for verification'
+        `Please upload: ${missingRequired.map((d) => d.label).join(', ')}`
       );
       return;
     }
 
-    const { error } = await documentService.submitForVerification(driverProfile.id);
+    const { error } = await submitForVerification(driverProfile.id);
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Could not submit for verification');
     } else {
-      Alert.alert('Submitted', 'Your documents have been submitted for verification');
-      navigation.goBack();
+      await refreshProfile();
+      Alert.alert(
+        'Submitted!',
+        'Your documents have been submitted for verification. You will be notified once reviewed.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'verified':
-        return { name: 'checkmark-circle', color: COLORS.secondary };
-      case 'pending':
-        return { name: 'time', color: COLORS.accent };
-      case 'rejected':
-        return { name: 'close-circle', color: COLORS.error };
-      default:
-        return null;
-    }
+  // Navigation handlers for back buttons within wizard
+  const handleBackToOverview = () => {
+    setCapturedFile(null);
+    resetWizard();
   };
 
-  if (loading) {
+  const handleBackToUpload = () => {
+    setCapturedFile(null);
+    setWizardPhase('upload');
+  };
+
+  const handleBackToDetails = () => {
+    setWizardPhase('details');
+  };
+
+  if (loading && documents.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Verification Documents</Text>
-          <Text style={styles.headerSubtitle}>
-            Upload your documents to get verified and build trust with car owners
-          </Text>
-        </View>
-
-        <View style={styles.documentsContainer}>
-          {DOCUMENT_TYPES.map((docType) => {
-            const status = getDocumentStatus(docType.id);
-            const statusIcon = getStatusIcon(status);
-            const isUploading = uploading === docType.id;
-
-            return (
-              <TouchableOpacity
-                key={docType.id}
-                style={styles.documentCard}
-                onPress={() => handleUpload(docType.id)}
-                disabled={isUploading}
-              >
-                <View style={styles.documentIcon}>
-                  <Ionicons
-                    name={status ? 'document' : 'document-outline'}
-                    size={24}
-                    color={status ? COLORS.primary : COLORS.gray[400]}
-                  />
-                </View>
-
-                <View style={styles.documentInfo}>
-                  <View style={styles.documentHeader}>
-                    <Text style={styles.documentTitle}>{docType.label}</Text>
-                    {docType.required && (
-                      <View style={styles.requiredBadge}>
-                        <Text style={styles.requiredText}>Required</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.documentStatus}>
-                    {status
-                      ? status === 'verified'
-                        ? 'Verified'
-                        : status === 'pending'
-                        ? 'Under Review'
-                        : 'Rejected'
-                      : 'Not uploaded'}
-                  </Text>
-                </View>
-
-                {isUploading ? (
-                  <ActivityIndicator color={COLORS.primary} />
-                ) : statusIcon ? (
-                  <Ionicons name={statusIcon.name} size={24} color={statusIcon.color} />
-                ) : (
-                  <Ionicons name="cloud-upload-outline" size={24} color={COLORS.primary} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {driverProfile?.verification_status === 'pending' && (
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmitForVerification}
-            >
-              <Text style={styles.submitButtonText}>Submit for Verification</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={wizardPhase === 'overview' ? () => navigation.goBack() : handleBackToOverview}
+          style={styles.headerBtn}
+        >
+          <Ionicons
+            name={wizardPhase === 'overview' ? 'arrow-back' : 'close'}
+            size={24}
+            color={COLORS.text}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {wizardPhase === 'overview' ? 'Verification Documents' :
+           wizardPhase === 'review' ? 'Review & Submit' :
+           currentDocConfig?.label || 'Upload Document'}
+        </Text>
+        {wizardPhase === 'overview' ? (
+          <TouchableOpacity
+            onPress={() => setWizardPhase('review')}
+            style={styles.headerBtn}
+          >
+            <Ionicons name="checkmark-done-outline" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
-      </ScrollView>
+      </View>
+
+      {/* Progress bar (shown in overview and review) */}
+      {(wizardPhase === 'overview' || wizardPhase === 'review') && (
+        <DocumentProgressBar
+          documents={documents}
+          activeDocType={activeDocType}
+          phase={wizardPhase}
+        />
+      )}
+
+      {/* Upload progress overlay */}
+      {uploading && wizardPhase !== 'verifying' && (
+        <View style={styles.uploadingOverlay}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={styles.uploadingText}>Uploading...</Text>
+        </View>
+      )}
+
+      {/* Wizard phases */}
+      {wizardPhase === 'overview' && (
+        <DocumentChecklist
+          documents={documents}
+          onSelectDocument={handleSelectDocument}
+          verificationStatus={driverProfile?.verification_status}
+        />
+      )}
+
+      {wizardPhase === 'upload' && (
+        <DocumentCapture
+          docType={activeDocType}
+          existingDoc={currentDoc}
+          onCapture={handleDocumentCaptured}
+          onBack={handleBackToOverview}
+        />
+      )}
+
+      {wizardPhase === 'details' && (
+        <DocumentDetailsInput
+          docType={activeDocType}
+          existingDoc={currentDoc}
+          onSubmit={handleDetailsSubmitted}
+          onBack={handleBackToUpload}
+        />
+      )}
+
+      {wizardPhase === 'selfie' && (
+        <SelfieCapture
+          docType={activeDocType}
+          documentImageUrl={currentDoc?.document_url}
+          onCapture={handleSelfieCaptured}
+          onSkip={handleSelfieSkip}
+          onBack={currentDocConfig?.requiresExpiry ? handleBackToDetails : handleBackToUpload}
+        />
+      )}
+
+      {wizardPhase === 'verifying' && (
+        <VerificationProgress
+          verificationResult={verificationResults[currentDoc?.id]}
+          loading={aiLoading}
+          hasSelfie={!!currentDoc?.selfie_url}
+          onContinue={handleBackToOverview}
+          onRetakeDoc={() => {
+            setCapturedFile(null);
+            setWizardPhase('upload');
+          }}
+          onRetakeSelfie={() => setWizardPhase('selfie')}
+        />
+      )}
+
+      {wizardPhase === 'review' && (
+        <ReviewAndSubmit
+          documents={documents}
+          loading={loading}
+          verificationStatus={driverProfile?.verification_status}
+          onSubmit={handleSubmitForVerification}
+          onEditDocument={(docTypeId) => startDocumentFlow(docTypeId)}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -247,84 +345,43 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   header: {
-    padding: SPACING.lg,
-  },
-  headerTitle: {
-    fontSize: FONTS.sizes.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  headerSubtitle: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.textSecondary,
-    lineHeight: 22,
-  },
-  documentsContainer: {
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.md,
-  },
-  documentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    ...SHADOWS.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  documentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryLight + '20',
+  headerBtn: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
-  documentInfo: {
+  headerTitle: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: '700',
+    color: COLORS.text,
     flex: 1,
+    textAlign: 'center',
   },
-  documentHeader: {
+  uploadingOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary + '10',
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    borderRadius: 8,
+    marginBottom: SPACING.sm,
   },
-  documentTitle: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  requiredBadge: {
-    backgroundColor: COLORS.error + '20',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  requiredText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.error,
-  },
-  documentStatus: {
+  uploadingText: {
     fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  footer: {
-    padding: SPACING.lg,
-  },
-  submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    ...SHADOWS.md,
-  },
-  submitButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
+    color: COLORS.primary,
+    fontWeight: '500',
   },
 });
 

@@ -171,11 +171,56 @@ export const AVAILABILITY_OPTIONS = [
 ];
 
 export const DOCUMENT_TYPES = [
-  { id: 'drivers_license', label: "Driver's License", required: true },
-  { id: 'pdp', label: 'Professional Driving Permit (PDP)', required: false },
-  { id: 'id_document', label: 'National ID / Passport', required: true },
-  { id: 'police_clearance', label: 'Police Clearance Certificate', required: false },
-  { id: 'reference_letter', label: 'Reference Letter', required: false },
+  {
+    id: 'drivers_license',
+    label: "Driver's License",
+    required: true,
+    requiresSelfie: true,
+    requiresExpiry: true,
+    requiresNumber: true,
+    icon: 'card-outline',
+    instructions: "Take a clear photo of the front of your driver's license. Make sure all text and your photo are visible.",
+  },
+  {
+    id: 'pdp',
+    label: 'Professional Driving Permit (PDP)',
+    required: false,
+    requiresSelfie: false,
+    requiresExpiry: true,
+    requiresNumber: true,
+    icon: 'shield-checkmark-outline',
+    instructions: 'Photograph your PDP card or certificate clearly.',
+  },
+  {
+    id: 'id_document',
+    label: 'National ID / Passport',
+    required: true,
+    requiresSelfie: true,
+    requiresExpiry: false,
+    requiresNumber: true,
+    icon: 'finger-print-outline',
+    instructions: 'Take a photo of your National ID card or passport bio page.',
+  },
+  {
+    id: 'police_clearance',
+    label: 'Police Clearance Certificate',
+    required: false,
+    requiresSelfie: false,
+    requiresExpiry: false,
+    requiresNumber: false,
+    icon: 'shield-outline',
+    instructions: 'Photograph the full police clearance certificate including stamps and signatures.',
+  },
+  {
+    id: 'reference_letter',
+    label: 'Reference Letter',
+    required: false,
+    requiresSelfie: false,
+    requiresExpiry: false,
+    requiresNumber: false,
+    icon: 'mail-outline',
+    instructions: 'Photograph your reference letter. Ensure the letterhead and signature are visible.',
+  },
 ];
 
 export const VERIFICATION_STATUS = {
@@ -183,4 +228,22 @@ export const VERIFICATION_STATUS = {
   submitted: { label: 'Under Review', color: COLORS.warning },
   verified: { label: 'Verified', color: COLORS.verified },
   rejected: { label: 'Rejected', color: COLORS.rejected },
+  expired: { label: 'Expired', color: COLORS.error },
 };
+
+export const CONTRACT_TYPES = [
+  { id: 'daily_target', label: 'Daily Target', icon: 'cash-outline', color: COLORS.primary },
+  { id: 'revenue_share', label: 'Revenue Share', icon: 'pie-chart-outline', color: COLORS.secondary },
+  { id: 'rent_to_own', label: 'Rent to Own', icon: 'key-outline', color: COLORS.accent },
+];
+
+export const DAYS_OF_WEEK = [
+  { id: 'monday', label: 'Mon' },
+  { id: 'tuesday', label: 'Tue' },
+  { id: 'wednesday', label: 'Wed' },
+  { id: 'thursday', label: 'Thu' },
+  { id: 'friday', label: 'Fri' },
+  { id: 'saturday', label: 'Sat' },
+  { id: 'sunday', label: 'Sun' },
+  { id: 'public_holidays', label: 'Public Holidays' },
+];

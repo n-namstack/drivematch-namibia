@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
 import useChatStore from '../store/useChatStore';
+import useAgreementStore from '../store/useAgreementStore';
 
 const AuthContext = createContext({});
 
@@ -199,6 +200,7 @@ export const AuthProvider = ({ children }) => {
       // Reset Zustand stores to prevent data leakage between accounts
       useDriverStore.getState().resetStore();
       useChatStore.getState().resetStore();
+      useAgreementStore.getState().resetStore();
       setUser(null);
       setProfile(null);
       setDriverProfile(null);

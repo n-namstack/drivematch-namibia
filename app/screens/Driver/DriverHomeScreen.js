@@ -13,23 +13,38 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useJobStore from '../../store/useJobStore';
+import useDocumentStore from '../../store/useDocumentStore';
+import useDemandStore from '../../store/useDemandStore';
+import useAgreementStore from '../../store/useAgreementStore';
 import supabase from '../../lib/supabase';
 import JobCard from '../../components/JobCard';
+import DemandInsights from '../../components/DemandInsights';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, VERIFICATION_STATUS } from '../../constants/theme';
 
 const DriverHomeScreen = ({ navigation }) => {
   const { profile, driverProfile, refreshProfile, updateDriverProfile } = useAuth();
   const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
+  const { documents, fetchDocuments } = useDocumentStore();
+  const { insights: demandInsights, loading: demandLoading, fetchInsights } = useDemandStore();
+  const agreements = useAgreementStore((s) => s.agreements);
+  const fetchMyAgreements = useAgreementStore((s) => s.fetchMyAgreements);
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const activeAgreement = agreements.find((a) => a.status === 'active') || null;
 
   // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
       fetchJobs(true);
-      if (driverProfile?.id) fetchMyInterests(driverProfile.id);
+      fetchInsights();
+      if (driverProfile?.id) {
+        fetchMyInterests(driverProfile.id);
+        fetchDocuments(driverProfile.id);
+        fetchMyAgreements(profile?.id, 'driver', driverProfile.id);
+      }
     }, [profile?.id, driverProfile?.id])
   );
 
@@ -84,7 +99,9 @@ const DriverHomeScreen = ({ navigation }) => {
       refreshProfile(),
       fetchUnreadCount(),
       fetchJobs(true),
+      fetchInsights(true),
       driverProfile?.id ? fetchMyInterests(driverProfile.id) : Promise.resolve(),
+      driverProfile?.id ? fetchMyAgreements(profile?.id, 'driver', driverProfile.id) : Promise.resolve(),
     ]);
     setRefreshing(false);
   };
@@ -107,6 +124,14 @@ const DriverHomeScreen = ({ navigation }) => {
 
   const statusInfo = VERIFICATION_STATUS[driverProfile?.verification_status] || VERIFICATION_STATUS.pending;
   const isAvailable = driverProfile?.is_available_now;
+
+  // Compute expiring documents
+  const expiringDocs = documents.filter((doc) => {
+    if (!doc.expiry_date || doc.verification_status === 'expired') return false;
+    const daysUntil = Math.ceil((new Date(doc.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+    return daysUntil <= 30;
+  });
+  const expiredDocs = documents.filter((doc) => doc.verification_status === 'expired');
 
   const stats = [
     {
@@ -158,6 +183,13 @@ const DriverHomeScreen = ({ navigation }) => {
       color: COLORS.info,
       onPress: () => navigation.navigate('Messages'),
     },
+    ...(activeAgreement ? [{
+      id: 'earnings',
+      icon: 'cash-outline',
+      label: 'Log Earnings',
+      color: '#8B5CF6',
+      onPress: () => navigation.navigate('LogEarnings', { agreementId: activeAgreement.id }),
+    }] : []),
   ];
 
   return (
@@ -254,6 +286,56 @@ const DriverHomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
+        {/* Document Expiry Warnings */}
+        {expiredDocs.length > 0 && (
+          <TouchableOpacity
+            style={[styles.verifyCta, { backgroundColor: COLORS.error + '10', borderColor: COLORS.error + '30', borderWidth: 1 }]}
+            onPress={() => navigation.navigate('DocumentUpload')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.verifyCtaLeft}>
+              <Ionicons name="alert-circle" size={20} color={COLORS.error} />
+              <Text style={[styles.verifyCtaText, { color: COLORS.error }]}>
+                {expiredDocs.length} document{expiredDocs.length > 1 ? 's' : ''} expired - update now
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.error} />
+          </TouchableOpacity>
+        )}
+
+        {expiredDocs.length === 0 && expiringDocs.length > 0 && (
+          <TouchableOpacity
+            style={[styles.verifyCta, { backgroundColor: COLORS.warning + '10', borderColor: COLORS.warning + '30', borderWidth: 1 }]}
+            onPress={() => navigation.navigate('DocumentUpload')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.verifyCtaLeft}>
+              <Ionicons name="time-outline" size={20} color={COLORS.warning} />
+              <Text style={[styles.verifyCtaText, { color: COLORS.accentDark }]}>
+                {expiringDocs.length} document{expiringDocs.length > 1 ? 's' : ''} expiring soon
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.warning} />
+          </TouchableOpacity>
+        )}
+
+        {/* Earnings CTA (if driver has active agreement) */}
+        {activeAgreement && (
+          <TouchableOpacity
+            style={[styles.verifyCta, { backgroundColor: '#8B5CF6' + '0A', borderColor: '#8B5CF6' + '20', borderWidth: 1 }]}
+            onPress={() => navigation.navigate('ManagementDashboard', { agreementId: activeAgreement.id })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.verifyCtaLeft}>
+              <Ionicons name="cash-outline" size={20} color="#8B5CF6" />
+              <Text style={[styles.verifyCtaText, { color: '#8B5CF6' }]}>
+                Log today's earnings or view dashboard
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#8B5CF6" />
+          </TouchableOpacity>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -271,6 +353,15 @@ const DriverHomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Demand Insights */}
+        <View style={styles.section}>
+          <DemandInsights
+            insights={demandInsights}
+            loading={demandLoading}
+            onSeeAll={() => navigation.navigate('DemandMap')}
+          />
         </View>
 
         {/* Recent Job Opportunities */}

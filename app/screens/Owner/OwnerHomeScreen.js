@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import useDriverStore from '../../store/useDriverStore';
+import useAgreementStore from '../../store/useAgreementStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
+import AgreementCard from '../../components/AgreementCard';
 
 const OwnerHomeScreen = ({ navigation }) => {
   const { profile } = useAuth();
   const featuredDrivers = useDriverStore((s) => s.featuredDrivers);
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
+  const agreements = useAgreementStore((s) => s.agreements);
+  const fetchMyAgreements = useAgreementStore((s) => s.fetchMyAgreements);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -38,11 +43,23 @@ const OwnerHomeScreen = ({ navigation }) => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Re-fetch agreements when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.id) {
+        fetchMyAgreements(profile.id, 'owner');
+      }
+    }, [profile?.id])
+  );
+
+  const activeAgreements = agreements.filter((a) => a.status === 'active');
+
   const loadData = async () => {
     try {
       await Promise.all([
         fetchFeaturedDrivers(),
         profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
+        profile?.id ? fetchMyAgreements(profile.id, 'owner') : Promise.resolve(),
       ]);
     } catch (err) {
       // Data will load on next refresh
@@ -117,6 +134,21 @@ const OwnerHomeScreen = ({ navigation }) => {
             <Text style={styles.quickActionLabel}>My Job Posts</Text>
           </TouchableOpacity>
         </View>
+
+        {/* My Drivers (active agreements) */}
+        {activeAgreements.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>My Drivers</Text>
+            {activeAgreements.map((agreement) => (
+              <AgreementCard
+                key={agreement.id}
+                agreement={agreement}
+                role="owner"
+                onPress={() => navigation.navigate('ManagementDashboard', { agreementId: agreement.id })}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Top Drivers */}
         <View style={styles.section}>
