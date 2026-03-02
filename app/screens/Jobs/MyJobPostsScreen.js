@@ -139,7 +139,7 @@ const MyJobPostsScreen = ({ navigation }) => {
         }
         activeOpacity={0.7}
       >
-        <Ionicons name="list" size={16} color={COLORS.primary} />
+        <Ionicons name="newspaper-outline" size={16} color={COLORS.primary} />
         <Text style={styles.interestSummaryText}>
           {shortlistCount} driver{shortlistCount !== 1 ? "s" : ""} shortlisted
         </Text>
