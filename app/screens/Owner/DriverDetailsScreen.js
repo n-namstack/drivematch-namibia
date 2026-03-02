@@ -42,6 +42,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [interestData, setInterestData] = useState(null);
   const [jobPostInfo, setJobPostInfo] = useState(null);
+  const [profileInfo, setProfileInfo] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -57,7 +58,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       }
     };
     load();
-
 
     // Realtime: live updates when this driver's profile changes
     const channel = supabase
@@ -206,24 +206,30 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const fetchDriverAndStatus = async () => {
     try {
       // Fetch this driver's interest status and job post info in parallel
-      const [interestResult, jobPostResult, hiredCountResult] = await Promise.all([
-        supabase
-          .from("job_interests")
-          .select("driver_id, status")
-          .eq("job_post_id", jobPostId)
-          .eq("driver_id", driverId)
-          .single(),
-        supabase
-          .from("job_posts")
-          .select("positions_available")
-          .eq("id", jobPostId)
-          .single(),
-        supabase
-          .from("job_interests")
-          .select("id", { count: "exact", head: true })
-          .eq("job_post_id", jobPostId)
-          .eq("status", "accepted"),
-      ]);
+      const [interestResult, jobPostResult, profileResults, hiredCountResult] =
+        await Promise.all([
+          supabase
+            .from("job_interests")
+            .select("driver_id, status")
+            .eq("job_post_id", jobPostId)
+            .eq("driver_id", driverId)
+            .single(),
+          supabase
+            .from("job_posts")
+            .select("positions_available, title")
+            .eq("id", jobPostId)
+            .single(),
+          supabase
+            .from("driver_profiles")
+            .select("user_id")
+            .eq("id", driverId)
+            .single(),
+          supabase
+            .from("job_interests")
+            .select("id", { count: "exact", head: true })
+            .eq("job_post_id", jobPostId)
+            .eq("status", "accepted"),
+        ]);
 
       if (!interestResult.error && interestResult.data) {
         setInterestData({
@@ -238,8 +244,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
       setJobPostInfo({
         positionsAvailable: jobPostResult.data?.positions_available || 1,
+        jobTile: jobPostResult?.data.title || "Unknown",
         hiredCount: hiredCountResult.count || 0,
       });
+
+      console.log(`Position: ${jobPostResult?.data.title} | User id: ${profileResults.data.user_id}`);
+
+      setProfileInfo({
+        user_id: profileResults.data.user_id,
+      });
+
     } catch (error) {
       console.error("Error fetching driver status:", error.message);
     }
@@ -723,7 +737,13 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               positionsAvailable={jobPostInfo?.positionsAvailable || 1}
               hiredCount={jobPostInfo?.hiredCount || 0}
               ownerId={currentUser?.id}
-              driverName={userProfile ? `${userProfile.firstname} ${userProfile.lastname}` : 'Driver'}
+              driverName={
+                userProfile
+                  ? `${userProfile.firstname} ${userProfile.lastname}`
+                  : "Driver"
+              }
+              jobTile={jobPostInfo?.jobTile || "Unknown"}
+              driverUuId={profileInfo.user_id}
             />
           </View>
         ) : (

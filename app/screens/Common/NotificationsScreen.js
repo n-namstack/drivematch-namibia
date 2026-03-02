@@ -1,21 +1,35 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
-import supabase from '../../lib/supabase';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { formatDistanceToNow } from 'date-fns';
+import { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../context/AuthContext";
+import supabase from "../../lib/supabase";
+import {
+  COLORS,
+  FONTS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { formatDistanceToNow } from "date-fns";
 
 const NOTIFICATION_ICONS = {
-  message: { name: 'chatbubble', color: COLORS.primary },
-  review: { name: 'star', color: COLORS.accent },
-  verification: { name: 'shield-checkmark', color: COLORS.secondary },
-  document_expiry: { name: 'time', color: COLORS.warning },
-  document_expired: { name: 'alert-circle', color: COLORS.error },
-  engagement: { name: 'heart', color: COLORS.error },
-  earnings: { name: 'cash', color: '#8B5CF6' },
-  system: { name: 'information-circle', color: COLORS.info },
+  message: { name: "chatbubble", color: COLORS.primary },
+  review: { name: "star", color: COLORS.accent },
+  verification: { name: "shield-checkmark", color: COLORS.secondary },
+  document_expiry: { name: "time", color: COLORS.warning },
+  document_expired: { name: "alert-circle", color: COLORS.error },
+  engagement: { name: "heart", color: COLORS.error },
+  earnings: { name: "cash", color: "#8B5CF6" },
+  system: { name: "information-circle", color: COLORS.info },
+  job_update: { name: "megaphone", color: COLORS.primary },
 };
 
 const NotificationsScreen = ({ navigation }) => {
@@ -31,10 +45,10 @@ const NotificationsScreen = ({ navigation }) => {
     if (!profile?.id) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: false })
+      .from("notifications")
+      .select("*")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (!error) {
@@ -45,42 +59,59 @@ const NotificationsScreen = ({ navigation }) => {
     // Mark all as read in background (don't block UI)
     if (!error && data?.some((n) => !n.is_read)) {
       supabase
-        .from('notifications')
+        .from("notifications")
         .update({ is_read: true })
-        .eq('user_id', profile.id)
-        .eq('is_read', false)
+        .eq("user_id", profile.id)
+        .eq("is_read", false)
         .then();
     }
   };
 
   const handleNotificationPress = (notification) => {
     const data = notification.data;
-    if (notification.type === 'message' && data?.conversation_id) {
-      navigation.navigate('Chat', { conversationId: data.conversation_id });
-    } else if (notification.type === 'verification') {
-      navigation.navigate('DocumentUpload');
-    } else if (notification.type === 'document_expiry' || notification.type === 'document_expired') {
-      navigation.navigate('DocumentUpload', { initialDocType: data?.document_type });
-    } else if (notification.type === 'earnings' && data?.agreement_id) {
-      navigation.navigate('ManagementDashboard', { agreementId: data.agreement_id });
+    if (notification.type === "message" && data?.conversation_id) {
+      navigation.navigate("Chat", { conversationId: data.conversation_id });
+    } else if (notification.type === "verification") {
+      navigation.navigate("DocumentUpload");
+    } else if (
+      notification.type === "document_expiry" ||
+      notification.type === "document_expired"
+    ) {
+      navigation.navigate("DocumentUpload", {
+        initialDocType: data?.document_type,
+      });
+    } else if (notification.type === "earnings" && data?.agreement_id) {
+      navigation.navigate("ManagementDashboard", {
+        agreementId: data.agreement_id,
+      });
     }
   };
 
   const renderItem = useCallback(({ item }) => {
-    const iconConfig = NOTIFICATION_ICONS[item.type] || NOTIFICATION_ICONS.system;
-    const timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+    const iconConfig =
+      NOTIFICATION_ICONS[item.type] || NOTIFICATION_ICONS.system;
+    const timeAgo = formatDistanceToNow(new Date(item.created_at), {
+      addSuffix: true,
+    });
 
     return (
       <TouchableOpacity
         style={[styles.notifCard, !item.is_read && styles.notifCardUnread]}
         onPress={() => handleNotificationPress(item)}
       >
-        <View style={[styles.notifIcon, { backgroundColor: iconConfig.color + '12' }]}>
+        <View
+          style={[
+            styles.notifIcon,
+            { backgroundColor: iconConfig.color + "12" },
+          ]}
+        >
           <Ionicons name={iconConfig.name} size={20} color={iconConfig.color} />
         </View>
         <View style={styles.notifContent}>
           <Text style={styles.notifTitle}>{item.title}</Text>
-          <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
+          <Text style={styles.notifMessage} numberOfLines={2}>
+            {item.message}
+          </Text>
           <Text style={styles.notifTime}>{timeAgo}</Text>
         </View>
         {!item.is_read && <View style={styles.unreadDot} />}
@@ -93,7 +124,11 @@ const NotificationsScreen = ({ navigation }) => {
     return (
       <View style={styles.empty}>
         <View style={styles.emptyIcon}>
-          <Ionicons name="notifications-outline" size={40} color={COLORS.gray[300]} />
+          <Ionicons
+            name="notifications-outline"
+            size={40}
+            color={COLORS.gray[300]}
+          />
         </View>
         <Text style={styles.emptyTitle}>No Notifications</Text>
         <Text style={styles.emptyText}>
@@ -104,7 +139,7 @@ const NotificationsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
@@ -132,27 +167,84 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
-  headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
+  headerTitle: {
+    fontSize: FONTS.sizes["2xl"],
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
   list: { paddingHorizontal: SPACING.lg },
   notifCard: {
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.sm,
-    gap: SPACING.md, ...SHADOWS.sm,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
   },
-  notifCardUnread: { backgroundColor: COLORS.primary + '05', borderLeftWidth: 3, borderLeftColor: COLORS.primary },
-  notifIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  notifCardUnread: {
+    backgroundColor: COLORS.primary + "05",
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  notifIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   notifContent: { flex: 1 },
-  notifTitle: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text },
-  notifMessage: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: 2, lineHeight: 19 },
-  notifTime: { fontSize: FONTS.sizes.xs, color: COLORS.textLight, marginTop: SPACING.xs },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginTop: 4 },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
-  emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.gray[100],
-    justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.md,
+  notifTitle: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: "600",
+    color: COLORS.text,
   },
-  emptyTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.text },
-  emptyText: { fontSize: FONTS.sizes.md, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.sm },
+  notifMessage: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    lineHeight: 19,
+  },
+  notifTime: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+    marginTop: 4,
+  },
+  empty: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: SPACING.xl,
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.gray[100],
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING.md,
+  },
+  emptyTitle: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
+  emptyText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: SPACING.sm,
+  },
 });
 
 export default NotificationsScreen;

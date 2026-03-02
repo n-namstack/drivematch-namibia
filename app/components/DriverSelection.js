@@ -22,6 +22,8 @@ const SelectionActions = ({
   hiredCount = 0,
   ownerId,
   driverName,
+  jobTile,
+  driverUuId,
 }) => {
   if (!driverId || !jobPostId) {
     return null;
@@ -33,9 +35,11 @@ const SelectionActions = ({
   // Check for existing agreement when in hired state
   useEffect(() => {
     if (currentStatus === "accepted" && ownerId && driverId) {
-      agreementService.checkExistingAgreement(ownerId, driverId).then(({ data }) => {
-        setExistingAgreement(data || null);
-      });
+      agreementService
+        .checkExistingAgreement(ownerId, driverId)
+        .then(({ data }) => {
+          setExistingAgreement(data || null);
+        });
     }
   }, [currentStatus, ownerId, driverId]);
 
@@ -50,12 +54,75 @@ const SelectionActions = ({
         ],
       );
     } else {
-      performUpdate(newStatus);
+      if (newStatus === "shortlisted") {
+        Alert.alert(
+          "Shortlisted",
+          `${driverName} will be notified on his/her application status(${newStatus}) for this job`,
+        );
+        performUpdate(newStatus);
+      } else if (newStatus === "rejected") {
+        Alert.alert(
+          "Rejected",
+          `Are you sure you want to reject ${driverName} for this applicant?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Yes, Reject", onPress: () => performUpdate(newStatus) },
+          ],
+        );
+      }
+    }
+  };
+
+  const notifyDriverOfStatusChange = async (
+    driverUuId,
+    jobTitle,
+    newStatus,
+  ) => {
+    const statusConfig = {
+      shortlisted: {
+        title: "You've been Shortlisted! 🎉",
+        message: `Great new! You have been shortlisted for the ${jobTitle} position. Keep an eye on your message`,
+        type: "job_update",
+      },
+      rejected: {
+        title: "Application Update",
+        message: `The owner for ${jobTitle} position has moved forward with other candidates. Don't give up more jobs are comming`,
+        type: "job_update",
+      },
+      accepted: {
+        title: "You're Hired! 🚚",
+        message: `Congratulations! You have been selected for the ${jobTitle} job. Contact the owner to start.`,
+        type: "job_update",
+      },
+    };
+
+    const config = statusConfig[newStatus];
+
+    console.log("Notification data: ", config);
+
+    console.log(`Driver id: ${driverId} | Driver uuid: ${driverUuId}`);
+
+    if (driverUuId && config) {
+      try {
+        const { error } = await supabase.from("notifications").insert({
+          user_id: driverUuId,
+          type: config.type,
+          title: config.title,
+          message: config.message,
+          is_read: false,
+        });
+
+        if (error) throw error;
+        console.log(`Notification sent to driver: ${newStatus}`);
+      } catch (error) {
+        console.log("Failed to send notification: ", error);
+      }
     }
   };
 
   const performUpdate = async (newStatus) => {
     setLoading(newStatus);
+
     try {
       const { data, error } = await supabase
         .from("job_interests")
@@ -64,6 +131,8 @@ const SelectionActions = ({
         .eq("job_post_id", jobPostId)
         .select();
 
+      // Send notification to driver about status change
+      notifyDriverOfStatusChange(driverUuId, jobTile, newStatus);
       if (error) {
         Alert.alert("Error", error.message);
         setLoading(null);
@@ -90,7 +159,9 @@ const SelectionActions = ({
           <Ionicons name="trophy" size={20} color="#00875A" />
           <Text style={styles.successText}>DRIVER HIRED</Text>
         </View>
-        <Text style={styles.subText}>This driver has been hired for this job.</Text>
+        <Text style={styles.subText}>
+          This driver has been hired for this job.
+        </Text>
         {existingAgreement !== undefined && (
           <TouchableOpacity
             style={styles.agreementBtn}
@@ -109,12 +180,18 @@ const SelectionActions = ({
             }}
           >
             <Ionicons
-              name={existingAgreement ? "bar-chart-outline" : "document-text-outline"}
+              name={
+                existingAgreement
+                  ? "bar-chart-outline"
+                  : "document-text-outline"
+              }
               size={18}
               color={COLORS.white}
             />
             <Text style={styles.agreementBtnText}>
-              {existingAgreement ? "View Dashboard" : "Set Up Payment Agreement"}
+              {existingAgreement
+                ? "View Dashboard"
+                : "Set Up Payment Agreement"}
             </Text>
           </TouchableOpacity>
         )}
@@ -196,12 +273,17 @@ const SelectionActions = ({
             )}
           </TouchableOpacity>
         )}
-        {currentStatus === "shortlisted" && hiredCount >= positionsAvailable && (
-          <View style={[styles.btn, styles.filledBtn]}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
-            <Text style={styles.filledText}>All Positions Filled</Text>
-          </View>
-        )}
+        {currentStatus === "shortlisted" &&
+          hiredCount >= positionsAvailable && (
+            <View style={[styles.btn, styles.filledBtn]}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={COLORS.success}
+              />
+              <Text style={styles.filledText}>All Positions Filled</Text>
+            </View>
+          )}
       </View>
     </View>
   );

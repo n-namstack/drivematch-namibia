@@ -46,6 +46,7 @@ import MyJobPostsScreen from "../screens/Jobs/MyJobPostsScreen";
 import CreateJobPostScreen from "../screens/Jobs/CreateJobPostScreen";
 import JobPostDetailsScreen from "../screens/Jobs/JobPostDetailsScreen";
 import ShortlistedDriversScreen from "../screens/Jobs/ShortlistedDrivers";
+import JobStatusDashboard from "../screens/Common/JobStatusScreen";
 
 // Management Screens
 import AgreementSetupScreen from "../screens/Management/AgreementSetupScreen";
@@ -261,6 +262,11 @@ const AppNavigator = () => {
               name="JobPostDetails"
               component={JobPostDetailsScreen}
               options={{ headerShown: true, title: "Job Details" }}
+            />
+              <Stack.Screen
+              name="JobStatusDashboard"
+              component={JobStatusDashboard}
+              options={{ headerShown: true, title: "Job Status Dashboard" }}
             />
             <Stack.Screen
               name="SavedDrivers"
