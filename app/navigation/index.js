@@ -281,7 +281,31 @@ const AppNavigator = () => {
               component={DemandMapScreen}
               options={{ headerShown: false }}
             />
-
+            <Stack.Screen
+              name="AgreementSetup"
+              component={AgreementSetupScreen}
+              options={{ headerShown: true, title: "Set Up Agreement" }}
+            />
+            <Stack.Screen
+              name="ManagementDashboard"
+              component={ManagementDashboardScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LogEarnings"
+              component={LogEarningsScreen}
+              options={{ headerShown: true, title: "Log Earnings" }}
+            />
+            <Stack.Screen
+              name="EarningsHistory"
+              component={EarningsHistoryScreen}
+              options={{ headerShown: true, title: "Earnings History" }}
+            />
+            <Stack.Screen
+              name="JobBoard"
+              component={JobBoardScreen}
+              options={{ headerShown: true, title: "Job Board" }}
+            />
           </>
         )}
       </Stack.Navigator>

@@ -17,7 +17,7 @@ const JobStatusDashboard = ({ navigation }) => {
   const { profile, driverProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
+  const [statsData, setStatsData] = useState({
     applied: 0,
     shortlisted: 0,
     hired: 0,
@@ -26,7 +26,6 @@ const JobStatusDashboard = ({ navigation }) => {
 
   const fetchStats = async () => {
     if (!driverProfile?.id) return;
-
     try {
       const { data, error } = await supabase
         .from("job_interests")
@@ -38,21 +37,16 @@ const JobStatusDashboard = ({ navigation }) => {
       const counts = (data || []).reduce(
         (acc, curr) => {
           acc.applied++;
-          if (curr.status === "shortlisted") {
-            acc.shortlisted++;
-          } else if (curr.status === "accepted") {
-            acc.hired++;
-          } else if (curr.status === "rejected") {
-            acc.rejected++;
-          }
+          if (curr.status === "shortlisted") acc.shortlisted++;
+          else if (curr.status === "accepted") acc.hired++;
+          else if (curr.status === "rejected") acc.rejected++;
           return acc;
         },
         { applied: 0, shortlisted: 0, hired: 0, rejected: 0 },
       );
-
-      setStats(counts);
+      setStatsData(counts);
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error.message);
+      console.error("Error fetching stats:", error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,7 +68,6 @@ const JobStatusDashboard = ({ navigation }) => {
         () => fetchStats(),
       )
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, [driverProfile?.id]);
 
@@ -83,19 +76,37 @@ const JobStatusDashboard = ({ navigation }) => {
     fetchStats();
   }, []);
 
-  const GridCard = ({ label, count, icon, color, onPress }) => (
-    <TouchableOpacity
-      style={styles.gridCard}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.iconCircle, { backgroundColor: color + "15" }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <Text style={styles.countText}>{count}</Text>
-      <Text style={styles.labelText}>{label}</Text>
-    </TouchableOpacity>
-  );
+  // 🛠️ The Array-Mapped Logic
+  const statusCards = [
+    {
+      label: "Applied Jobs",
+      count: statsData.applied,
+      icon: "paper-plane",
+      color: "#2196F3",
+      filter: "applied",
+    },
+    {
+      label: "Shortlisted",
+      count: statsData.shortlisted,
+      icon: "star",
+      color: "#FF9800",
+      filter: "shortlisted",
+    },
+    {
+      label: "Hired Jobs",
+      count: statsData.hired,
+      icon: "checkmark-circle",
+      color: "#4CAF50",
+      filter: "accepted",
+    },
+    {
+      label: "Not Selected",
+      count: statsData.rejected,
+      icon: "close-circle",
+      color: "#F44336",
+      filter: "rejected",
+    },
+  ];
 
   if (loading && !refreshing) {
     return (
@@ -123,56 +134,44 @@ const JobStatusDashboard = ({ navigation }) => {
           </Text>
           <Text style={styles.subGreeting}>
             Your hustle is paying off. Here is a live look at where your
-            applications stand right now.
+            applications stand.
           </Text>
         </View>
 
+        {/*Rendered Grid using .map() */}
         <View style={styles.statsGrid}>
-          <GridCard
-            label="Applied Jobs"
-            count={stats.applied}
-            icon="paper-plane"
-            color="#2196F3"
-            onPress={() => navigation.navigate("AppliedJobs")}
-          />
-          <GridCard
-            label="Shortlisted Jobs"
-            count={stats.shortlisted}
-            icon="star"
-            color="#FF9800"
-            onPress={() => navigation.navigate("ShortlistedNotifications")}
-          />
-          <GridCard
-            label="Hired Jobs"
-            count={stats.hired}
-            icon="checkmark-circle"
-            color="#4CAF50"
-            onPress={() => navigation.navigate("HiredHistory")}
-          />
-          <GridCard
-            label="Rejected Jobs"
-            count={stats.rejected}
-            icon="close-circle"
-            color="#F44336"
-            onPress={() => navigation.navigate("RejectedJobs")}
-          />
+          {statusCards.map((card, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.gridCard}
+              onPress={() =>
+                navigation.navigate("JobBoard", { filterStatus: card.filter })
+              }
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: card.color + "15" },
+                ]}
+              >
+                <Ionicons name={card.icon} size={24} color={card.color} />
+              </View>
+              <Text style={styles.countText}>{card.count}</Text>
+              <Text style={styles.labelText}>{card.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={styles.tipCard}>
-          <Ionicons name="bulb-outline" size={20} color="#2E7D32" />
-          {stats.rejected > 0 && (
-            <Text style={styles.tipText}>
-              Tip: High-earning drivers use feedback to win. Visit the
-              'Rejected' tab to understand owner requirements better and ensure
-              your next application is at the top of the pile.
-            </Text>
-          )}
-          {stats.shortlisted === 0 && stats.applied > 0 && (
-            <Text style={styles.tipText}>
-              Tip: Make sure your profile is complete and highlights your
-              experience to increase your chances of getting shortlisted.
-            </Text>
-          )}
+          <View style={styles.tipIconBox}>
+            <Ionicons name="bulb-outline" size={20} color="#2E7D32" />
+          </View>
+          <Text style={styles.tipText}>
+            {statsData.rejected > 0
+              ? "Pro Tip: High-earning drivers use feedback to win. Check your 'Not Selected' jobs to see how to sharpen your profile!"
+              : "Pro Tip: Keep your profile updated with your latest experience to stay at the top of the owners' lists."}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -181,11 +180,11 @@ const JobStatusDashboard = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8F9FA" },
-  container: { paddingHorizontal: 20 },
+  container: { paddingHorizontal: 20, paddingBottom: 30 },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  headerSection: { marginBottom: 20, paddingLeft: 4 },
-  greeting: { fontSize: 24, fontWeight: "800", color: "#1A1A1A" },
-  subGreeting: { fontSize: 14, color: "#666", marginTop: 4 },
+  headerSection: { marginBottom: 24, marginTop: 10 },
+  greeting: { fontSize: 26, fontWeight: "800", color: "#1A1A1A" },
+  subGreeting: { fontSize: 15, color: "#555", marginTop: 6, lineHeight: 22 },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -194,43 +193,39 @@ const styles = StyleSheet.create({
   gridCard: {
     backgroundColor: "#FFF",
     width: "48%",
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    paddingVertical: 22,
+    borderRadius: 24,
     alignItems: "center",
     marginBottom: 16,
-    elevation: 3,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
   iconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  countText: { fontSize: 20, fontWeight: "800", color: "#1A1A1A" },
-  labelText: { fontSize: 12, color: "#888", fontWeight: "600", marginTop: 2 },
+  countText: { fontSize: 22, fontWeight: "800", color: "#1A1A1A" },
+  labelText: { fontSize: 13, color: "#888", fontWeight: "600" },
   tipCard: {
     flexDirection: "row",
     backgroundColor: "#E8F5E9",
-    padding: 16,
-    borderRadius: 16,
+    padding: 18,
+    borderRadius: 20,
     marginTop: 10,
     alignItems: "center",
-    gap: 12,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
   },
-  tipText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#2E7D32",
-    lineHeight: 18,
-    fontStyle: "italic",
-  },
+  tipIconBox: { backgroundColor: "#FFF", padding: 8, borderRadius: 12 },
+  tipText: { flex: 1, fontSize: 13, color: "#1B5E20", lineHeight: 20 },
 });
 
 export default JobStatusDashboard;
