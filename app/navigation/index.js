@@ -303,6 +303,11 @@ const AppNavigator = () => {
               component={EarningsHistoryScreen}
               options={{ headerShown: true, title: "Earnings History" }}
             />
+            <Stack.Screen
+              name="JobBoard"
+              component={JobBoardScreen}
+              options={{ headerShown: true, title: "Job Board" }}
+            />
           </>
         )}
       </Stack.Navigator>

@@ -16,7 +16,7 @@ const AVAILABILITY_LABELS = {
   weekends_only: 'Weekends Only',
 };
 
-const JobCard = ({ job, onPress, hasInterest, compact = false }) => {
+const JobCard = ({ job,status,statusColor,statusIcon, onPress, hasInterest, compact = false }) => {
   const timeAgo = getTimeAgo(job.created_at);
   const vehicleLabels = (job.vehicle_types || [])
     .map((vt) => VEHICLE_TYPES.find((v) => v.id === vt)?.label || vt)
@@ -56,8 +56,8 @@ const JobCard = ({ job, onPress, hasInterest, compact = false }) => {
         </View>
         {hasInterest && (
           <View style={styles.interestedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={COLORS.secondary} />
-            <Text style={styles.interestedText}>Interested</Text>
+            <Ionicons name={statusIcon} size={14} color={statusColor} />
+            <Text style={[styles.interestedText, { color: statusColor }]}>{status}</Text>
           </View>
         )}
       </View>
