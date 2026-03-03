@@ -100,7 +100,7 @@ const JobBoardScreen = ({ navigation }) => {
       };
 
       initializeScreen();
-    }, [filterStatus, driverProfile?.id]), // Added driverProfile.id to deps for safety
+    }, [filterStatus, driverProfile?.id]),
   );
 
   // Helper to get the specific interest record for a job
