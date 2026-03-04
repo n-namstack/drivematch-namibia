@@ -47,12 +47,6 @@ import CreateJobPostScreen from "../screens/Jobs/CreateJobPostScreen";
 import JobPostDetailsScreen from "../screens/Jobs/JobPostDetailsScreen";
 import ShortlistedDriversScreen from "../screens/Jobs/ShortlistedDrivers";
 
-// Management Screens
-import AgreementSetupScreen from "../screens/Management/AgreementSetupScreen";
-import ManagementDashboardScreen from "../screens/Management/ManagementDashboardScreen";
-import LogEarningsScreen from "../screens/Management/LogEarningsScreen";
-import EarningsHistoryScreen from "../screens/Management/EarningsHistoryScreen";
-
 // Admin Screens
 import AdminDashboardScreen from "../screens/Admin/AdminDashboardScreen";
 import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
@@ -199,6 +193,10 @@ const AppNavigator = () => {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
+          headerStyle: { backgroundColor: COLORS.background },
+          headerTintColor: COLORS.text,
+          headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       >
         {!user ? (
@@ -210,7 +208,7 @@ const AppNavigator = () => {
             <Stack.Screen
               name="DriverDetails"
               component={DriverDetailsScreen}
-              options={{ headerShown: true, title: "Driver Profile" }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Chat"
@@ -225,7 +223,7 @@ const AppNavigator = () => {
             <Stack.Screen
               name="DocumentUpload"
               component={DocumentUploadScreen}
-              options={{ headerShown: true, title: "Upload Documents" }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="WorkHistory"
@@ -277,26 +275,7 @@ const AppNavigator = () => {
               component={DemandMapScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="AgreementSetup"
-              component={AgreementSetupScreen}
-              options={{ headerShown: true, title: "Set Up Agreement" }}
-            />
-            <Stack.Screen
-              name="ManagementDashboard"
-              component={ManagementDashboardScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LogEarnings"
-              component={LogEarningsScreen}
-              options={{ headerShown: true, title: "Log Earnings" }}
-            />
-            <Stack.Screen
-              name="EarningsHistory"
-              component={EarningsHistoryScreen}
-              options={{ headerShown: true, title: "Earnings History" }}
-            />
+
           </>
         )}
       </Stack.Navigator>

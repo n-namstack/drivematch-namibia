@@ -25,6 +25,8 @@ const demandService = {
       openJobs: Number(row.open_jobs),
       activeDrivers: Number(row.active_drivers),
       demandScore: Number(row.demand_score),
+      latitude: row.latitude != null ? Number(row.latitude) : null,
+      longitude: row.longitude != null ? Number(row.longitude) : null,
     }));
 
     memoryCache = insights;

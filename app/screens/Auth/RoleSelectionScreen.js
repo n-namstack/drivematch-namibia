@@ -95,8 +95,9 @@ const RoleSelectionScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.title}>How will you use DuoLink?</Text>
           <Text style={styles.subtitle}>
@@ -198,8 +199,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: SPACING.lg,
-    padding: SPACING.sm,
     marginLeft: -SPACING.sm,
   },
   title: {

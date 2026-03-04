@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -7,11 +7,9 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { COLORS } from "../constants/theme";
-import agreementService from "../services/agreementService";
 
 const SelectionActions = ({
   driverId,
@@ -20,24 +18,11 @@ const SelectionActions = ({
   onStatusUpdate,
   positionsAvailable = 1,
   hiredCount = 0,
-  ownerId,
-  driverName,
 }) => {
   if (!driverId || !jobPostId) {
     return null;
   }
-  const navigation = useNavigation();
   const [loading, setLoading] = useState(null);
-  const [existingAgreement, setExistingAgreement] = useState(undefined); // undefined = loading, null = none
-
-  // Check for existing agreement when in hired state
-  useEffect(() => {
-    if (currentStatus === "accepted" && ownerId && driverId) {
-      agreementService.checkExistingAgreement(ownerId, driverId).then(({ data }) => {
-        setExistingAgreement(data || null);
-      });
-    }
-  }, [currentStatus, ownerId, driverId]);
 
   const handleUpdate = async (newStatus) => {
     if (newStatus === "accepted") {
@@ -76,7 +61,7 @@ const SelectionActions = ({
         );
       }
     } catch (e) {
-      console.log("App Error:", e);
+      Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -91,33 +76,6 @@ const SelectionActions = ({
           <Text style={styles.successText}>DRIVER HIRED</Text>
         </View>
         <Text style={styles.subText}>This driver has been hired for this job.</Text>
-        {existingAgreement !== undefined && (
-          <TouchableOpacity
-            style={styles.agreementBtn}
-            onPress={() => {
-              if (existingAgreement) {
-                navigation.navigate("ManagementDashboard", {
-                  agreementId: existingAgreement.id,
-                });
-              } else {
-                navigation.navigate("AgreementSetup", {
-                  driverId,
-                  driverName: driverName || "Driver",
-                  jobPostId,
-                });
-              }
-            }}
-          >
-            <Ionicons
-              name={existingAgreement ? "bar-chart-outline" : "document-text-outline"}
-              size={18}
-              color={COLORS.white}
-            />
-            <Text style={styles.agreementBtnText}>
-              {existingAgreement ? "View Dashboard" : "Set Up Payment Agreement"}
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   }
@@ -264,23 +222,6 @@ const styles = StyleSheet.create({
   successText: { color: COLORS.success, fontWeight: "bold" },
   greyText: { color: "#666", fontWeight: "bold" },
   subText: { color: "#999", fontSize: 12, marginTop: 4 },
-  agreementBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 16,
-    width: "100%",
-  },
-  agreementBtnText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: "600",
-  },
 });
 
 export default SelectionActions;

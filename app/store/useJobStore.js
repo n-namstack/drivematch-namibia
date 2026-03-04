@@ -112,11 +112,7 @@ const useJobStore = create((set, get) => ({
           .eq("job_post_id", jobId);
 
         if (intError) {
-          console.warn(
-            "Failed to fetch interests for job",
-            jobId,
-            intError.message,
-          );
+          // Non-critical: interests fetch failed, continue with empty list
         }
 
         const rawInterests = intData || [];
@@ -162,7 +158,7 @@ const useJobStore = create((set, get) => ({
           driver: driverMap[i.driver_id] || null,
         }));
       } catch (e) {
-        console.warn("Error fetching interests:", e);
+        // Non-critical: interests unavailable
       }
 
       const result = { ...data, job_interests: interests };
@@ -367,7 +363,6 @@ const useJobStore = create((set, get) => ({
         loading: false,
       });
     } catch (err) {
-      console.error("Dashboard Sync Failed:", err.message);
       set({ loading: false });
     }
   },
@@ -411,7 +406,6 @@ const useJobStore = create((set, get) => ({
         },
       }));
 
-      console.log("Number of shortlisted: ", count, " | Data: ", data);
       return { data: data || [], count: count || 0, error: null };
     } catch (err) {
       return { data: null, count: null, error: err };

@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { AuthProvider } from './app/context/AuthContext';
+import { NetworkProvider } from './app/context/NetworkContext';
 import AppNavigator from './app/navigation';
 import ErrorBoundary from './app/components/ErrorBoundary';
 
@@ -13,11 +14,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <SafeAreaProvider>
-          <AuthProvider>
-            <StatusBar style="auto" />
-            <AppNavigator />
-            <Toast />
-          </AuthProvider>
+          <NetworkProvider>
+            <AuthProvider>
+              <StatusBar style="auto" />
+              <AppNavigator />
+              <Toast />
+            </AuthProvider>
+          </NetworkProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

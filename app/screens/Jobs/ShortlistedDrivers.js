@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import supabase from "../../lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS } from "../../constants/theme";
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from "../../constants/theme";
 
 const ShortlistedDriversScreen = ({ route, navigation }) => {
   const { jobId, jobTitle } = route.params;
@@ -23,7 +23,6 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
 
   const fetchShortlistedDrivers = async () => {
     try {
-      // We query job_interests but "join" the profiles table to get driver info
       const { data, error } = await supabase
         .from("job_interests")
         .select(
@@ -51,12 +50,10 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
         .eq("job_post_id", jobId)
         .eq("status", "shortlisted");
 
-      console.log("Data: ", data);
-
       if (error) throw error;
       setDrivers(data || []);
     } catch (err) {
-      console.error("Error fetching drivers:", err.message);
+      // Silently handle — empty list shown via ListEmptyComponent
     } finally {
       setLoading(false);
     }
@@ -97,11 +94,10 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
               {shortlisted?.firstname} {shortlisted?.lastname}
             </Text>
             <View style={styles.metaRow}>
-              {/* Availability Badge */}
               <View
                 style={[
                   styles.badge,
-                  driver.availability?.toLowerCase() === "full_time"
+                  driver?.availability?.toLowerCase() === "full_time"
                     ? styles.badgeAvailable
                     : styles.badgeBusy,
                 ]}
@@ -109,12 +105,12 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
                 <Text
                   style={[
                     styles.badgeText,
-                    driver.availability?.toLowerCase() === "full_time"
+                    driver?.availability?.toLowerCase() === "full_time"
                       ? styles.textAvailable
                       : styles.textBusy,
                   ]}
                 >
-                  {driver.availability.replace("_", " ") || "Unknown"}
+                  {driver?.availability?.replace("_", " ") || "Unknown"}
                 </Text>
               </View>
 
@@ -151,76 +147,58 @@ const ShortlistedDriversScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA", padding: 16 },
-  header: { fontSize: 18, fontWeight: "bold", marginBottom: 20, color: "#333" },
+  container: { flex: 1, backgroundColor: COLORS.background, padding: SPACING.md },
+  header: { fontSize: FONTS.sizes.lg, fontWeight: "bold", marginBottom: 20, color: COLORS.text },
   driverCard: {
     flexDirection: "row",
-    backgroundColor: "#ffffff", 
+    backgroundColor: COLORS.surface,
     padding: 15,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: "center",
-    marginBottom: 16,
-    marginHorizontal: 4, 
-
-    // Android
-    elevation: 5,
-
-    // iOS
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    borderRadius: 10,
+    marginBottom: SPACING.md,
+    marginHorizontal: 4,
+    ...SHADOWS.lg,
   },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#eee" },
-  info: { flex: 1, marginLeft: 15 },
-  name: { fontSize: 16, fontWeight: "bold" },
-  details: { color: "#666", fontSize: 13, marginTop: 2 },
-  empty: { textAlign: "center", marginTop: 50, color: "#999" },
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 25, // Circular
+    borderRadius: 25,
+    backgroundColor: COLORS.gray[200],
   },
   initialsContainer: {
-    backgroundColor: COLORS.primary, // Or a nice gray like '#E1E1E1'
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
   initialsText: {
-    color: "#FFF",
-    fontSize: 18,
+    color: COLORS.white,
+    fontSize: FONTS.sizes.lg,
     fontWeight: "bold",
   },
-  driverCard: {
-    flexDirection: "row",
-    padding: 12,
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    // ... shadows ...
-  },
-
+  info: { flex: 1, marginLeft: 15 },
+  name: { fontSize: FONTS.sizes.md, fontWeight: "bold" },
+  details: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm - 1, marginTop: 2 },
+  empty: { textAlign: "center", marginTop: 50, color: COLORS.textLight },
   viewButton: {
     padding: 4,
     justifyContent: "center",
     alignItems: "center",
   },
   viewProfileBtn: {
-    flexDirection: "row", // Align text and icon horizontally
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white, // Very light green background to make it look clickable
+    backgroundColor: COLORS.white,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    // marginLeft: 15,
-    borderRadius: 20, // Pill shape
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
   viewText: {
     color: COLORS.primary,
-    fontSize: 14,
+    fontSize: FONTS.sizes.sm,
     fontWeight: "600",
-    marginRight: 4, // Space between text and chevron
+    marginRight: 4,
   },
   metaRow: {
     flexDirection: "row",
@@ -230,17 +208,17 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.lg,
     marginRight: 8,
   },
   badgeAvailable: {
-    backgroundColor: "#E8F5E9", // Light Green
-    borderColor: "#C8E6C9",
+    backgroundColor: COLORS.success + '1A',
+    borderColor: COLORS.success + '40',
     borderWidth: 1,
   },
   badgeBusy: {
-    backgroundColor: "#FFF3E0", // Light Orange
-    borderColor: "#FFE0B2",
+    backgroundColor: COLORS.warning + '1A',
+    borderColor: COLORS.warning + '40',
     borderWidth: 1,
   },
   badgeText: {
@@ -249,14 +227,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   textAvailable: {
-    color: "#2E7D32",
+    color: COLORS.secondaryDark,
   },
   textBusy: {
-    color: "#EF6C00",
+    color: COLORS.accentDark,
   },
   phoneText: {
-    fontSize: 13,
-    color: "#666",
+    fontSize: FONTS.sizes.sm - 1,
+    color: COLORS.textSecondary,
   },
 });
 

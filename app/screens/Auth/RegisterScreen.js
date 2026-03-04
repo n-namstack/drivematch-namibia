@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { SUPPORT_EMAIL } from '../../constants/appConfig';
 
 const RegisterScreen = ({ navigation }) => {
   const [legalModal, setLegalModal] = useState(null);
@@ -47,8 +48,18 @@ const RegisterScreen = ({ navigation }) => {
       return false;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return false;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert('Error', 'Password must contain at least one uppercase letter');
+      return false;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      Alert.alert('Error', 'Password must contain at least one number');
       return false;
     }
 
@@ -90,8 +101,9 @@ const RegisterScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+              <Ionicons name="chevron-back" size={24} color={COLORS.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join DuoLink today</Text>
@@ -241,8 +253,8 @@ const RegisterScreen = ({ navigation }) => {
           <ScrollView style={{ flex: 1, padding: SPACING.lg }} showsVerticalScrollIndicator={false}>
             <Text style={styles.legalText}>
               {legalModal === 'privacy'
-                ? 'DuoLink collects information you provide when creating an account, including your name, email address, phone number, and profile photo. For drivers, we also collect professional credentials, work history, and uploaded documents.\n\nWe use your information to provide the DuoLink service, connect car owners with drivers, verify driver credentials, and facilitate communication between users.\n\nYour profile information is visible to other DuoLink users. We do not sell your personal information to third parties.\n\nYour data is stored securely using industry-standard encryption. You have the right to access, correct, and delete your personal data at any time through the app settings.\n\nFor privacy-related inquiries, contact us at support@duolink.app.'
-                : 'By using DuoLink, you agree to these Terms of Service. DuoLink is a platform that connects car owners with professional drivers in Namibia.\n\nYou must provide accurate information when creating an account. You must be at least 18 years old to use DuoLink.\n\nDrivers may submit documents for verification. Verification does not constitute an endorsement or guarantee. Car owners should conduct their own due diligence.\n\nUsers agree not to provide false information, harass other users, or use the platform for illegal purposes.\n\nReviews must be honest and based on actual experience. DuoLink reserves the right to remove fraudulent reviews.\n\nDuoLink provides a platform for connecting users and is not liable for disputes between car owners and drivers.\n\nFor questions about these terms, contact us at support@duolink.app.'}
+                ? `DuoLink collects information you provide when creating an account, including your name, email address, phone number, and profile photo. For drivers, we also collect professional credentials, work history, and uploaded documents.\n\nWe use your information to provide the DuoLink service, connect car owners with drivers, verify driver credentials, and facilitate communication between users.\n\nYour profile information is visible to other DuoLink users. We do not sell your personal information to third parties.\n\nYour data is stored securely using industry-standard encryption. You have the right to access, correct, and delete your personal data at any time through the app settings.\n\nFor privacy-related inquiries, contact us at ${SUPPORT_EMAIL}.`
+                : `By using DuoLink, you agree to these Terms of Service. DuoLink is a platform that connects car owners with professional drivers in Namibia.\n\nYou must provide accurate information when creating an account. You must be at least 18 years old to use DuoLink.\n\nDrivers may submit documents for verification. Verification does not constitute an endorsement or guarantee. Car owners should conduct their own due diligence.\n\nUsers agree not to provide false information, harass other users, or use the platform for illegal purposes.\n\nReviews must be honest and based on actual experience. DuoLink reserves the right to remove fraudulent reviews.\n\nDuoLink provides a platform for connecting users and is not liable for disputes between car owners and drivers.\n\nFor questions about these terms, contact us at ${SUPPORT_EMAIL}.`}
             </Text>
           </ScrollView>
         </SafeAreaView>
@@ -268,8 +280,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: SPACING.lg,
-    padding: SPACING.sm,
     marginLeft: -SPACING.sm,
   },
   title: {

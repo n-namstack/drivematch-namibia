@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useDriverStore from '../../store/useDriverStore';
 import DriverCard from '../../components/DriverCard';
-import locationService from '../../services/locationService';
+import LocationAutocomplete from '../../components/LocationAutocomplete';
 import {
   COLORS,
   FONTS,
@@ -40,12 +40,6 @@ const SearchDriversScreen = ({ navigation, route }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters);
   const searchInputRef = useRef(null);
-  const [locations, setLocations] = useState([]);
-
-  useEffect(() => {
-    locationService.getLocations().then(setLocations);
-  }, []);
-
   const handleSearch = async (reset) => {
     try {
       await searchDrivers(reset);
@@ -324,32 +318,13 @@ const SearchDriversScreen = ({ navigation, route }) => {
             {/* Location */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Location</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {locations.map((location) => (
-                  <TouchableOpacity
-                    key={location}
-                    style={[
-                      styles.optionChip,
-                      tempFilters.location === location && styles.optionChipSelected,
-                    ]}
-                    onPress={() =>
-                      setTempFilters({
-                        ...tempFilters,
-                        location: tempFilters.location === location ? null : location,
-                      })
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        tempFilters.location === location && styles.optionChipTextSelected,
-                      ]}
-                    >
-                      {location}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <LocationAutocomplete
+                value={tempFilters.location || ''}
+                onSelect={(loc) =>
+                  setTempFilters({ ...tempFilters, location: loc || null })
+                }
+                placeholder="Search for a location..."
+              />
             </View>
 
             {/* Availability */}

@@ -14,7 +14,6 @@ const NOTIFICATION_ICONS = {
   document_expiry: { name: 'time', color: COLORS.warning },
   document_expired: { name: 'alert-circle', color: COLORS.error },
   engagement: { name: 'heart', color: COLORS.error },
-  earnings: { name: 'cash', color: '#8B5CF6' },
   system: { name: 'information-circle', color: COLORS.info },
 };
 
@@ -61,8 +60,6 @@ const NotificationsScreen = ({ navigation }) => {
       navigation.navigate('DocumentUpload');
     } else if (notification.type === 'document_expiry' || notification.type === 'document_expired') {
       navigation.navigate('DocumentUpload', { initialDocType: data?.document_type });
-    } else if (notification.type === 'earnings' && data?.agreement_id) {
-      navigation.navigate('ManagementDashboard', { agreementId: data.agreement_id });
     }
   };
 

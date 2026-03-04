@@ -54,8 +54,8 @@ const locationService = {
       // Fetch failed, fall through to fallback
     }
 
-    // Fallback to hardcoded list
-    return NAMIBIA_LOCATIONS;
+    // Fallback to hardcoded list (extract names from location objects)
+    return NAMIBIA_LOCATIONS.map((l) => l.name);
   },
 
   /** Clears the cached locations (useful after admin changes). */

@@ -15,9 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useJobStore from '../../store/useJobStore';
+import LocationAutocomplete from '../../components/LocationAutocomplete';
 import {
   COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS,
-  NAMIBIA_LOCATIONS, VEHICLE_TYPES, AVAILABILITY_OPTIONS,
+  VEHICLE_TYPES, AVAILABILITY_OPTIONS,
 } from '../../constants/theme';
 
 const EXPERIENCE_OPTIONS = [
@@ -34,7 +35,6 @@ const CreateJobPostScreen = ({ navigation }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [showLocations, setShowLocations] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState([]);
   const [experienceLevel, setExperienceLevel] = useState('any');
   const [availabilityType, setAvailabilityType] = useState('full_time');
@@ -77,9 +77,6 @@ const CreateJobPostScreen = ({ navigation }) => {
     }
   };
 
-  const filteredLocations = NAMIBIA_LOCATIONS.filter((loc) =>
-    loc.toLowerCase().includes(location.toLowerCase())
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -120,40 +117,11 @@ const CreateJobPostScreen = ({ navigation }) => {
 
           {/* Location */}
           <Text style={styles.label}>Location</Text>
-          <View>
-            <View style={styles.inputRow}>
-              <Ionicons name="location-outline" size={18} color={COLORS.gray[400]} />
-              <TextInput
-                style={styles.inputInner}
-                placeholder="Select or type a location"
-                placeholderTextColor={COLORS.gray[400]}
-                value={location}
-                onChangeText={(text) => {
-                  setLocation(text);
-                  setShowLocations(true);
-                }}
-                onFocus={() => setShowLocations(true)}
-              />
-              {location ? (
-                <TouchableOpacity onPress={() => { setLocation(''); setShowLocations(false); }}>
-                  <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            {showLocations && filteredLocations.length > 0 && (
-              <View style={styles.dropdown}>
-                {filteredLocations.map((loc) => (
-                  <TouchableOpacity
-                    key={loc}
-                    style={styles.dropdownItem}
-                    onPress={() => { setLocation(loc); setShowLocations(false); }}
-                  >
-                    <Text style={styles.dropdownText}>{loc}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <LocationAutocomplete
+            value={location}
+            onSelect={setLocation}
+            placeholder="Select or type a location"
+          />
 
           {/* Vehicle Types */}
           <Text style={styles.label}>Vehicle Experience Needed</Text>

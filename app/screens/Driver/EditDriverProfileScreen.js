@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
-import locationService from '../../services/locationService';
+import LocationAutocomplete from '../../components/LocationAutocomplete';
 import {
   COLORS,
   FONTS,
@@ -35,12 +35,6 @@ const EditDriverProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [profileImage, setProfileImage] = useState(profile?.profile_image || null);
-  const [locations, setLocations] = useState([]);
-
-  useEffect(() => {
-    locationService.getLocations().then(setLocations);
-  }, []);
-
   const [formData, setFormData] = useState({
     firstname: profile?.firstname || '',
     lastname: profile?.lastname || '',
@@ -226,27 +220,11 @@ const EditDriverProfileScreen = ({ navigation }) => {
           />
 
           <Text style={styles.label}>Location</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {locations.map((loc) => (
-              <TouchableOpacity
-                key={loc}
-                style={[
-                  styles.chip,
-                  formData.location === loc && styles.chipSelected,
-                ]}
-                onPress={() => updateField('location', loc)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    formData.location === loc && styles.chipTextSelected,
-                  ]}
-                >
-                  {loc}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <LocationAutocomplete
+            value={formData.location}
+            onSelect={(loc) => updateField('location', loc)}
+            placeholder="Search for your location..."
+          />
         </View>
 
         {/* Driver-specific sections - only shown for drivers */}

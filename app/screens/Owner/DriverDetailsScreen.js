@@ -199,7 +199,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         .eq("driver_id", interestDriverId);
       setInterestData((prev) => ({ ...prev, status: "viewed" }));
     } catch (err) {
-      console.error("Error updating interest to viewed:", err.message);
+      // Non-critical: viewed status update failed
     }
   };
 
@@ -241,7 +241,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         hiredCount: hiredCountResult.count || 0,
       });
     } catch (error) {
-      console.error("Error fetching driver status:", error.message);
+      // Status fetch failed — selection actions hidden via null check
     }
   };
 
@@ -334,8 +334,9 @@ const DriverDetailsScreen = ({ route, navigation }) => {
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.navButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-back" size={22} color={COLORS.white} />
+              <Ionicons name="chevron-back" size={24} color={COLORS.white} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: SPACING.sm }}>
               <TouchableOpacity onPress={handleShare} style={styles.navButton}>
@@ -722,8 +723,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               onStatusUpdate={handleStatusUpdate}
               positionsAvailable={jobPostInfo?.positionsAvailable || 1}
               hiredCount={jobPostInfo?.hiredCount || 0}
-              ownerId={currentUser?.id}
-              driverName={userProfile ? `${userProfile.firstname} ${userProfile.lastname}` : 'Driver'}
             />
           </View>
         ) : (

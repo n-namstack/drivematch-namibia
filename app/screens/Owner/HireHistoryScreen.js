@@ -120,7 +120,11 @@ const HireHistoryScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Hire History</Text>
@@ -156,6 +160,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+  },
+  backButton: {
+    width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   countText: {

@@ -231,9 +231,10 @@ const DocumentUploadScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={wizardPhase === 'overview' ? () => navigation.goBack() : handleBackToOverview}
           style={styles.headerBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
-            name={wizardPhase === 'overview' ? 'arrow-back' : 'close'}
+            name={wizardPhase === 'overview' ? 'chevron-back' : 'close'}
             size={24}
             color={COLORS.text}
           />
@@ -357,6 +358,7 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },

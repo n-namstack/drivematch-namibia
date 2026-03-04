@@ -118,7 +118,7 @@ const MyJobPostsScreen = ({ navigation }) => {
         if (error) throw error;
         setShortlistCount(count || 0);
       } catch (error) {
-        console.error("Error fetching count:", error.message);
+        // Count fetch failed — show 0
       }
     };
 
@@ -188,7 +188,7 @@ const MyJobPostsScreen = ({ navigation }) => {
           });
         }
       } catch (error) {
-        console.error("Error fetching hired info:", error.message);
+        // Hired info fetch failed — card hidden via null check
       }
     };
 

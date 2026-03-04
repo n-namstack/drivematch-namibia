@@ -15,7 +15,6 @@ import { useAuth } from '../../context/AuthContext';
 import useJobStore from '../../store/useJobStore';
 import useDocumentStore from '../../store/useDocumentStore';
 import useDemandStore from '../../store/useDemandStore';
-import useAgreementStore from '../../store/useAgreementStore';
 import supabase from '../../lib/supabase';
 import JobCard from '../../components/JobCard';
 import DemandInsights from '../../components/DemandInsights';
@@ -26,13 +25,9 @@ const DriverHomeScreen = ({ navigation }) => {
   const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
   const { documents, fetchDocuments } = useDocumentStore();
   const { insights: demandInsights, loading: demandLoading, fetchInsights } = useDemandStore();
-  const agreements = useAgreementStore((s) => s.agreements);
-  const fetchMyAgreements = useAgreementStore((s) => s.fetchMyAgreements);
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const activeAgreement = agreements.find((a) => a.status === 'active') || null;
 
   // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
@@ -43,7 +38,6 @@ const DriverHomeScreen = ({ navigation }) => {
       if (driverProfile?.id) {
         fetchMyInterests(driverProfile.id);
         fetchDocuments(driverProfile.id);
-        fetchMyAgreements(profile?.id, 'driver', driverProfile.id);
       }
     }, [profile?.id, driverProfile?.id])
   );
@@ -101,7 +95,6 @@ const DriverHomeScreen = ({ navigation }) => {
       fetchJobs(true),
       fetchInsights(true),
       driverProfile?.id ? fetchMyInterests(driverProfile.id) : Promise.resolve(),
-      driverProfile?.id ? fetchMyAgreements(profile?.id, 'driver', driverProfile.id) : Promise.resolve(),
     ]);
     setRefreshing(false);
   };
@@ -183,13 +176,6 @@ const DriverHomeScreen = ({ navigation }) => {
       color: COLORS.info,
       onPress: () => navigation.navigate('Messages'),
     },
-    ...(activeAgreement ? [{
-      id: 'earnings',
-      icon: 'cash-outline',
-      label: 'Log Earnings',
-      color: '#8B5CF6',
-      onPress: () => navigation.navigate('LogEarnings', { agreementId: activeAgreement.id }),
-    }] : []),
   ];
 
   return (
@@ -316,23 +302,6 @@ const DriverHomeScreen = ({ navigation }) => {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.warning} />
-          </TouchableOpacity>
-        )}
-
-        {/* Earnings CTA (if driver has active agreement) */}
-        {activeAgreement && (
-          <TouchableOpacity
-            style={[styles.verifyCta, { backgroundColor: '#8B5CF6' + '0A', borderColor: '#8B5CF6' + '20', borderWidth: 1 }]}
-            onPress={() => navigation.navigate('ManagementDashboard', { agreementId: activeAgreement.id })}
-            activeOpacity={0.7}
-          >
-            <View style={styles.verifyCtaLeft}>
-              <Ionicons name="cash-outline" size={20} color="#8B5CF6" />
-              <Text style={[styles.verifyCtaText, { color: '#8B5CF6' }]}>
-                Log today's earnings or view dashboard
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#8B5CF6" />
           </TouchableOpacity>
         )}
 

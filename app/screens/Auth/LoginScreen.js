@@ -88,8 +88,9 @@ const LoginScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+              <Ionicons name="chevron-back" size={24} color={COLORS.text} />
             </TouchableOpacity>
             <View style={styles.logoContainer}>
               <Ionicons name="car-sport" size={40} color={COLORS.primary} />
@@ -184,7 +185,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
-    padding: SPACING.sm,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoContainer: {
     width: 80,

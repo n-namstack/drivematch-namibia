@@ -112,28 +112,28 @@ export const SHADOWS = {
   },
 };
 
-// Namibia-specific locations
+// Namibia-specific locations with GPS coordinates (source: simplemaps.com/data/na-cities)
 export const NAMIBIA_LOCATIONS = [
-  'Windhoek',
-  'Walvis Bay',
-  'Swakopmund',
-  'Oshakati',
-  'Rundu',
-  'Katima Mulilo',
-  'Otjiwarongo',
-  'Keetmanshoop',
-  'Ondangwa',
-  'Okahandja',
-  'Rehoboth',
-  'Gobabis',
-  'Grootfontein',
-  'Mariental',
-  'Tsumeb',
-  'Outjo',
-  'Karibib',
-  'Usakos',
-  'Omaruru',
-  'Henties Bay',
+  { name: 'Windhoek', lat: -22.5700, lng: 17.0836 },
+  { name: 'Walvis Bay', lat: -22.9561, lng: 14.5081 },
+  { name: 'Swakopmund', lat: -22.6833, lng: 14.5333 },
+  { name: 'Oshakati', lat: -17.7833, lng: 15.6995 },
+  { name: 'Rundu', lat: -17.9167, lng: 19.7667 },
+  { name: 'Katima Mulilo', lat: -17.5039, lng: 24.2750 },
+  { name: 'Otjiwarongo', lat: -20.4642, lng: 16.6528 },
+  { name: 'Keetmanshoop', lat: -26.5786, lng: 18.1333 },
+  { name: 'Ondangwa', lat: -17.9167, lng: 15.9500 },
+  { name: 'Okahandja', lat: -21.9833, lng: 16.9167 },
+  { name: 'Rehoboth', lat: -23.3167, lng: 17.0833 },
+  { name: 'Gobabis', lat: -22.4333, lng: 18.9667 },
+  { name: 'Grootfontein', lat: -19.5658, lng: 18.1036 },
+  { name: 'Mariental', lat: -24.6333, lng: 17.9667 },
+  { name: 'Tsumeb', lat: -19.2500, lng: 17.7000 },
+  { name: 'Outjo', lat: -20.1089, lng: 16.1547 },
+  { name: 'Karibib', lat: -21.9381, lng: 15.8544 },
+  { name: 'Usakos', lat: -22.0000, lng: 15.6000 },
+  { name: 'Omaruru', lat: -21.4333, lng: 15.9333 },
+  { name: 'Henties Bay', lat: -22.1184, lng: 14.2824 },
 ];
 
 export const LANGUAGES = [
@@ -231,19 +231,3 @@ export const VERIFICATION_STATUS = {
   expired: { label: 'Expired', color: COLORS.error },
 };
 
-export const CONTRACT_TYPES = [
-  { id: 'daily_target', label: 'Daily Target', icon: 'cash-outline', color: COLORS.primary },
-  { id: 'revenue_share', label: 'Revenue Share', icon: 'pie-chart-outline', color: COLORS.secondary },
-  { id: 'rent_to_own', label: 'Rent to Own', icon: 'key-outline', color: COLORS.accent },
-];
-
-export const DAYS_OF_WEEK = [
-  { id: 'monday', label: 'Mon' },
-  { id: 'tuesday', label: 'Tue' },
-  { id: 'wednesday', label: 'Wed' },
-  { id: 'thursday', label: 'Thu' },
-  { id: 'friday', label: 'Fri' },
-  { id: 'saturday', label: 'Sat' },
-  { id: 'sunday', label: 'Sun' },
-  { id: 'public_holidays', label: 'Public Holidays' },
-];

@@ -16,8 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-
-const SUPPORT_EMAIL = 'support@duolink.app';
+import { APP_VERSION, APP_NAME, SUPPORT_EMAIL, LEGAL_LAST_UPDATED } from '../../constants/appConfig';
 
 const ProfileSettingsScreen = ({ navigation }) => {
   const { profile, signOut } = useAuth();
@@ -182,7 +181,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
         </View>
 
         {/* App Version */}
-        <Text style={styles.version}>DuoLink v1.0.0</Text>
+        <Text style={styles.version}>{APP_NAME} v{APP_VERSION}</Text>
       </ScrollView>
 
       {/* Legal Modal */}
@@ -220,7 +219,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
 
 const PrivacyPolicyContent = () => (
   <View style={legalStyles.container}>
-    <Text style={legalStyles.lastUpdated}>Last updated: February 2026</Text>
+    <Text style={legalStyles.lastUpdated}>Last updated: {LEGAL_LAST_UPDATED}</Text>
 
     <Text style={legalStyles.heading}>1. Information We Collect</Text>
     <Text style={legalStyles.body}>
@@ -254,14 +253,14 @@ const PrivacyPolicyContent = () => (
 
     <Text style={legalStyles.heading}>7. Contact Us</Text>
     <Text style={legalStyles.body}>
-      For privacy-related inquiries, contact us at support@duolink.app.
+      For privacy-related inquiries, contact us at {SUPPORT_EMAIL}.
     </Text>
   </View>
 );
 
 const TermsOfServiceContent = () => (
   <View style={legalStyles.container}>
-    <Text style={legalStyles.lastUpdated}>Last updated: February 2026</Text>
+    <Text style={legalStyles.lastUpdated}>Last updated: {LEGAL_LAST_UPDATED}</Text>
 
     <Text style={legalStyles.heading}>1. Acceptance of Terms</Text>
     <Text style={legalStyles.body}>
@@ -305,7 +304,7 @@ const TermsOfServiceContent = () => (
 
     <Text style={legalStyles.heading}>9. Contact</Text>
     <Text style={legalStyles.body}>
-      For questions about these terms, contact us at support@duolink.app.
+      For questions about these terms, contact us at {SUPPORT_EMAIL}.
     </Text>
   </View>
 );
