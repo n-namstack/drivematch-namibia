@@ -95,7 +95,7 @@ const JobBoardScreen = ({ navigation }) => {
             await fetchMyInterests(driverProfile.id);
           }
         } catch (error) {
-          console.error("Error refreshing job board:", error);
+          // silently handle error
         }
       };
 
@@ -192,21 +192,21 @@ const JobBoardScreen = ({ navigation }) => {
           return {
             label: "Hired!",
             icon: "checkmark-done-circle",
-            color: "#4CAF50",
+            color: COLORS.success,
             active: true,
           };
         case "shortlisted":
           return {
             label: "Shortlisted",
             icon: "star",
-            color: "#FF9800",
+            color: COLORS.warning,
             active: true,
           };
         case "rejected":
           return {
             label: "Rejected",
             icon: "close-circle",
-            color: "#F44336",
+            color: COLORS.error,
             active: true,
           };
         case "pending":

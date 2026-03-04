@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -45,7 +46,7 @@ const OwnerHomeScreen = ({ navigation }) => {
         profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
       ]);
     } catch (err) {
-      // Data will load on next refresh
+      Toast.show({ type: 'error', text1: 'Connection issue', text2: 'Could not load data. Pull to refresh.' });
     }
   };
 

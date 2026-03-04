@@ -248,8 +248,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         hiredCount: hiredCountResult.count || 0,
       });
 
-      console.log(`Position: ${jobPostResult?.data.title} | User id: ${profileResults.data.user_id}`);
-
       setProfileInfo({
         user_id: profileResults.data.user_id,
       });
@@ -363,7 +361,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 <Ionicons
                   name={isSaved ? "heart" : "heart-outline"}
                   size={22}
-                  color={isSaved ? "#FF6B6B" : COLORS.white}
+                  color={isSaved ? COLORS.saved : COLORS.white}
                 />
               </TouchableOpacity>
               <TouchableOpacity
@@ -504,10 +502,10 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 <View
                   style={[
                     styles.statIconBg,
-                    { backgroundColor: "#8B5CF6" + "12" },
+                    { backgroundColor: COLORS.accent + "12" },
                   ]}
                 >
-                  <Ionicons name="eye-outline" size={18} color="#8B5CF6" />
+                  <Ionicons name="eye-outline" size={18} color={COLORS.accent} />
                 </View>
                 <Text style={styles.statValue}>
                   {driver.profile_views || 0}

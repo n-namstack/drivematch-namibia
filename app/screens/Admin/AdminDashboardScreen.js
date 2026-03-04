@@ -87,7 +87,7 @@ const AdminDashboardScreen = ({ navigation }) => {
     { label: 'Pending Verifications', value: stats.pendingVerifications, icon: 'shield-half', color: COLORS.warning },
     { label: 'Verified Drivers', value: stats.verifiedDrivers, icon: 'shield-checkmark', color: COLORS.secondary },
     { label: 'Conversations', value: stats.totalConversations, icon: 'chatbubbles', color: COLORS.accent },
-    { label: 'Reviews', value: stats.totalReviews, icon: 'star', color: '#8B5CF6' },
+    { label: 'Reviews', value: stats.totalReviews, icon: 'star', color: COLORS.accent },
   ];
 
   if (loading) {

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
-import { COLORS } from "../constants/theme";
+import { COLORS, SPACING, BORDER_RADIUS } from "../constants/theme";
 
 const SelectionActions = ({
   driverId,
@@ -27,18 +28,6 @@ const SelectionActions = ({
     return null;
   }
   const [loading, setLoading] = useState(null);
-  const [existingAgreement, setExistingAgreement] = useState(undefined); // undefined = loading, null = none
-
-  // Check for existing agreement when in hired state
-  useEffect(() => {
-    if (currentStatus === "accepted" && ownerId && driverId) {
-      agreementService
-        .checkExistingAgreement(ownerId, driverId)
-        .then(({ data }) => {
-          setExistingAgreement(data || null);
-        });
-    }
-  }, [currentStatus, ownerId, driverId]);
 
   const handleUpdate = async (newStatus) => {
     if (newStatus === "accepted") {
@@ -95,10 +84,6 @@ const SelectionActions = ({
 
     const config = statusConfig[newStatus];
 
-    console.log("Notification data: ", config);
-
-    console.log(`Driver id: ${driverId} | Driver uuid: ${driverUuId}`);
-
     if (driverUuId && config) {
       try {
         const { error } = await supabase.from("notifications").insert({
@@ -110,9 +95,8 @@ const SelectionActions = ({
         });
 
         if (error) throw error;
-        console.log(`Notification sent to driver: ${newStatus}`);
       } catch (error) {
-        console.log("Failed to send notification: ", error);
+        // Non-critical: notification send failed
       }
     }
   };
@@ -143,6 +127,7 @@ const SelectionActions = ({
       }
     } catch (e) {
       Alert.alert("Error", "Something went wrong. Please try again.");
+      Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -153,45 +138,10 @@ const SelectionActions = ({
     return (
       <View style={styles.decisionContainer}>
         <View style={[styles.statusBanner, styles.bannerSuccess]}>
-          <Ionicons name="trophy" size={20} color="#00875A" />
+          <Ionicons name="trophy" size={20} color={COLORS.secondaryDark} />
           <Text style={styles.successText}>DRIVER HIRED</Text>
         </View>
-        <Text style={styles.subText}>
-          This driver has been hired for this job.
-        </Text>
-        {existingAgreement !== undefined && (
-          <TouchableOpacity
-            style={styles.agreementBtn}
-            onPress={() => {
-              if (existingAgreement) {
-                navigation.navigate("ManagementDashboard", {
-                  agreementId: existingAgreement.id,
-                });
-              } else {
-                navigation.navigate("AgreementSetup", {
-                  driverId,
-                  driverName: driverName || "Driver",
-                  jobPostId,
-                });
-              }
-            }}
-          >
-            <Ionicons
-              name={
-                existingAgreement
-                  ? "bar-chart-outline"
-                  : "document-text-outline"
-              }
-              size={18}
-              color={COLORS.white}
-            />
-            <Text style={styles.agreementBtnText}>
-              {existingAgreement
-                ? "View Dashboard"
-                : "Set Up Payment Agreement"}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.subText}>This driver has been hired for this job.</Text>
       </View>
     );
   }
@@ -201,7 +151,7 @@ const SelectionActions = ({
     return (
       <View style={styles.decisionContainer}>
         <View style={[styles.statusBanner, styles.bannerGrey]}>
-          <Ionicons name="close-circle" size={20} color="#666" />
+          <Ionicons name="close-circle" size={20} color={COLORS.gray[500]} />
           <Text style={styles.greyText}>DECLINED</Text>
         </View>
       </View>
@@ -261,10 +211,10 @@ const SelectionActions = ({
             disabled={loading !== null}
           >
             {loading === "accepted" ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={COLORS.white} />
             ) : (
               <>
-                <Ionicons name="checkmark-done" size={20} color="#FFF" />
+                <Ionicons name="checkmark-done" size={20} color={COLORS.white} />
                 <Text style={styles.whiteText}>Final Hire</Text>
               </>
             )}
@@ -288,61 +238,61 @@ const SelectionActions = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    paddingBottom: 10,
+    borderTopColor: COLORS.gray[200],
+    paddingBottom: SPACING.sm,
   },
   infoBadge: {
-    backgroundColor: "#E7F1FF",
-    paddingVertical: 10,
+    backgroundColor: COLORS.infoLight,
+    paddingVertical: SPACING.sm,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 5,
+    gap: SPACING.xs,
   },
   infoText: { color: COLORS.primary, fontSize: 12, fontWeight: "600" },
-  buttonRow: { flexDirection: "row", padding: 16, gap: 24 },
+  buttonRow: { flexDirection: "row", padding: SPACING.md, gap: SPACING.lg },
   btn: {
     flex: 1,
     height: 50,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.lg,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    gap: 8,
+    gap: SPACING.sm,
   },
   declineBtn: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.white,
     borderWidth: 1.5,
     borderColor: COLORS.rejected,
   },
   shortlistBtn: { backgroundColor: COLORS.primary },
   acceptBtn: { backgroundColor: COLORS.success, borderColor: COLORS.success },
-  filledBtn: { backgroundColor: "#E6F4EA", borderColor: COLORS.success },
+  filledBtn: { backgroundColor: COLORS.successLight, borderColor: COLORS.success },
   filledText: { color: COLORS.success, fontSize: 13, fontWeight: "600" },
   whiteText: { color: COLORS.white, fontSize: 16 },
   declineText: { color: COLORS.rejected, fontSize: 16 },
   decisionContainer: {
-    padding: 25,
+    padding: SPACING.lg,
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
   },
   statusBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 25,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
   },
-  bannerSuccess: { backgroundColor: "#E6F4EA" },
-  bannerGrey: { backgroundColor: "#F5F5F5" },
+  bannerSuccess: { backgroundColor: COLORS.successLight },
+  bannerGrey: { backgroundColor: COLORS.gray[100] },
   successText: { color: COLORS.success, fontWeight: "bold" },
-  greyText: { color: "#666", fontWeight: "bold" },
-  subText: { color: "#999", fontSize: 12, marginTop: 4 },
+  greyText: { color: COLORS.gray[500], fontWeight: "bold" },
+  subText: { color: COLORS.textLight, fontSize: 12, marginTop: SPACING.xs },
 });
 
 export default SelectionActions;

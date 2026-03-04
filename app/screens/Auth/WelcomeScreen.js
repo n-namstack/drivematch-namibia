@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,53 +14,19 @@ const WelcomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Top Section */}
-        <View style={styles.topSection}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoOuter}>
-              <Text style={styles.logoText}>DL</Text>
-            </View>
-          </View>
+        {/* Logo & Branding */}
+        <View style={styles.brandSection}>
+          <Image
+            source={require('../../../assets/icon.png')}
+            style={styles.logo}
+          />
           <Text style={styles.appName}>DuoLink</Text>
           <Text style={styles.tagline}>
-            Owner. Driver. Connected.{'\n'}Namibia's trusted driver marketplace
+            Namibia's trusted driver marketplace
           </Text>
         </View>
 
-        {/* Features Section */}
-        <View style={styles.featuresSection}>
-          <View style={styles.feature}>
-            <View style={[styles.featureIcon, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Verified Drivers</Text>
-              <Text style={styles.featureDesc}>License & background checked</Text>
-            </View>
-          </View>
-
-          <View style={styles.feature}>
-            <View style={[styles.featureIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="star" size={22} color={COLORS.accent} />
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Trusted Reviews</Text>
-              <Text style={styles.featureDesc}>Real ratings from car owners</Text>
-            </View>
-          </View>
-
-          <View style={styles.feature}>
-            <View style={[styles.featureIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="chatbubbles" size={22} color={COLORS.secondary} />
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Direct Messaging</Text>
-              <Text style={styles.featureDesc}>Connect and hire instantly</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Buttons Section */}
+        {/* Buttons */}
         <View style={styles.buttonsSection}>
           <TouchableOpacity
             style={styles.primaryButton}
@@ -97,34 +64,19 @@ const styles = StyleSheet.create({
     paddingTop: SPACING['2xl'],
     paddingBottom: SPACING.lg,
   },
-  topSection: {
+  brandSection: {
+    flex: 1,
     alignItems: 'center',
-  },
-  logoContainer: {
-    marginBottom: SPACING.lg,
-    alignItems: 'center',
-  },
-  logoOuter: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: COLORS.primary,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
   },
-  logoText: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: COLORS.white,
-    letterSpacing: 1,
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    marginBottom: SPACING.lg,
   },
   appName: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: -0.5,
@@ -135,37 +87,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-  },
-  featuresSection: {
-    gap: SPACING.md,
-  },
-  feature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.gray[50],
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.md,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  featureContent: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  featureDesc: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
   },
   buttonsSection: {
     gap: SPACING.md,

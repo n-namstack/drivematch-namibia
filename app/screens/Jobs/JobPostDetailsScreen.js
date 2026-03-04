@@ -212,15 +212,6 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
             <Text style={styles.detailLabel}>Experience</Text>
             <Text style={styles.detailValue}>{expLabel}</Text>
           </View>
-          {selectedJob.salary_range && (
-            <View style={styles.detailItem}>
-              <Ionicons name="wallet" size={20} color={COLORS.secondary} />
-              <Text style={styles.detailLabel}>Salary</Text>
-              <Text style={[styles.detailValue, { color: COLORS.secondary }]}>
-                {selectedJob.salary_range}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Vehicle types */}

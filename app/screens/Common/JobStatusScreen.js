@@ -12,6 +12,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
+import {
+  COLORS,
+  FONTS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
 
 const JobStatusDashboard = ({ navigation }) => {
   const { profile, driverProfile } = useAuth();
@@ -46,7 +53,7 @@ const JobStatusDashboard = ({ navigation }) => {
       );
       setStatsData(counts);
     } catch (error) {
-      console.error("Error fetching stats:", error.message);
+      // silently handle error
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -76,34 +83,33 @@ const JobStatusDashboard = ({ navigation }) => {
     fetchStats();
   }, []);
 
-  // 🛠️ The Array-Mapped Logic
   const statusCards = [
     {
       label: "Applied Jobs",
       count: statsData.applied,
       icon: "paper-plane",
-      color: "#2196F3",
+      color: COLORS.info,
       filter: "applied",
     },
     {
       label: "Shortlisted",
       count: statsData.shortlisted,
       icon: "star",
-      color: "#FF9800",
+      color: COLORS.warning,
       filter: "shortlisted",
     },
     {
       label: "Hired Jobs",
       count: statsData.hired,
       icon: "checkmark-circle",
-      color: "#4CAF50",
+      color: COLORS.success,
       filter: "accepted",
     },
     {
       label: "Not Selected",
       count: statsData.rejected,
       icon: "close-circle",
-      color: "#F44336",
+      color: COLORS.error,
       filter: "rejected",
     },
   ];
@@ -111,7 +117,7 @@ const JobStatusDashboard = ({ navigation }) => {
   if (loading && !refreshing) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
+        <ActivityIndicator size="large" color={COLORS.secondary} />
       </View>
     );
   }
@@ -124,7 +130,7 @@ const JobStatusDashboard = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#2E7D32"
+            tintColor={COLORS.secondary}
           />
         }
       >
@@ -138,7 +144,6 @@ const JobStatusDashboard = ({ navigation }) => {
           </Text>
         </View>
 
-        {/*Rendered Grid using .map() */}
         <View style={styles.statsGrid}>
           {statusCards.map((card, index) => (
             <TouchableOpacity
@@ -165,7 +170,7 @@ const JobStatusDashboard = ({ navigation }) => {
 
         <View style={styles.tipCard}>
           <View style={styles.tipIconBox}>
-            <Ionicons name="bulb-outline" size={20} color="#2E7D32" />
+            <Ionicons name="bulb-outline" size={20} color={COLORS.secondaryDark} />
           </View>
           <Text style={styles.tipText}>
             {statsData.rejected > 0
@@ -179,29 +184,25 @@ const JobStatusDashboard = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8F9FA" },
-  container: { paddingHorizontal: 20, paddingBottom: 30 },
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  headerSection: { marginBottom: 24, marginTop: 10 },
-  greeting: { fontSize: 26, fontWeight: "800", color: "#1A1A1A" },
-  subGreeting: { fontSize: 15, color: "#555", marginTop: 6, lineHeight: 22 },
+  headerSection: { marginBottom: SPACING.lg, marginTop: SPACING.sm },
+  greeting: { fontSize: 26, fontWeight: "800", color: COLORS.text },
+  subGreeting: { fontSize: 15, color: COLORS.textSecondary, marginTop: 6, lineHeight: 22 },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
   gridCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.white,
     width: "48%",
     paddingVertical: 22,
-    borderRadius: 24,
+    borderRadius: BORDER_RADIUS['2xl'],
     alignItems: "center",
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    marginBottom: SPACING.md,
+    ...SHADOWS.md,
   },
   iconCircle: {
     width: 54,
@@ -209,23 +210,23 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
-  countText: { fontSize: 22, fontWeight: "800", color: "#1A1A1A" },
-  labelText: { fontSize: 13, color: "#888", fontWeight: "600" },
+  countText: { fontSize: 22, fontWeight: "800", color: COLORS.text },
+  labelText: { fontSize: 13, color: COLORS.textLight, fontWeight: "600" },
   tipCard: {
     flexDirection: "row",
-    backgroundColor: "#E8F5E9",
-    padding: 18,
-    borderRadius: 20,
-    marginTop: 10,
+    backgroundColor: COLORS.successLight,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    marginTop: SPACING.sm,
     alignItems: "center",
     gap: 14,
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: COLORS.secondary + "30",
   },
-  tipIconBox: { backgroundColor: "#FFF", padding: 8, borderRadius: 12 },
-  tipText: { flex: 1, fontSize: 13, color: "#1B5E20", lineHeight: 20 },
+  tipIconBox: { backgroundColor: COLORS.white, padding: SPACING.sm, borderRadius: BORDER_RADIUS.lg },
+  tipText: { flex: 1, fontSize: 13, color: COLORS.secondaryDark, lineHeight: 20 },
 });
 
 export default JobStatusDashboard;

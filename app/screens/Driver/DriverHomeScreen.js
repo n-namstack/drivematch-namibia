@@ -11,11 +11,11 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
 import useDocumentStore from "../../store/useDocumentStore";
 import useDemandStore from "../../store/useDemandStore";
-import useAgreementStore from "../../store/useAgreementStore";
 import supabase from "../../lib/supabase";
 import JobCard from "../../components/JobCard";
 import DemandInsights from "../../components/DemandInsights";
@@ -38,13 +38,10 @@ const DriverHomeScreen = ({ navigation }) => {
     loading: demandLoading,
     fetchInsights,
   } = useDemandStore();
-  const agreements = useAgreementStore((s) => s.agreements);
-  const fetchMyAgreements = useAgreementStore((s) => s.fetchMyAgreements);
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const activeAgreement = agreements.find((a) => a.status === "active") || null;
+  const [docsLoaded, setDocsLoaded] = useState(false);
 
   // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
@@ -54,8 +51,7 @@ const DriverHomeScreen = ({ navigation }) => {
       fetchInsights();
       if (driverProfile?.id) {
         fetchMyInterests(driverProfile.id);
-        fetchDocuments(driverProfile.id);
-        fetchMyAgreements(profile?.id, "driver", driverProfile.id);
+        fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
       }
     }, [profile?.id, driverProfile?.id]),
   );
@@ -107,7 +103,7 @@ const DriverHomeScreen = ({ navigation }) => {
         .eq("is_read", false);
       setUnreadCount(count || 0);
     } catch (err) {
-      // Notification count fetch failed - non-critical
+      Toast.show({ type: "error", text1: "Connection issue", text2: "Could not load notifications." });
     }
   };
 
@@ -120,9 +116,6 @@ const DriverHomeScreen = ({ navigation }) => {
       fetchInsights(true),
       driverProfile?.id
         ? fetchMyInterests(driverProfile.id)
-        : Promise.resolve(),
-      driverProfile?.id
-        ? fetchMyAgreements(profile?.id, "driver", driverProfile.id)
         : Promise.resolve(),
     ]);
     setRefreshing(false);
@@ -153,6 +146,27 @@ const DriverHomeScreen = ({ navigation }) => {
     VERIFICATION_STATUS[driverProfile?.verification_status] ||
     VERIFICATION_STATUS.pending;
   const isAvailable = driverProfile?.is_available_now;
+
+  // Profile completeness
+  const getProfileCompleteness = () => {
+    const steps = [
+      { key: "photo", label: "Add profile photo", done: !!profile?.profile_image, screen: "EditDriverProfile" },
+      { key: "name", label: "Add your name", done: !!(profile?.firstname && profile?.lastname), screen: "EditDriverProfile" },
+      { key: "phone", label: "Add phone number", done: !!profile?.phone, screen: "EditDriverProfile" },
+      { key: "location", label: "Set your location", done: !!profile?.location, screen: "EditDriverProfile" },
+      { key: "bio", label: "Write a bio", done: !!driverProfile?.bio, screen: "EditDriverProfile" },
+      { key: "experience", label: "Add experience", done: (driverProfile?.years_of_experience || 0) > 0, screen: "EditDriverProfile" },
+      { key: "vehicles", label: "Select vehicle types", done: (driverProfile?.vehicle_types?.length || 0) > 0, screen: "EditDriverProfile" },
+      { key: "languages", label: "Add languages", done: (driverProfile?.languages?.length || 0) > 0, screen: "EditDriverProfile" },
+      { key: "documents", label: "Upload documents", done: documents.length > 0, screen: "DocumentUpload" },
+      { key: "availability", label: "Set availability", done: !!driverProfile?.availability, screen: "EditDriverProfile" },
+    ];
+    const completed = steps.filter((s) => s.done).length;
+    const missing = steps.filter((s) => !s.done);
+    return { completed, total: steps.length, missing, percentage: Math.round((completed / steps.length) * 100) };
+  };
+
+  const completeness = getProfileCompleteness();
 
   // Compute expiring documents
   const expiringDocs = documents.filter((doc) => {
@@ -223,20 +237,6 @@ const DriverHomeScreen = ({ navigation }) => {
       color: COLORS.secondary,
       onPress: () => navigation.navigate("JobStatusDashboard"),
     },
-    ...(activeAgreement
-      ? [
-          {
-            id: "earnings",
-            icon: "cash-outline",
-            label: "Log Earnings",
-            color: "#8B5CF6",
-            onPress: () =>
-              navigation.navigate("LogEarnings", {
-                agreementId: activeAgreement.id,
-              }),
-          },
-        ]
-      : []),
   ];
 
   return (
@@ -348,6 +348,34 @@ const DriverHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Profile Completeness */}
+        {docsLoaded && completeness.percentage < 100 && (
+          <TouchableOpacity
+            style={styles.completenessCard}
+            onPress={() => navigation.navigate(completeness.missing[0]?.screen || "EditDriverProfile")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.completenessHeader}>
+              <Text style={styles.completenessTitle}>Complete your profile</Text>
+              <Text style={styles.completenessPercent}>{completeness.percentage}%</Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${completeness.percentage}%` }]} />
+            </View>
+            <Text style={styles.completenessSubtext}>
+              {completeness.completed}/{completeness.total} steps done
+            </Text>
+            <View style={styles.missingChips}>
+              {completeness.missing.slice(0, 3).map((item) => (
+                <View key={item.key} style={styles.missingChip}>
+                  <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
+                  <Text style={styles.missingChipText}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Verification CTA (only if not verified) */}
         {driverProfile?.verification_status !== "verified" && (
           <TouchableOpacity
@@ -415,34 +443,6 @@ const DriverHomeScreen = ({ navigation }) => {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.warning} />
-          </TouchableOpacity>
-        )}
-
-        {/* Earnings CTA (if driver has active agreement) */}
-        {activeAgreement && (
-          <TouchableOpacity
-            style={[
-              styles.verifyCta,
-              {
-                backgroundColor: "#8B5CF6" + "0A",
-                borderColor: "#8B5CF6" + "20",
-                borderWidth: 1,
-              },
-            ]}
-            onPress={() =>
-              navigation.navigate("ManagementDashboard", {
-                agreementId: activeAgreement.id,
-              })
-            }
-            activeOpacity={0.7}
-          >
-            <View style={styles.verifyCtaLeft}>
-              <Ionicons name="cash-outline" size={20} color="#8B5CF6" />
-              <Text style={[styles.verifyCtaText, { color: "#8B5CF6" }]}>
-                Log today's earnings or view dashboard
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#8B5CF6" />
           </TouchableOpacity>
         )}
 
@@ -652,6 +652,67 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.xs,
     color: COLORS.white,
     opacity: 0.7,
+  },
+
+  // Profile Completeness
+  completenessCard: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  completenessHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  completenessTitle: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  completenessPercent: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: COLORS.gray[100],
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: SPACING.xs,
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  completenessSubtext: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+  },
+  missingChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.xs,
+  },
+  missingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    backgroundColor: COLORS.infoLight,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  missingChipText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: "500",
   },
 
   // Verification CTA

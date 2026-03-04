@@ -266,7 +266,7 @@ const SearchDriversScreen = ({ navigation, route }) => {
       {/* Caution Notice - only show when results exist */}
       {hasSearched && drivers.length > 0 && (
         <View style={styles.cautionBanner}>
-          <Ionicons name="warning" size={18} color="#B45309" />
+          <Ionicons name="warning" size={18} color={COLORS.accentDark} />
           <Text style={styles.cautionText}>
             Some drivers may not be verified. Look for the{' '}
             <Text style={{ fontWeight: 'bold' }}>green shield</Text> badge for verified drivers.
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   cautionBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.warningLight,
     marginHorizontal: SPACING.lg,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   cautionText: {
     flex: 1,
     fontSize: FONTS.sizes.sm,
-    color: '#92400E',
+    color: COLORS.accentDark,
     lineHeight: 18,
   },
   resultsHeader: {

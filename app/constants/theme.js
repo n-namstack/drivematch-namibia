@@ -34,9 +34,16 @@ export const COLORS = {
 
   // Semantic Colors
   success: '#10B981',
+  successLight: '#D1FAE5',
   warning: '#F59E0B',
+  warningLight: '#FEF3C7',
   error: '#EF4444',
+  errorLight: '#FEE2E2',
   info: '#3B82F6',
+  infoLight: '#EEF2FF',
+
+  // UI Colors
+  saved: '#FF6B6B',
 
   // Background Colors
   background: '#F9FAFB',
@@ -85,6 +92,7 @@ export const BORDER_RADIUS = {
   md: 8,
   lg: 12,
   xl: 16,
+  '2xl': 24,
   full: 9999,
 };
 

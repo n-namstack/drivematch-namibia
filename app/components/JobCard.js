@@ -118,11 +118,6 @@ const JobCard = ({ job,status,statusColor,statusIcon, onPress, hasInterest, comp
             {job.interest_count || 0} interested
           </Text>
         </View>
-        {job.salary_range && (
-          <View style={styles.salaryBadge}>
-            <Text style={styles.salaryText}>{job.salary_range}</Text>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
@@ -246,18 +241,6 @@ const styles = StyleSheet.create({
   interestCountText: {
     fontSize: FONTS.sizes.xs,
     color: COLORS.textSecondary,
-  },
-  salaryBadge: {
-    marginLeft: 'auto',
-    backgroundColor: COLORS.secondary + '15',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  salaryText: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: '600',
-    color: COLORS.secondary,
   },
   // Compact variant
   compactCard: {

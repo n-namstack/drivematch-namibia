@@ -295,38 +295,20 @@ const useJobStore = create((set, get) => ({
     }
   },
 
-  // Fetch driver's own interests (to know which jobs they've expressed interest in)
-  // fetchMyInterests: async (driverId) => {
-  //   try {
-  //     const { data, error } = await supabase
-  //       .from("job_interests")
-  //       .select("job_post_id, status")
-  //       .eq("driver_id", driverId);
-
-  //     if (error) throw error;
-  //     set({ myInterests: (data || []).map((d) => d.job_post_id) });
-  //   } catch (err) {
-  //     // Non-critical
-  //   }
-  // },
-
   fetchMyInterests: async (driverId) => {
-  try {
-    const { data, error } = await supabase
-      .from('job_interests') // Double check if your table is "job_interest" or "job_interests"
-      .select('job_post_id, status') 
-      .eq('driver_id', driverId);
+    try {
+      const { data, error } = await supabase
+        .from('job_interests')
+        .select('job_post_id, status')
+        .eq('driver_id', driverId);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // ✅ This is the critical part: we set the whole object array
-    set({ myInterests: data || [] }); 
-    
-    console.log("My Interests Data fetched:", data); // Debug to see what's coming back
-  } catch (error) {
-    console.error("Store error:", error.message);
-  }
-},
+      set({ myInterests: data || [] });
+    } catch (error) {
+      // silently handle error
+    }
+  },
 
   // Update interest status (owner accepts/rejects)
   updateInterestStatus: async (interestId, status) => {

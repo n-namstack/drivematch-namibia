@@ -38,7 +38,6 @@ const CreateJobPostScreen = ({ navigation }) => {
   const [vehicleTypes, setVehicleTypes] = useState([]);
   const [experienceLevel, setExperienceLevel] = useState('any');
   const [availabilityType, setAvailabilityType] = useState('full_time');
-  const [salaryRange, setSalaryRange] = useState('');
   const [positionsAvailable, setPositionsAvailable] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,7 +62,6 @@ const CreateJobPostScreen = ({ navigation }) => {
       vehicle_types: vehicleTypes.length > 0 ? vehicleTypes : null,
       experience_level: experienceLevel,
       availability_type: availabilityType,
-      salary_range: salaryRange.trim() || null,
       positions_available: positionsAvailable,
     });
     setSubmitting(false);
@@ -179,17 +177,6 @@ const CreateJobPostScreen = ({ navigation }) => {
               );
             })}
           </View>
-
-          {/* Salary Range */}
-          <Text style={styles.label}>Salary Range (optional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. N$3,000 - N$5,000 / month"
-            placeholderTextColor={COLORS.gray[400]}
-            value={salaryRange}
-            onChangeText={setSalaryRange}
-            maxLength={50}
-          />
 
           {/* Number of Positions */}
           <Text style={styles.label}>Number of Positions</Text>

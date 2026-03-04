@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.gray[200],
   },
   submitButton: {
-    backgroundColor: '#DC2626',
+    backgroundColor: COLORS.error,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
