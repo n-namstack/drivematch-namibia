@@ -24,11 +24,14 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
           setUser(null);
           setProfile(null);
           setDriverProfile(null);
           setLoading(false);
+          if (event === 'TOKEN_REFRESH_FAILED') {
+            await supabase.auth.signOut();
+          }
           return;
         }
         if (session?.user) {
@@ -48,9 +51,13 @@ export const AuthProvider = ({ children }) => {
     // Refresh session when app comes back to foreground
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+          if (error && (error.message?.includes('Refresh Token') || error.name === 'AuthApiError')) {
+            // Refresh token expired/revoked — sign out so user sees login screen
+            supabase.auth.signOut();
+            return;
+          }
           if (session) {
-            // Session exists — Supabase auto-refreshes the access token
             setUser(session.user);
           }
         });
@@ -67,9 +74,15 @@ export const AuthProvider = ({ children }) => {
   const checkSession = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session) {
-        // No valid session found — stay logged out but don't destroy tokens.
-        // Supabase will auto-refresh if a refresh token exists in storage.
+      if (error) {
+        // Invalid refresh token — clear stale auth state so user sees login screen
+        if (error.message?.includes('Refresh Token') || error.name === 'AuthApiError') {
+          await supabase.auth.signOut();
+        }
+        setLoading(false);
+        return;
+      }
+      if (!session) {
         setLoading(false);
         return;
       }

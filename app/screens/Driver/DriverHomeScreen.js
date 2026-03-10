@@ -18,7 +18,6 @@ import useDocumentStore from "../../store/useDocumentStore";
 import useDemandStore from "../../store/useDemandStore";
 import supabase from "../../lib/supabase";
 import JobCard from "../../components/JobCard";
-import DemandInsights from "../../components/DemandInsights";
 import {
   COLORS,
   FONTS,
@@ -33,11 +32,7 @@ const DriverHomeScreen = ({ navigation }) => {
     useAuth();
   const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
   const { documents, fetchDocuments } = useDocumentStore();
-  const {
-    insights: demandInsights,
-    loading: demandLoading,
-    fetchInsights,
-  } = useDemandStore();
+  const { fetchInsights } = useDemandStore();
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -158,7 +153,8 @@ const DriverHomeScreen = ({ navigation }) => {
       { key: "experience", label: "Add experience", done: (driverProfile?.years_of_experience || 0) > 0, screen: "EditDriverProfile" },
       { key: "vehicles", label: "Select vehicle types", done: (driverProfile?.vehicle_types?.length || 0) > 0, screen: "EditDriverProfile" },
       { key: "languages", label: "Add languages", done: (driverProfile?.languages?.length || 0) > 0, screen: "EditDriverProfile" },
-      { key: "documents", label: "Upload documents", done: documents.length > 0, screen: "DocumentUpload" },
+      { key: "drivers_license", label: "Upload driver's license", done: documents.some((d) => d.document_type === "drivers_license"), screen: "DocumentUpload" },
+      { key: "id_document", label: "Upload national ID", done: documents.some((d) => d.document_type === "id_document"), screen: "DocumentUpload" },
       { key: "availability", label: "Set availability", done: !!driverProfile?.availability, screen: "EditDriverProfile" },
     ];
     const completed = steps.filter((s) => s.done).length;
@@ -203,13 +199,6 @@ const DriverHomeScreen = ({ navigation }) => {
 
   const quickActions = [
     {
-      id: "profile",
-      icon: "person-outline",
-      label: "Edit Profile",
-      color: COLORS.primary,
-      onPress: () => navigation.navigate("EditDriverProfile"),
-    },
-    {
       id: "documents",
       icon: "document-text-outline",
       label: "Documents",
@@ -222,13 +211,6 @@ const DriverHomeScreen = ({ navigation }) => {
       label: "Work History",
       color: COLORS.accent,
       onPress: () => navigation.navigate("WorkHistory"),
-    },
-    {
-      id: "messages",
-      icon: "chatbubbles-outline",
-      label: "Messages",
-      color: COLORS.info,
-      onPress: () => navigation.navigate("Messages"),
     },
     {
       id: "job-status",
@@ -470,15 +452,6 @@ const DriverHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Demand Insights */}
-        <View style={styles.section}>
-          <DemandInsights
-            insights={demandInsights}
-            loading={demandLoading}
-            onSeeAll={() => navigation.navigate("DemandMap")}
-          />
-        </View>
-
         {/* Recent Job Opportunities */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -503,7 +476,7 @@ const DriverHomeScreen = ({ navigation }) => {
                 <JobCard
                   key={job.id}
                   job={job}
-                  hasInterest={myInterests.includes(job.id)}
+                  hasInterest={myInterests.some(i => i.job_post_id === job.id)}
                   compact
                   onPress={() =>
                     navigation.navigate("JobPostDetails", { jobId: job.id })

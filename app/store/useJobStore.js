@@ -26,6 +26,8 @@ const useJobStore = create((set, get) => ({
     try {
       const offset = resetList ? 0 : pagination.page * pagination.limit;
 
+      const today = new Date().toISOString().split("T")[0];
+
       const { data, error } = await supabase
         .from("job_posts")
         .select(
@@ -40,6 +42,7 @@ const useJobStore = create((set, get) => ({
         `,
         )
         .eq("status", "open")
+        .or(`due_date.is.null,due_date.gte.${today}`)
         .order("created_at", { ascending: false })
         .range(offset, offset + pagination.limit - 1);
 

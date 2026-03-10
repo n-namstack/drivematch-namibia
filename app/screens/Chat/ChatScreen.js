@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { format, isToday, isYesterday } from 'date-fns';
 import ReportModal from '../../components/ReportModal';
@@ -118,6 +119,35 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
+  const handleDeleteMessage = (message) => {
+    if (message.sender_id !== user.id) return; // Can only delete own messages
+    Alert.alert(
+      'Delete Message',
+      'Delete this message? It will be removed for everyone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('messages')
+                .delete()
+                .eq('id', message.id);
+              if (error) throw error;
+              useChatStore.setState((state) => ({
+                messages: state.messages.filter((m) => m.id !== message.id),
+              }));
+            } catch (err) {
+              Alert.alert('Error', 'Could not delete message.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSend = async () => {
     if (!messageText.trim() || sending) return;
 
@@ -157,11 +187,13 @@ const ChatScreen = ({ route, navigation }) => {
             </Text>
           </View>
         )}
-        <View
+        <TouchableOpacity
           style={[
             styles.messageRow,
             isOwnMessage ? styles.ownMessageRow : styles.otherMessageRow,
           ]}
+          activeOpacity={0.8}
+          onLongPress={() => isOwnMessage && handleDeleteMessage(item)}
         >
           {!isOwnMessage && (
             <View style={styles.senderAvatarContainer}>
@@ -198,7 +230,7 @@ const ChatScreen = ({ route, navigation }) => {
               )}
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };

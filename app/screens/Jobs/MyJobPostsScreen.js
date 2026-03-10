@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
 import {
@@ -20,7 +21,6 @@ import {
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
-  VEHICLE_TYPES,
 } from "../../constants/theme";
 import supabase from "../../lib/supabase";
 
@@ -128,6 +128,8 @@ const MyJobPostsScreen = ({ navigation }) => {
       }
     }, [job.id]);
 
+    if (shortlistCount === 0) return null;
+
     return (
       <TouchableOpacity
         style={styles.interestSummary}
@@ -143,12 +145,10 @@ const MyJobPostsScreen = ({ navigation }) => {
         <Text style={styles.interestSummaryText}>
           {shortlistCount} driver{shortlistCount !== 1 ? "s" : ""} shortlisted
         </Text>
-        {shortlistCount > 0 && (
-          <View style={styles.viewDriversBtn}>
-            <Text style={styles.viewDriversText}>View</Text>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
-          </View>
-        )}
+        <View style={styles.viewDriversBtn}>
+          <Text style={styles.viewDriversText}>View</Text>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+        </View>
       </TouchableOpacity>
     );
   };
@@ -179,12 +179,15 @@ const MyJobPostsScreen = ({ navigation }) => {
           .eq("status", "accepted");
 
         if (error) throw error;
-        if (count > 0 && data?.[0]) {
-          const dp = data[0].driver_profiles?.profiles;
+        if (count > 0 && data?.length > 0) {
+          const names = data.map((d) => {
+            const dp = d.driver_profiles?.profiles;
+            return dp ? `${dp.firstname} ${dp.lastname}`.trim() : "Driver";
+          });
           setHiredInfo({
             count,
-            driverId: data[0].driver_id,
-            name: dp ? `${dp.firstname} ${dp.lastname}`.trim() : null,
+            drivers: data,
+            names,
           });
         }
       } catch (error) {
@@ -198,24 +201,32 @@ const MyJobPostsScreen = ({ navigation }) => {
     const hiredLabel =
       positionsAvailable > 1
         ? `${hiredInfo.count} of ${positionsAvailable} positions filled`
-        : `${hiredInfo.name || "1 driver"} hired`;
+        : `${hiredInfo.names[0] || "1 driver"} hired`;
+
+    const handlePress = () => {
+      if (hiredInfo.count === 1) {
+        // Single hire — go directly to driver details
+        navigation.navigate("DriverDetails", {
+          driverId: hiredInfo.drivers[0].driver_id,
+          jobPostId: job.id,
+        });
+      } else {
+        // Multiple hires — go to job post details which shows all applicants
+        navigation.navigate("JobPostDetails", { jobId: job.id });
+      }
+    };
 
     return (
       <TouchableOpacity
         style={styles.interestSummary}
-        onPress={() =>
-          navigation.navigate("DriverDetails", {
-            driverId: hiredInfo.driverId,
-            jobPostId: job.id,
-          })
-        }
+        onPress={handlePress}
         activeOpacity={0.7}
       >
-        <Ionicons name="person" size={16} color={COLORS.success} />
+        <Ionicons name="people" size={16} color={COLORS.success} />
         <Text style={styles.interestSummaryText}>{hiredLabel}</Text>
         <View style={styles.viewDriversBtn}>
           <Text style={[styles.viewDriversText, { color: COLORS.success }]}>
-            View
+            {hiredInfo.count === 1 ? "View" : `View All ${hiredInfo.count}`}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={COLORS.success} />
         </View>
@@ -223,28 +234,101 @@ const MyJobPostsScreen = ({ navigation }) => {
     );
   };
 
-  const renderJob = ({ item: job }) => {
-    const statusStyle = STATUS_STYLES[job.status] || STATUS_STYLES.open;
-    const interestCount = job.interest_count || 0;
+  // Fetch active vs declined counts for a job
+  const JobInterestStats = ({ job }) => {
+    const [stats, setStats] = useState(null);
+
+    useEffect(() => {
+      if (!job?.id) return;
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from("job_interests")
+            .select("status")
+            .eq("job_post_id", job.id);
+
+          if (error) throw error;
+          const all = data || [];
+          const declined = all.filter((i) => i.status === "rejected").length;
+          const active = all.length - declined;
+          setStats({ active, declined, total: all.length });
+        } catch (_) {
+          // fallback to simple count
+        }
+      })();
+    }, [job.id]);
+
+    const total = stats?.total ?? (job.interest_count || 0);
+    const activeCount = stats?.active ?? total;
+    const declinedCount = stats?.declined ?? 0;
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.interestSummary}
+        onPress={() =>
+          navigation.navigate("JobPostDetails", { jobId: job.id })
+        }
+        activeOpacity={0.7}
+      >
+        <Ionicons name="people" size={16} color={COLORS.primary} />
+        <Text style={styles.interestSummaryText}>
+          {activeCount} active{declinedCount > 0 ? ` · ${declinedCount} declined` : ""}
+        </Text>
+        {total > 0 && (
+          <View style={styles.viewDriversBtn}>
+            <Text style={styles.viewDriversText}>View</Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderJob = ({ item: job }) => {
+    const statusStyle = STATUS_STYLES[job.status] || STATUS_STYLES.open;
+    const postedAgo = job.created_at
+      ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true })
+      : null;
+    const isExpired = job.due_date && new Date(job.due_date) < new Date(new Date().toDateString());
+    const dueDateLabel = job.due_date
+      ? new Date(job.due_date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+
+    return (
+      <View style={[styles.card, isExpired && styles.cardExpired]}>
         {/* Header */}
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.jobTitle} numberOfLines={2}>
               {job.title}
             </Text>
-            {job.location && (
-              <View style={styles.locationRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={13}
-                  color={COLORS.textSecondary}
-                />
-                <Text style={styles.locationText}>{job.location}</Text>
-              </View>
-            )}
+            <View style={styles.metaRow}>
+              {job.location && (
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={13}
+                    color={COLORS.textSecondary}
+                  />
+                  <Text style={styles.locationText}>{job.location}</Text>
+                </View>
+              )}
+              {postedAgo && (
+                <Text style={styles.postedText}>Posted {postedAgo}</Text>
+              )}
+              {dueDateLabel && (
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={13}
+                    color={isExpired ? COLORS.error : COLORS.textSecondary}
+                  />
+                  <Text style={[styles.postedText, isExpired && { color: COLORS.error, fontWeight: "600" }]}>
+                    {isExpired ? "Expired" : `Closes ${dueDateLabel}`}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           <View
             style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}
@@ -255,29 +339,8 @@ const MyJobPostsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Interest count + View button */}
-        <TouchableOpacity
-          style={styles.interestSummary}
-          onPress={() =>
-            navigation.navigate("JobPostDetails", { jobId: job.id })
-          }
-          activeOpacity={0.7}
-        >
-          <Ionicons name="people" size={16} color={COLORS.primary} />
-          <Text style={styles.interestSummaryText}>
-            {interestCount} driver{interestCount !== 1 ? "s" : ""} interested
-          </Text>
-          {interestCount > 0 && (
-            <View style={styles.viewDriversBtn}>
-              <Text style={styles.viewDriversText}>View</Text>
-              <Ionicons
-                name="chevron-forward"
-                size={14}
-                color={COLORS.primary}
-              />
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* Interest counts (active / declined) */}
+        <JobInterestStats job={job} />
 
         {/* Shortlisted count */}
         <JobShortlistedStatCard job={job} />
@@ -299,6 +362,21 @@ const MyJobPostsScreen = ({ navigation }) => {
           </View>
         ) : (
           <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() =>
+                navigation.navigate("CreateJobPost", { editJob: job })
+              }
+            >
+              <Ionicons
+                name="create-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={[styles.actionText, { color: COLORS.primary }]}>
+                Edit
+              </Text>
+            </TouchableOpacity>
             {job.status === "open" ? (
               <TouchableOpacity
                 style={styles.actionBtn}
@@ -481,19 +559,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     ...SHADOWS.sm,
   },
+  cardExpired: {
+    opacity: 0.7,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.error,
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
   jobTitle: { fontSize: FONTS.sizes.md, fontWeight: "700", color: COLORS.text },
+  metaRow: {
+    marginTop: 4,
+    gap: 2,
+  },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    marginTop: 4,
   },
   locationText: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary },
+  postedText: { fontSize: FONTS.sizes.xs, color: COLORS.textLight },
   statusBadge: {
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,

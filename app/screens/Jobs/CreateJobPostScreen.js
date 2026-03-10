@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../context/AuthContext';
 import useJobStore from '../../store/useJobStore';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
@@ -28,18 +29,28 @@ const EXPERIENCE_OPTIONS = [
   { id: 'experienced', label: '5+ years' },
 ];
 
-const CreateJobPostScreen = ({ navigation }) => {
+const CreateJobPostScreen = ({ route, navigation }) => {
   const { profile } = useAuth();
   const createJob = useJobStore((s) => s.createJob);
+  const updateJob = useJobStore((s) => s.updateJob);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
-  const [vehicleTypes, setVehicleTypes] = useState([]);
-  const [experienceLevel, setExperienceLevel] = useState('any');
-  const [availabilityType, setAvailabilityType] = useState('full_time');
-  const [positionsAvailable, setPositionsAvailable] = useState(1);
+  const editJob = route.params?.editJob;
+  const isEditing = !!editJob;
+
+  const [title, setTitle] = useState(editJob?.title || '');
+  const [description, setDescription] = useState(editJob?.description || '');
+  const [location, setLocation] = useState(editJob?.location || '');
+  const [vehicleTypes, setVehicleTypes] = useState(editJob?.vehicle_types || []);
+  const [experienceLevel, setExperienceLevel] = useState(editJob?.experience_level || 'any');
+  const [availabilityType, setAvailabilityType] = useState(editJob?.availability_type || 'full_time');
+  const [positionsAvailable, setPositionsAvailable] = useState(editJob?.positions_available || 1);
+  const [dueDate, setDueDate] = useState(editJob?.due_date ? new Date(editJob.due_date) : null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
 
   const toggleVehicleType = (id) => {
     setVehicleTypes((prev) =>
@@ -54,8 +65,8 @@ const CreateJobPostScreen = ({ navigation }) => {
     }
 
     setSubmitting(true);
-    const { error } = await createJob({
-      owner_id: profile.id,
+
+    const jobData = {
       title: title.trim(),
       description: description.trim() || null,
       location: location || null,
@@ -63,15 +74,27 @@ const CreateJobPostScreen = ({ navigation }) => {
       experience_level: experienceLevel,
       availability_type: availabilityType,
       positions_available: positionsAvailable,
-    });
+      due_date: dueDate ? dueDate.toISOString().split('T')[0] : null,
+    };
+
+    let error;
+    if (isEditing) {
+      ({ error } = await updateJob(editJob.id, jobData));
+    } else {
+      ({ error } = await createJob({ ...jobData, owner_id: profile.id }));
+    }
     setSubmitting(false);
 
     if (error) {
-      Alert.alert('Error', 'Could not create job post. Please try again.');
+      Alert.alert('Error', `Could not ${isEditing ? 'update' : 'create'} job post. Please try again.`);
     } else {
-      Alert.alert('Posted!', 'Your job post is now live. Drivers can see it and express interest.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        isEditing ? 'Updated!' : 'Posted!',
+        isEditing
+          ? 'Your job post has been updated.'
+          : 'Your job post is now live. Drivers can see it and express interest.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
     }
   };
 
@@ -198,6 +221,40 @@ const CreateJobPostScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Due Date */}
+          <Text style={styles.label}>Closing Date</Text>
+          <TouchableOpacity
+            style={styles.datePickerBtn}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+            <Text style={dueDate ? styles.dateText : styles.datePlaceholder}>
+              {dueDate
+                ? dueDate.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'No closing date (stays open)'}
+            </Text>
+            {dueDate && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); setDueDate(null); }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={dueDate || tomorrow}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              minimumDate={tomorrow}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (selectedDate) setDueDate(selectedDate);
+              }}
+            />
+          )}
+
           {/* Submit */}
           <TouchableOpacity
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
@@ -208,8 +265,8 @@ const CreateJobPostScreen = ({ navigation }) => {
               <ActivityIndicator color={COLORS.white} />
             ) : (
               <>
-                <Ionicons name="megaphone-outline" size={20} color={COLORS.white} />
-                <Text style={styles.submitText}>Post Job</Text>
+                <Ionicons name={isEditing ? "checkmark-circle-outline" : "megaphone-outline"} size={20} color={COLORS.white} />
+                <Text style={styles.submitText}>{isEditing ? "Save Changes" : "Post Job"}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -329,6 +386,26 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     minWidth: 30,
     textAlign: 'center',
+  },
+  datePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    ...SHADOWS.sm,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: FONTS.sizes.md,
+    color: COLORS.text,
+  },
+  datePlaceholder: {
+    flex: 1,
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray[400],
   },
   submitButton: {
     flexDirection: 'row',

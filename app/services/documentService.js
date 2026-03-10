@@ -117,6 +117,7 @@ export const documentService = {
   },
 
   uploadDocument: async (userId, file, documentType) => {
+    console.log('[DocumentService] uploadDocument called', { userId, documentType, fileUri: file?.uri });
     try {
       if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
         return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
@@ -147,19 +148,25 @@ export const documentService = {
           upsert: true,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.log('[DocumentService] uploadDocument storage error', error);
+        throw error;
+      }
 
       const { data: urlData } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(storagePath);
 
+      console.log('[DocumentService] uploadDocument success', { url: urlData.publicUrl, storagePath });
       return { data: { ...data, url: urlData.publicUrl, storagePath }, error: null };
     } catch (err) {
+      console.log('[DocumentService] uploadDocument caught error', err);
       return { data: null, error: err };
     }
   },
 
   uploadSelfie: async (userId, file, documentId) => {
+    console.log('[DocumentService] uploadSelfie called', { userId, documentId });
     try {
       if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
         return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
@@ -194,12 +201,12 @@ export const documentService = {
           selfie_storage_path: storagePath,
         })
         .eq('id', documentId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
+      const record = data?.[0] ?? null;
 
-      return { data: { ...data, selfieStoragePath: storagePath }, error: null };
+      return { data: { ...record, selfieStoragePath: storagePath }, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -237,6 +244,7 @@ export const documentService = {
   },
 
   saveDocumentRecord: async (driverId, documentData) => {
+    console.log('[DocumentService] saveDocumentRecord called', { driverId, documentData });
     try {
       const { data, error } = await supabase
         .from('driver_documents')
@@ -248,27 +256,33 @@ export const documentService = {
           document_number: documentData.documentNumber,
           expiry_date: documentData.expiryDate,
         })
-        .select()
-        .single();
+        .select();
 
-      if (error) throw error;
-      return { data, error: null };
+      if (error) {
+        console.log('[DocumentService] saveDocumentRecord error', error);
+        throw error;
+      }
+      const record = data?.[0] ?? null;
+      console.log('[DocumentService] saveDocumentRecord success', { recordId: record?.id });
+      return { data: record, error: null };
     } catch (err) {
+      console.log('[DocumentService] saveDocumentRecord caught error', err);
       return { data: null, error: err };
     }
   },
 
   updateDocumentRecord: async (documentId, updates) => {
+    console.log('[DocumentService] updateDocumentRecord called', { documentId, updates });
     try {
       const { data, error } = await supabase
         .from('driver_documents')
         .update(updates)
         .eq('id', documentId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return { data, error: null };
+      const record = data?.[0] ?? null;
+      return { data: record, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -313,6 +327,7 @@ export const documentService = {
   },
 
   replaceDocument: async (userId, existingDoc, file, documentType) => {
+    console.log('[DocumentService] replaceDocument called', { userId, existingDocId: existingDoc?.id, documentType });
     try {
       // Remove old files from storage
       const pathsToRemove = [];
@@ -342,19 +357,22 @@ export const documentService = {
           rejection_reason: null,
         })
         .eq('id', existingDoc.id)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
+      const record = data?.[0] ?? null;
 
       // Delete related expiry alerts since document is new
-      await supabase
-        .from('document_expiry_alerts')
-        .delete()
-        .eq('document_id', existingDoc.id)
-        .catch(() => {});
+      try {
+        await supabase
+          .from('document_expiry_alerts')
+          .delete()
+          .eq('document_id', existingDoc.id);
+      } catch (_) {
+        // Non-critical — ignore if alerts table doesn't exist or has no rows
+      }
 
-      return { data: { ...data, storagePath: uploadData.storagePath }, error: null };
+      return { data: { ...record, storagePath: uploadData.storagePath }, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -366,11 +384,11 @@ export const documentService = {
         .from('driver_profiles')
         .update({ verification_status: 'submitted' })
         .eq('id', driverId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return { data, error: null };
+      const record = data?.[0] ?? null;
+      return { data: record, error: null };
     } catch (err) {
       return { data: null, error: err };
     }

@@ -118,6 +118,23 @@ const JobCard = ({ job,status,statusColor,statusIcon, onPress, hasInterest, comp
             {job.interest_count || 0} interested
           </Text>
         </View>
+        {job.due_date && (
+          <View style={styles.dueDateRow}>
+            <Ionicons
+              name="calendar-outline"
+              size={14}
+              color={getDaysLeft(job.due_date) <= 3 ? COLORS.error : COLORS.textSecondary}
+            />
+            <Text
+              style={[
+                styles.interestCountText,
+                getDaysLeft(job.due_date) <= 3 && { color: COLORS.error, fontWeight: '600' },
+              ]}
+            >
+              {getDueDateLabel(job.due_date)}
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -133,6 +150,20 @@ function getTimeAgo(dateStr) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
   return date.toLocaleDateString();
+}
+
+function getDaysLeft(dueDateStr) {
+  const today = new Date(new Date().toDateString());
+  const due = new Date(dueDateStr);
+  return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+}
+
+function getDueDateLabel(dueDateStr) {
+  const days = getDaysLeft(dueDateStr);
+  if (days <= 0) return 'Closing today';
+  if (days === 1) return '1 day left';
+  if (days <= 7) return `${days} days left`;
+  return `Closes ${new Date(dueDateStr).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}`;
 }
 
 const styles = StyleSheet.create({
@@ -241,6 +272,12 @@ const styles = StyleSheet.create({
   interestCountText: {
     fontSize: FONTS.sizes.xs,
     color: COLORS.textSecondary,
+  },
+  dueDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginLeft: 'auto',
   },
   // Compact variant
   compactCard: {

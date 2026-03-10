@@ -24,7 +24,7 @@ import {
 const DriverProfileScreen = ({ navigation }) => {
   const { profile, driverProfile, refreshProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [documentCount, setDocumentCount] = useState(0);
+  const [documentTypes, setDocumentTypes] = useState([]);
   const [workCount, setWorkCount] = useState(0);
 
   const statusInfo =
@@ -41,14 +41,14 @@ const DriverProfileScreen = ({ navigation }) => {
       const [docs, work] = await Promise.all([
         supabase
           .from("driver_documents")
-          .select("id", { count: "exact", head: true })
+          .select("document_type")
           .eq("driver_id", driverProfile.id),
         supabase
           .from("work_history")
           .select("id", { count: "exact", head: true })
           .eq("driver_id", driverProfile.id),
       ]);
-      setDocumentCount(docs.count || 0);
+      setDocumentTypes((docs.data || []).map((d) => d.document_type));
       setWorkCount(work.count || 0);
     } catch (err) {
       // Non-critical - counts will show 0
@@ -93,11 +93,16 @@ const DriverProfileScreen = ({ navigation }) => {
   // Profile completion percentage
   const completionItems = [
     !!profile?.profile_image,
+    !!(profile?.firstname && profile?.lastname),
+    !!profile?.phone,
+    !!profile?.location,
     !!driverProfile?.bio,
     (driverProfile?.years_of_experience || 0) > 0,
     (driverProfile?.vehicle_types?.length || 0) > 0,
-    documentCount > 0,
-    workCount > 0,
+    (driverProfile?.languages?.length || 0) > 0,
+    documentTypes.includes("drivers_license"),
+    documentTypes.includes("id_document"),
+    !!driverProfile?.availability,
   ];
   const completionPercent = Math.round(
     (completionItems.filter(Boolean).length / completionItems.length) * 100,
@@ -224,7 +229,7 @@ const DriverProfileScreen = ({ navigation }) => {
                     color={COLORS.secondary}
                   />
                 </View>
-                <Text style={styles.statValue}>{documentCount}</Text>
+                <Text style={styles.statValue}>{documentTypes.length}</Text>
                 <Text style={styles.statLabel}>Documents</Text>
               </View>
               <View style={styles.statBlock}>
@@ -332,7 +337,7 @@ const DriverProfileScreen = ({ navigation }) => {
                 />
               </View>
               <Text style={styles.actionLabel}>Documents</Text>
-              <Text style={styles.actionHint}>{documentCount} uploaded</Text>
+              <Text style={styles.actionHint}>{documentTypes.length} uploaded</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

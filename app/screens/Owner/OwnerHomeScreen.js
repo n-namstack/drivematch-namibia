@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,27 @@ const OwnerHomeScreen = ({ navigation }) => {
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    if (!profile?.id) return;
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .eq('is_read', false);
+      setUnreadCount(count || 0);
+    } catch (err) {
+      // silent
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+    }, [profile?.id]),
+  );
 
   useEffect(() => {
     loadData();
@@ -36,7 +58,25 @@ const OwnerHomeScreen = ({ navigation }) => {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Realtime: update notification badge
+    const notifChannel = supabase
+      .channel('owner-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` },
+        () => { fetchUnreadCount(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` },
+        () => { fetchUnreadCount(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(notifChannel);
+    };
   }, []);
 
   const loadData = async () => {
@@ -44,6 +84,7 @@ const OwnerHomeScreen = ({ navigation }) => {
       await Promise.all([
         fetchFeaturedDrivers(),
         profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
+        fetchUnreadCount(),
       ]);
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Connection issue', text2: 'Could not load data. Pull to refresh.' });
@@ -72,10 +113,17 @@ const OwnerHomeScreen = ({ navigation }) => {
             <Text style={styles.subtitle}>Find your perfect driver today</Text>
           </View>
           <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Settings')}
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notifications')}
           >
-            <Ionicons name="person-circle" size={40} color={COLORS.primary} />
+            <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
+            {unreadCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -158,7 +206,27 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   subtitle: { fontSize: FONTS.sizes.md, color: COLORS.textSecondary, marginTop: SPACING.xs },
-  profileButton: { padding: SPACING.xs },
+  notificationButton: {
+    padding: SPACING.sm,
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: COLORS.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notifBadgeText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '700',
+  },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
     marginHorizontal: SPACING.lg, paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,

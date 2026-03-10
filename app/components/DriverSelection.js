@@ -91,6 +91,7 @@ const SelectionActions = ({
           title: config.title,
           message: config.message,
           is_read: false,
+          data: { job_post_id: jobPostId },
         });
 
         if (error) throw error;
@@ -111,13 +112,25 @@ const SelectionActions = ({
         .eq("job_post_id", jobPostId)
         .select();
 
-      // Send notification to driver about status change
-      notifyDriverOfStatusChange(driverUuId, jobTile, newStatus);
       if (error) {
         Alert.alert("Error", error.message);
         setLoading(null);
       } else if (data && data.length > 0) {
+        // Send notification to driver about status change (only after successful update)
+        notifyDriverOfStatusChange(driverUuId, jobTile, newStatus);
         onStatusUpdate(newStatus);
+
+        // Auto-close job when all positions are filled
+        if (newStatus === "accepted" && hiredCount + 1 >= positionsAvailable) {
+          try {
+            await supabase
+              .from("job_posts")
+              .update({ status: "filled" })
+              .eq("id", jobPostId);
+          } catch (_) {
+            // Non-critical: job post status update failed
+          }
+        }
       } else {
         Alert.alert(
           "Unauthorized",

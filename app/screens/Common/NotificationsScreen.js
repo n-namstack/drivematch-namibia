@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -69,6 +70,33 @@ const NotificationsScreen = ({ navigation }) => {
     }
   };
 
+  const handleClearAll = () => {
+    if (notifications.length === 0) return;
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to delete all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .eq('user_id', profile.id);
+              if (error) throw error;
+              setNotifications([]);
+            } catch (err) {
+              Alert.alert('Error', 'Could not clear notifications.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleNotificationPress = (notification) => {
     const data = notification.data;
     if (notification.type === "message" && data?.conversation_id) {
@@ -82,6 +110,17 @@ const NotificationsScreen = ({ navigation }) => {
       navigation.navigate("DocumentUpload", {
         initialDocType: data?.document_type,
       });
+    } else if (notification.type === "job_update") {
+      // Navigate to job status dashboard for drivers, or job details if we have a job ID
+      if (data?.job_post_id) {
+        navigation.navigate("JobPostDetails", { jobId: data.job_post_id });
+      } else {
+        navigation.navigate("JobStatusDashboard");
+      }
+    } else if (notification.type === "review") {
+      navigation.navigate("DriverMain", { screen: "Profile" });
+    } else if (notification.type === "engagement") {
+      navigation.navigate("DriverMain", { screen: "Profile" });
     }
   };
 
@@ -140,6 +179,11 @@ const NotificationsScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={handleClearAll}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <FlatList
         data={notifications}
@@ -162,6 +206,9 @@ const NotificationsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
@@ -169,6 +216,11 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes["2xl"],
     fontWeight: "bold",
     color: COLORS.text,
+  },
+  clearAllText: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: "600",
+    color: COLORS.error,
   },
   list: { paddingHorizontal: SPACING.lg },
   notifCard: {

@@ -110,10 +110,10 @@ const OwnerTabs = () => (
         let iconName;
         if (route.name === "Home") {
           iconName = focused ? "home" : "home-outline";
-        } else if (route.name === "Search") {
-          iconName = focused ? "search" : "search-outline";
         } else if (route.name === "My Jobs") {
           iconName = focused ? "megaphone" : "megaphone-outline";
+        } else if (route.name === "Job Board") {
+          iconName = focused ? "briefcase" : "briefcase-outline";
         } else if (route.name === "Messages") {
           iconName = focused ? "chatbubbles" : "chatbubbles-outline";
         } else if (route.name === "Settings") {
@@ -127,8 +127,8 @@ const OwnerTabs = () => (
     })}
   >
     <Tab.Screen name="Home" component={OwnerHomeScreen} />
-    <Tab.Screen name="Search" component={SearchDriversScreen} />
     <Tab.Screen name="My Jobs" component={MyJobPostsScreen} />
+    <Tab.Screen name="Job Board" component={JobBoardScreen} />
     <Tab.Screen name="Messages" component={ConversationsScreen} />
     <Tab.Screen name="Settings" component={ProfileSettingsScreen} />
   </Tab.Navigator>
@@ -242,6 +242,11 @@ const AppNavigator = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="Search"
+              component={SearchDriversScreen}
+              options={{ headerShown: true, title: "Search Drivers" }}
+            />
+            <Stack.Screen
               name="AllDrivers"
               component={AllDriversScreen}
               options={{ headerShown: true, title: "All Drivers" }}
@@ -254,7 +259,10 @@ const AppNavigator = () => {
             <Stack.Screen
               name="CreateJobPost"
               component={CreateJobPostScreen}
-              options={{ headerShown: true, title: "Post a Job" }}
+              options={({ route }) => ({
+                headerShown: true,
+                title: route.params?.editJob ? "Edit Job" : "Post a Job",
+              })}
             />
             <Stack.Screen
               name="JobPostDetails"

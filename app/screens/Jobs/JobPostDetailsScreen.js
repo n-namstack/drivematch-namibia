@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
@@ -23,6 +24,14 @@ import {
   VEHICLE_TYPES,
   AVAILABILITY_OPTIONS,
 } from "../../constants/theme";
+
+const STATUS_CONFIG = {
+  pending: { label: "Pending", color: COLORS.gray[500], bg: COLORS.gray[100] },
+  viewed: { label: "Viewed", color: COLORS.info, bg: COLORS.info + "15" },
+  shortlisted: { label: "Shortlisted", color: COLORS.primary, bg: COLORS.primary + "15" },
+  accepted: { label: "Hired", color: COLORS.success, bg: COLORS.success + "15" },
+  rejected: { label: "Declined", color: COLORS.error, bg: COLORS.error + "15" },
+};
 
 const EXPERIENCE_LABELS = {
   any: "Any Level",
@@ -47,12 +56,15 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
 
   const isDriver = profile?.role === "driver";
   const isOwner = selectedJob?.owner_id === profile?.id;
-  const hasInterest = myInterests.includes(jobId);
+  const hasInterest = myInterests.some(i => i.job_post_id === jobId);
 
-  useEffect(() => {
-    loadJob();
-    if (driverProfile?.id) fetchMyInterests(driverProfile.id);
-  }, [jobId]);
+  // Refresh on focus so status changes (hire/reject) are reflected
+  useFocusEffect(
+    useCallback(() => {
+      loadJob();
+      if (driverProfile?.id) fetchMyInterests(driverProfile.id);
+    }, [jobId, driverProfile?.id]),
+  );
 
   const loadJob = async () => {
     setLoading(true);
@@ -95,14 +107,6 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
     Linking.openURL(`tel:${selectedJob.owner.phone}`);
   };
 
-  const handleMessage = () => {
-    // Navigate to chat with the owner
-    navigation.navigate("Chat", {
-      conversationWith: selectedJob.owner_id,
-      recipientName:
-        `${selectedJob.owner?.firstname || ""} ${selectedJob.owner?.lastname || ""}`.trim(),
-    });
-  };
 
   if (loading) {
     return (
@@ -134,6 +138,11 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
   const expLabel =
     EXPERIENCE_LABELS[selectedJob.experience_level] || "Any Level";
 
+  const isExpired = selectedJob.due_date && new Date(selectedJob.due_date) < new Date(new Date().toDateString());
+  const dueDateLabel = selectedJob.due_date
+    ? new Date(selectedJob.due_date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView
@@ -151,6 +160,14 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
             <Text style={styles.closedText}>
               This job post is{" "}
               {selectedJob.status === "filled" ? "filled" : "closed"}
+            </Text>
+          </View>
+        )}
+        {isExpired && selectedJob.status === "open" && (
+          <View style={[styles.closedBanner, { backgroundColor: COLORS.error + "10" }]}>
+            <Ionicons name="time" size={18} color={COLORS.error} />
+            <Text style={[styles.closedText, { color: COLORS.error }]}>
+              This job post has expired
             </Text>
           </View>
         )}
@@ -212,6 +229,15 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
             <Text style={styles.detailLabel}>Experience</Text>
             <Text style={styles.detailValue}>{expLabel}</Text>
           </View>
+          {dueDateLabel && (
+            <View style={styles.detailItem}>
+              <Ionicons name="calendar" size={20} color={isExpired ? COLORS.error : COLORS.primary} />
+              <Text style={styles.detailLabel}>Closing Date</Text>
+              <Text style={[styles.detailValue, isExpired && { color: COLORS.error }]}>
+                {dueDateLabel}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Vehicle types */}
@@ -241,7 +267,12 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
         {isOwner && selectedJob.job_interests?.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Interested Drivers</Text>
-            {selectedJob.job_interests.map((interest) => {
+            {[...selectedJob.job_interests]
+              .sort((a, b) => {
+                const order = { accepted: 0, shortlisted: 1, pending: 2, viewed: 3, rejected: 4 };
+                return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+              })
+              .map((interest) => {
               const driver = interest.driver;
               const dp = driver?.profiles;
               return (
@@ -278,10 +309,22 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
                     <Text style={styles.intDriverName}>
                       {dp?.firstname} {dp?.lastname}
                     </Text>
-                    {interest.message && (
-                      <Text style={styles.intDriverMessage} numberOfLines={1}>
-                        {interest.message}
-                      </Text>
+                    {interest.status && STATUS_CONFIG[interest.status] && (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: STATUS_CONFIG[interest.status].bg },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            { color: STATUS_CONFIG[interest.status].color },
+                          ]}
+                        >
+                          {STATUS_CONFIG[interest.status].label}
+                        </Text>
+                      </View>
                     )}
                   </View>
                   <View style={styles.viewProfileBtn}>
@@ -301,8 +344,8 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Action Bar (for drivers only) */}
-      {isDriver && selectedJob.status === "open" && (
+      {/* Bottom Action Bar (for drivers only, not expired) */}
+      {isDriver && selectedJob.status === "open" && !isExpired && (
         <View style={styles.bottomBar}>
           <TouchableOpacity
             style={[
@@ -333,13 +376,6 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.contactBtn} onPress={handleMessage}>
-            <Ionicons
-              name="chatbubble-outline"
-              size={20}
-              color={COLORS.primary}
-            />
           </TouchableOpacity>
         </View>
       )}
@@ -481,10 +517,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.text,
   },
-  intDriverMessage: {
+  statusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    marginTop: 4,
+  },
+  statusBadgeText: {
     fontSize: FONTS.sizes.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    fontWeight: "600",
   },
   viewProfileBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
   viewProfileText: {
@@ -528,15 +570,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   interestBtnTextActive: { color: COLORS.secondary },
-  contactBtn: {
-    width: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.primary + "10",
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-  },
 });
 
 export default JobPostDetailsScreen;
