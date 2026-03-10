@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import React, { useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -126,7 +125,6 @@ const SelectionActions = ({
         );
       }
     } catch (e) {
-      Alert.alert("Error", "Something went wrong. Please try again.");
       Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setLoading(null);

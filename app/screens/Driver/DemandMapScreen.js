@@ -12,26 +12,8 @@ import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Callout } from 'react-native-maps';
-import MapView, { Marker, Callout } from 'react-native-maps';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import useDemandStore from '../../store/useDemandStore';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MAP_HEIGHT = SCREEN_HEIGHT * 0.42;
-
-// Namibia center and boundaries
-const NAMIBIA_REGION = {
-  latitude: -22.0,
-  longitude: 17.5,
-  latitudeDelta: 14,
-  longitudeDelta: 14,
-};
-
-// Restrict map panning to Namibia + small buffer
-const NAMIBIA_BOUNDARY = {
-  northEast: { latitude: -16.9, longitude: 25.3 },
-  southWest: { latitude: -29.0, longitude: 11.7 },
-};
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.42;
@@ -66,7 +48,6 @@ const DemandMapScreen = ({ navigation }) => {
   const { insights, loading, error, fetchInsights } = useDemandStore();
   const [search, setSearch] = useState('');
   const mapRef = useRef(null);
-  const mapRef = useRef(null);
 
   useEffect(() => {
     fetchInsights(true);
@@ -92,42 +73,10 @@ const DemandMapScreen = ({ navigation }) => {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return locationsWithJobs;
-    if (!search.trim()) return locationsWithJobs;
     const q = search.toLowerCase();
     return locationsWithJobs.filter((loc) => loc.location.toLowerCase().includes(q));
   }, [locationsWithJobs, search]);
-    return locationsWithJobs.filter((loc) => loc.location.toLowerCase().includes(q));
-  }, [locationsWithJobs, search]);
 
-  const handleMarkerPress = (item) => {
-    setSearch('');
-    // Animate to the selected location
-    mapRef.current?.animateToRegion(
-      {
-        latitude: item.latitude,
-        longitude: item.longitude,
-        latitudeDelta: 1.5,
-        longitudeDelta: 1.5,
-      },
-      500
-    );
-  };
-
-  const handleCardPress = (item) => {
-    if (item.latitude != null && item.longitude != null) {
-      mapRef.current?.animateToRegion(
-        {
-          latitude: item.latitude,
-          longitude: item.longitude,
-          latitudeDelta: 1.5,
-          longitudeDelta: 1.5,
-        },
-        500
-      );
-    }
-  };
-
-  const renderCard = ({ item }) => {
   const handleMarkerPress = (item) => {
     setSearch('');
     // Animate to the selected location
@@ -166,11 +115,6 @@ const DemandMapScreen = ({ navigation }) => {
         onPress={() => handleCardPress(item)}
         activeOpacity={0.7}
       >
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handleCardPress(item)}
-        activeOpacity={0.7}
-      >
         <View style={styles.cardTop}>
           <View style={styles.cardLeft}>
             <View style={[styles.locationIcon, { backgroundColor: color + '15' }]}>
@@ -181,15 +125,9 @@ const DemandMapScreen = ({ navigation }) => {
               <Text style={[styles.demandLabel, { color }]}>
                 {getDemandLabel(item.demandScore)}
               </Text>
-              <Text style={[styles.demandLabel, { color }]}>
-                {getDemandLabel(item.demandScore)}
-              </Text>
             </View>
           </View>
           <View style={styles.scoreContainer}>
-            <Text style={[styles.scoreValue, { color }]}>
-              {item.demandScore.toFixed(1)}
-            </Text>
             <Text style={[styles.scoreValue, { color }]}>
               {item.demandScore.toFixed(1)}
             </Text>
@@ -204,16 +142,10 @@ const DemandMapScreen = ({ navigation }) => {
             <Text style={styles.statLabel}>
               open job{item.openJobs !== 1 ? 's' : ''}
             </Text>
-            <Text style={styles.statLabel}>
-              open job{item.openJobs !== 1 ? 's' : ''}
-            </Text>
           </View>
           <View style={styles.stat}>
             <Ionicons name="people-outline" size={14} color={COLORS.primary} />
             <Text style={styles.statValue}>{item.activeDrivers}</Text>
-            <Text style={styles.statLabel}>
-              driver{item.activeDrivers !== 1 ? 's' : ''}
-            </Text>
             <Text style={styles.statLabel}>
               driver{item.activeDrivers !== 1 ? 's' : ''}
             </Text>
@@ -227,14 +159,7 @@ const DemandMapScreen = ({ navigation }) => {
               { width: `${barWidth}%`, backgroundColor: color },
             ]}
           />
-          <View
-            style={[
-              styles.barFill,
-              { width: `${barWidth}%`, backgroundColor: color },
-            ]}
-          />
         </View>
-      </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -259,15 +184,7 @@ const DemandMapScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -276,81 +193,9 @@ const DemandMapScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Where Drivers Are Needed</Text>
-        <Text style={styles.headerTitle}>Where Drivers Are Needed</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Map */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={NAMIBIA_REGION}
-          mapBoundaries={NAMIBIA_BOUNDARY}
-          minZoomLevel={5}
-          maxZoomLevel={12}
-          showsUserLocation={false}
-          showsCompass={false}
-          toolbarEnabled={false}
-        >
-          {mappableInsights.map((item) => {
-            const color = getDemandColor(item.demandScore);
-            return (
-              <Marker
-                key={item.location}
-                coordinate={{
-                  latitude: item.latitude,
-                  longitude: item.longitude,
-                }}
-                pinColor={color}
-                onPress={() => handleMarkerPress(item)}
-              >
-                <Callout tooltip>
-                  <View style={styles.callout}>
-                    <Text style={styles.calloutTitle}>{item.location}</Text>
-                    <View style={styles.calloutRow}>
-                      <Text style={[styles.calloutScore, { color }]}>
-                        {item.demandScore.toFixed(1)}
-                      </Text>
-                      <Text style={styles.calloutLabel}>
-                        {getDemandLabel(item.demandScore)}
-                      </Text>
-                    </View>
-                    <View style={styles.calloutStats}>
-                      <Text style={styles.calloutStat}>
-                        {item.openJobs} job{item.openJobs !== 1 ? 's' : ''}
-                      </Text>
-                      <Text style={styles.calloutDivider}>|</Text>
-                      <Text style={styles.calloutStat}>
-                        {item.activeDrivers} driver
-                        {item.activeDrivers !== 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  </View>
-                </Callout>
-              </Marker>
-            );
-          })}
-        </MapView>
-
-        {/* Legend overlay */}
-        <View style={styles.legendOverlay}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.secondary }]} />
-            <Text style={styles.legendText}>High</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.accent }]} />
-            <Text style={styles.legendText}>Moderate</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.gray[400] }]} />
-            <Text style={styles.legendText}>Low</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Search */}
       {/* Map */}
       <View style={styles.mapContainer}>
         <MapView
@@ -439,11 +284,9 @@ const DemandMapScreen = ({ navigation }) => {
       </View>
 
       {/* Location List */}
-      {/* Location List */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.location}
-        renderItem={renderCard}
         renderItem={renderCard}
         contentContainerStyle={[
           styles.list,
@@ -455,7 +298,6 @@ const DemandMapScreen = ({ navigation }) => {
         onRefresh={() => fetchInsights(true)}
       />
 
-      {/* Footer */}
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
@@ -488,103 +330,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: FONTS.sizes.lg,
     fontSize: FONTS.sizes.lg,
     fontWeight: 'bold',
     color: COLORS.text,
   },
-
-  // Map
-  mapContainer: {
-    height: MAP_HEIGHT,
-    marginHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
-    ...SHADOWS.md,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-
-  // Legend overlay
-  legendOverlay: {
-    position: 'absolute',
-    bottom: SPACING.sm,
-    left: SPACING.sm,
-    flexDirection: 'row',
-    backgroundColor: COLORS.white + 'E6',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-
-  // Callout
-  callout: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    minWidth: 180,
-    ...SHADOWS.md,
-  },
-  calloutTitle: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  calloutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.xs,
-  },
-  calloutScore: {
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '700',
-  },
-  calloutLabel: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.textSecondary,
-  },
-  calloutStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  calloutStat: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  calloutDivider: {
-    color: COLORS.gray[300],
-    fontSize: FONTS.sizes.xs,
-  },
-
-  // Search
 
   // Map
   mapContainer: {
@@ -678,9 +429,6 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     gap: SPACING.xs,
@@ -694,11 +442,7 @@ const styles = StyleSheet.create({
   },
 
   // Cards
-
-  // Cards
   list: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
   },
@@ -784,8 +528,6 @@ const styles = StyleSheet.create({
   },
 
   // Empty
-
-  // Empty
   empty: {
     flex: 1,
     justifyContent: 'center',
@@ -806,11 +548,7 @@ const styles = StyleSheet.create({
   },
 
   // Footer
-
-  // Footer
   footer: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderTopWidth: 1,
