@@ -51,6 +51,9 @@ import JobStatusDashboard from "../screens/Common/JobStatusScreen";
 // Admin Screens
 import AdminDashboardScreen from "../screens/Admin/AdminDashboardScreen";
 import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
+import AddCarScreen from "../screens/Fleet/AddCarScreen";
+import CarListingScreen from "../screens/Fleet/CarListingScreen";
+import AssignCarScreen from "../screens/Fleet/AssignCarScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -197,7 +200,7 @@ const AppNavigator = () => {
           headerStyle: { backgroundColor: COLORS.background },
           headerTintColor: COLORS.text,
           headerShadowVisible: false,
-          headerBackButtonDisplayMode: 'minimal',
+          headerBackButtonDisplayMode: "minimal",
         }}
       >
         {!user ? (
@@ -269,7 +272,7 @@ const AppNavigator = () => {
               component={JobPostDetailsScreen}
               options={{ headerShown: true, title: "Job Details" }}
             />
-              <Stack.Screen
+            <Stack.Screen
               name="JobStatusDashboard"
               component={JobStatusDashboard}
               options={{ headerShown: true, title: "Job Status Dashboard" }}
@@ -285,12 +288,25 @@ const AppNavigator = () => {
               options={{ headerShown: true, title: "Shortlisted Drivers" }}
             />
             <Stack.Screen
+              name="AddCar"
+              component={AddCarScreen}
+              options={{ headerShown: true, title: "Add Car" }}
+            />
+            <Stack.Screen
+              name="CarListing"
+              component={CarListingScreen}
+              options={{ headerShown: true, title: "Car Listing" }}
+            />
+            <Stack.Screen
+              name="AssignCar"
+              component={AssignCarScreen}
+              options={{ headerShown: true, title: "Assign Car" }}
+            />
+            <Stack.Screen
               name="DemandMap"
               component={DemandMapScreen}
               options={{ headerShown: false }}
             />
-
-
           </>
         )}
       </Stack.Navigator>
