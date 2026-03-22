@@ -57,6 +57,7 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
   const isDriver = profile?.role === "driver";
   const isOwner = selectedJob?.owner_id === profile?.id;
   const hasInterest = myInterests.some(i => i.job_post_id === jobId);
+  const isDriverVerified = driverProfile?.verification_status === 'verified';
 
   // Refresh on focus so status changes (hire/reject) are reflected
   useFocusEffect(
@@ -73,6 +74,10 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleInterestToggle = async () => {
+    if (!isDriverVerified) {
+      Alert.alert("Verification Required", "Complete document verification before applying for jobs.");
+      return;
+    }
     if (acting) return;
     setActing(true);
 
@@ -347,36 +352,45 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
       {/* Bottom Action Bar (for drivers only, not expired) */}
       {isDriver && selectedJob.status === "open" && !isExpired && (
         <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[
-              styles.interestBtn,
-              hasInterest && styles.interestBtnActive,
-            ]}
-            onPress={handleInterestToggle}
-            disabled={acting}
-          >
-            {acting ? (
-              <ActivityIndicator
-                color={hasInterest ? COLORS.secondary : COLORS.white}
-              />
-            ) : (
-              <>
-                <Ionicons
-                  name={hasInterest ? "checkmark-circle" : "hand-right"}
-                  size={20}
+          {!isDriverVerified ? (
+            <View style={styles.unverifiedNotice}>
+              <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+              <Text style={styles.unverifiedNoticeText}>
+                Complete document verification to apply for jobs
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.interestBtn,
+                hasInterest && styles.interestBtnActive,
+              ]}
+              onPress={handleInterestToggle}
+              disabled={acting}
+            >
+              {acting ? (
+                <ActivityIndicator
                   color={hasInterest ? COLORS.secondary : COLORS.white}
                 />
-                <Text
-                  style={[
-                    styles.interestBtnText,
-                    hasInterest && styles.interestBtnTextActive,
-                  ]}
-                >
-                  {hasInterest ? "Interested" : "I'm Interested"}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+              ) : (
+                <>
+                  <Ionicons
+                    name={hasInterest ? "checkmark-circle" : "hand-right"}
+                    size={20}
+                    color={hasInterest ? COLORS.secondary : COLORS.white}
+                  />
+                  <Text
+                    style={[
+                      styles.interestBtnText,
+                      hasInterest && styles.interestBtnTextActive,
+                    ]}
+                  >
+                    {hasInterest ? "Interested" : "I'm Interested"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -548,6 +562,23 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.gray[100],
     ...SHADOWS.lg,
+  },
+  unverifiedNotice: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: "#F59E0B" + "15",
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  unverifiedNoticeText: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: "600",
+    color: "#F59E0B",
+    flex: 1,
   },
   interestBtn: {
     flex: 1,

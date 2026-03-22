@@ -263,7 +263,7 @@ const useJobStore = create((set, get) => ({
             ? { ...j, interest_count: (j.interest_count || 0) + 1 }
             : j,
         ),
-        myInterests: [...state.myInterests, jobPostId],
+        myInterests: [...state.myInterests, { job_post_id: jobPostId, status: 'pending' }],
       }));
 
       return { data, error: null };
@@ -289,7 +289,7 @@ const useJobStore = create((set, get) => ({
             ? { ...j, interest_count: Math.max((j.interest_count || 1) - 1, 0) }
             : j,
         ),
-        myInterests: state.myInterests.filter((id) => id !== jobPostId),
+        myInterests: state.myInterests.filter((i) => i.job_post_id !== jobPostId),
       }));
 
       return { error: null };

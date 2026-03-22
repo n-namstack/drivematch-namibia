@@ -55,6 +55,7 @@ const MyJobPostsScreen = ({ navigation }) => {
   );
 
   const onRefresh = async () => {
+    if (!profile?.id) return;
     setRefreshing(true);
     await fetchMyJobs(profile.id);
     setRefreshing(false);

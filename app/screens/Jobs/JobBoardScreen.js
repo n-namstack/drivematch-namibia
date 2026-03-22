@@ -172,6 +172,11 @@ const JobBoardScreen = ({ navigation }) => {
   };
 
   const handleInterest = (job) => {
+    if (driverProfile && driverProfile.verification_status !== 'verified') {
+      Alert.alert("Verification Required", "Complete document verification before applying for jobs.");
+      return;
+    }
+
     const interestRecord = getInterestForJob(job.id);
     const hasInterest = !!interestRecord;
 

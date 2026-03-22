@@ -85,7 +85,13 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const userProfile = driver?.profiles;
   const isSaved = savedDrivers.some((sd) => sd.driver_id === driverId);
 
+  const isDriverVerified = driver?.verification_status === 'verified';
+
   const handleCall = async () => {
+    if (!isDriverVerified) {
+      Alert.alert("Unverified Driver", "This driver's documents have not been verified yet. You cannot contact unverified drivers.");
+      return;
+    }
     const phone = userProfile?.phone;
     if (!phone) {
       Alert.alert(
@@ -145,6 +151,10 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleMessage = async () => {
+    if (!isDriverVerified) {
+      Alert.alert("Unverified Driver", "This driver's documents have not been verified yet. You cannot message unverified drivers.");
+      return;
+    }
     if (messaging) return;
     setMessaging(true);
     try {
@@ -838,19 +848,30 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {/* Action Bar */}
+      {!isDriverVerified && (
+        <View style={styles.unverifiedBanner}>
+          <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+          <Text style={styles.unverifiedBannerText}>
+            This driver's documents have not been verified yet
+          </Text>
+        </View>
+      )}
       <View style={styles.actionBar}>
         <TouchableOpacity
-          style={styles.actionSecondary}
+          style={[styles.actionSecondary, !isDriverVerified && styles.actionDisabled]}
           onPress={handleMessage}
         >
           <Ionicons
             name="chatbubble-outline"
             size={20}
-            color={COLORS.primary}
+            color={isDriverVerified ? COLORS.primary : COLORS.gray[400]}
           />
-          <Text style={styles.actionSecondaryText}>Message</Text>
+          <Text style={[styles.actionSecondaryText, !isDriverVerified && styles.actionDisabledText]}>Message</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionPrimary} onPress={handleCall}>
+        <TouchableOpacity
+          style={[styles.actionPrimary, !isDriverVerified && styles.actionPrimaryDisabled]}
+          onPress={handleCall}
+        >
           <Ionicons name="call-outline" size={20} color={COLORS.white} />
           <Text style={styles.actionPrimaryText}>Call Driver</Text>
         </TouchableOpacity>
@@ -1320,6 +1341,32 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     ...SHADOWS.lg,
+  },
+  unverifiedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    backgroundColor: "#F59E0B" + "15",
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.xs,
+  },
+  unverifiedBannerText: {
+    fontSize: FONTS.sizes.sm,
+    color: "#F59E0B",
+    fontWeight: "500",
+    flex: 1,
+  },
+  actionDisabled: {
+    backgroundColor: COLORS.gray[100],
+  },
+  actionDisabledText: {
+    color: COLORS.gray[400],
+  },
+  actionPrimaryDisabled: {
+    backgroundColor: COLORS.gray[300],
   },
   actionSecondary: {
     flex: 1,

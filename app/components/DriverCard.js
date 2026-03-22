@@ -41,9 +41,13 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
               <Ionicons name="person" size={32} color={COLORS.gray[400]} />
             </View>
           )}
-          {isVerified && (
+          {isVerified ? (
             <View style={styles.verifiedBadge}>
               <Ionicons name="shield-checkmark" size={12} color={COLORS.white} />
+            </View>
+          ) : (
+            <View style={styles.unverifiedBadge}>
+              <Ionicons name="alert-circle" size={12} color={COLORS.white} />
             </View>
           )}
           {isAvailableNow && (
@@ -91,8 +95,13 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
                 {isAvailableNow ? 'Available' : 'Unavailable'}
               </Text>
             </View>
-            {isVerified && (
+            {isVerified ? (
               <Ionicons name="shield-checkmark" size={14} color={COLORS.secondary} />
+            ) : (
+              <View style={styles.unverifiedTag}>
+                <Ionicons name="alert-circle" size={12} color="#F59E0B" />
+                <Text style={styles.unverifiedTagText}>Unverified</Text>
+              </View>
             )}
           </View>
           <View style={styles.ratingRow}>
@@ -132,9 +141,13 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
               <Ionicons name="person" size={24} color={COLORS.gray[400]} />
             </View>
           )}
-          {isVerified && (
+          {isVerified ? (
             <View style={styles.verifiedBadge}>
               <Ionicons name="shield-checkmark" size={12} color={COLORS.white} />
+            </View>
+          ) : (
+            <View style={styles.unverifiedBadge}>
+              <Ionicons name="alert-circle" size={12} color={COLORS.white} />
             </View>
           )}
         </View>
@@ -217,6 +230,16 @@ const styles = StyleSheet.create({
     borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: COLORS.white,
   },
+  unverifiedBadge: {
+    position: 'absolute', bottom: 0, right: 0, backgroundColor: '#F59E0B',
+    borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.white,
+  },
+  unverifiedTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    backgroundColor: '#F59E0B' + '15', paddingHorizontal: SPACING.xs + 2, paddingVertical: 2, borderRadius: BORDER_RADIUS.full,
+  },
+  unverifiedTagText: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: '#F59E0B' },
   headerInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.xs },
   name: { fontSize: FONTS.sizes.lg, fontWeight: '600', color: COLORS.text, flex: 1 },

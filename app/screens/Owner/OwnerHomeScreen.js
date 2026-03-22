@@ -77,7 +77,7 @@ const OwnerHomeScreen = ({ navigation }) => {
       supabase.removeChannel(channel);
       supabase.removeChannel(notifChannel);
     };
-  }, []);
+  }, [profile?.id]);
 
   const loadData = async () => {
     try {

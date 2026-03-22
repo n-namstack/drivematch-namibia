@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.duolink",
       "requireFullScreen": true,
-      "buildNumber": "5",
+      "buildNumber": "6",
       "config": {
         "usesNonExemptEncryption": false
       },

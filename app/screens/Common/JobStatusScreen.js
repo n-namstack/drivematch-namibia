@@ -343,6 +343,7 @@ const JobStatusDashboard = ({ navigation }) => {
   };
 
   useEffect(() => {
+    if (!driverProfile?.id) return;
     fetchApplications();
     const channel = supabase
       .channel("driver-status-realtime")
@@ -352,7 +353,7 @@ const JobStatusDashboard = ({ navigation }) => {
           event: "*",
           schema: "public",
           table: "job_interests",
-          filter: `driver_id=eq.${driverProfile?.id}`,
+          filter: `driver_id=eq.${driverProfile.id}`,
         },
         () => fetchApplications()
       )
