@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { EULA_URL, getTermsText, getPrivacyText } from '../../constants/legal';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const AgreementGateScreen = () => {
   const { acceptTerms } = useAuth();
@@ -44,14 +45,7 @@ const AgreementGateScreen = () => {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.agreeButton, accepting && styles.agreeButtonDisabled]}
-          onPress={handleAgree}
-          disabled={accepting}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.agreeButtonText}>Agree & Continue</Text>
-        </TouchableOpacity>
+        <PrimaryButton title="Agree & Continue" onPress={handleAgree} loading={accepting} />
       </View>
 
       <Modal
@@ -91,7 +85,7 @@ const styles = StyleSheet.create({
   },
   logo: { width: 96, height: 96, borderRadius: 22, marginBottom: SPACING.md },
   title: {
-    fontSize: 26,
+    fontSize: FONTS.sizes['3xl'],
     fontWeight: '800',
     color: COLORS.text,
     textAlign: 'center',
@@ -107,18 +101,6 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderTopWidth: 1,
     borderTopColor: COLORS.gray[100],
-  },
-  agreeButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-  },
-  agreeButtonDisabled: { opacity: 0.6 },
-  agreeButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '600',
   },
   modalHeader: {
     flexDirection: 'row',

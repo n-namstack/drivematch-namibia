@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const WelcomeScreen = ({ navigation }) => {
   const { continueAsGuest } = useAuth();
@@ -30,14 +31,11 @@ const WelcomeScreen = ({ navigation }) => {
 
         {/* Buttons */}
         <View style={styles.buttonsSection}>
-          <TouchableOpacity
-            style={styles.primaryButton}
+          <PrimaryButton
+            title="Get Started"
+            icon="arrow-forward"
             onPress={() => navigation.navigate('Register')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-          </TouchableOpacity>
+          />
 
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -87,7 +85,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   appName: {
-    fontSize: 36,
+    fontSize: FONTS.sizes['4xl'],
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: -0.5,
@@ -101,21 +99,6 @@ const styles = StyleSheet.create({
   },
   buttonsSection: {
     gap: SPACING.md,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  primaryButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '600',
   },
   secondaryButton: {
     paddingVertical: SPACING.sm,

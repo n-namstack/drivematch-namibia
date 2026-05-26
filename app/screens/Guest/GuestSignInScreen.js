@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const BENEFITS = [
   { icon: 'briefcase-outline', text: 'Post jobs and hire trusted drivers' },
@@ -32,14 +33,11 @@ const GuestSignInScreen = ({ navigation }) => {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={styles.primaryButton}
+        <PrimaryButton
+          title="Create Account"
+          icon="arrow-forward"
           onPress={() => navigation.navigate('Register')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.primaryButtonText}>Create Account</Text>
-          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-        </TouchableOpacity>
+        />
 
         <TouchableOpacity
           style={styles.secondaryButton}
@@ -76,7 +74,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: FONTS.sizes['3xl'],
     fontWeight: '800',
     color: COLORS.text,
     textAlign: 'center',
@@ -102,21 +100,6 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     color: COLORS.text,
     flex: 1,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  primaryButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '600',
   },
   secondaryButton: {
     paddingVertical: SPACING.md,

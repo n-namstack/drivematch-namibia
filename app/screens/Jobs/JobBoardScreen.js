@@ -21,6 +21,7 @@ import useJobStore from "../../store/useJobStore";
 import useModerationStore from "../../store/useModerationStore";
 import { requireAuth } from "../../utils/requireAuth";
 import JobCard from "../../components/JobCard";
+import ScreenHeader from "../../components/ScreenHeader";
 import LocationAutocomplete from "../../components/LocationAutocomplete";
 import {
   COLORS,
@@ -179,7 +180,11 @@ const JobBoardScreen = ({ navigation }) => {
 
   const handleInterest = (job) => {
     if (!requireAuth(user, navigation, "Sign in to apply for jobs.")) return;
-    if (driverProfile && driverProfile.verification_status !== 'verified') {
+    if (!driverProfile?.id) {
+      Alert.alert("Complete your profile", "Finish setting up your driver profile before applying for jobs.");
+      return;
+    }
+    if (driverProfile.verification_status !== 'verified') {
       Alert.alert("Verification Required", "Complete document verification before applying for jobs.");
       return;
     }
@@ -381,12 +386,7 @@ const JobBoardScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Job Opportunities</Text>
-          <Text style={styles.headerSubtitle}>Find your next hustle</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Job Opportunities" subtitle="Find your next hustle" />
 
       {/* Search + Filter Button */}
       <View style={styles.searchContainer}>
@@ -683,13 +683,6 @@ const JobBoardScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  headerTitle: { fontSize: 28, fontWeight: "bold", color: COLORS.text },
-  headerSubtitle: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
   searchContainer: {
     flexDirection: "row",
     paddingHorizontal: SPACING.lg,

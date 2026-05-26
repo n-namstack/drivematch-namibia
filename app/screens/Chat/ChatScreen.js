@@ -44,6 +44,7 @@ const ChatScreen = ({ route, navigation }) => {
   const hasScrolledRef = useRef(false);
 
   useEffect(() => {
+    if (!user?.id || !profile?.role) return;
     const init = async () => {
       // Fetch conversation details if not already loaded
       if (!currentConversation || currentConversation.id !== conversationId) {

@@ -93,12 +93,9 @@ const AllDriversScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>All Drivers</Text>
-        <Text style={styles.resultsCount}>
-          {visibleDrivers.length} driver{visibleDrivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
-        </Text>
-      </View>
+      <Text style={styles.resultsCount}>
+        {visibleDrivers.length} driver{visibleDrivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
+      </Text>
 
       {error && drivers.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -162,15 +159,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  headerTitle: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
   resultsCount: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,

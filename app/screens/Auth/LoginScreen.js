@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const LoginScreen = ({ navigation }) => {
   const { signIn } = useAuth();
@@ -138,17 +139,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+            <PrimaryButton title="Sign In" onPress={handleLogin} loading={loading} style={{ marginTop: SPACING.md }} />
           </View>
 
           {/* Footer */}
@@ -236,22 +227,6 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: COLORS.primary,
     fontSize: FONTS.sizes.sm,
-  },
-  loginButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-    marginTop: SPACING.md,
-    ...SHADOWS.md,
-  },
-  loginButtonDisabled: {
-    opacity: 0.7,
-  },
-  loginButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
   },
   footer: {
     flexDirection: 'row',

@@ -411,7 +411,7 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
         <View style={styles.bottomBar}>
           {!isDriverVerified ? (
             <View style={styles.unverifiedNotice}>
-              <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+              <Ionicons name="alert-circle" size={20} color={COLORS.warning} />
               <Text style={styles.unverifiedNoticeText}>
                 Complete document verification to apply for jobs
               </Text>
@@ -650,13 +650,13 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    backgroundColor: "#F59E0B" + "15",
+    backgroundColor: COLORS.warning + "15",
     borderRadius: BORDER_RADIUS.xl,
   },
   unverifiedNoticeText: {
     fontSize: FONTS.sizes.sm,
     fontWeight: "600",
-    color: "#F59E0B",
+    color: COLORS.warning,
     flex: 1,
   },
   interestBtn: {
@@ -675,8 +675,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.secondary,
   },
   interestBtnText: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: "bold",
+    fontSize: FONTS.sizes.lg,
+    fontWeight: "600",
     color: COLORS.white,
   },
   interestBtnTextActive: { color: COLORS.secondary },

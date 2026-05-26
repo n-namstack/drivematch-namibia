@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { SUPPORT_EMAIL } from '../../constants/appConfig';
 import { EULA_URL } from '../../constants/legal';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const RegisterScreen = ({ navigation }) => {
   const [legalModal, setLegalModal] = useState(null);
@@ -226,20 +227,13 @@ const RegisterScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+            <PrimaryButton
+              title="Continue"
+              icon="arrow-forward"
               onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <>
-                  <Text style={styles.registerButtonText}>Continue</Text>
-                  <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-                </>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              style={{ marginTop: SPACING.md }}
+            />
           </View>
 
           {/* Terms */}
@@ -349,20 +343,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     paddingVertical: SPACING.sm,
   },
-  registerButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
-    ...SHADOWS.md,
-  },
-  registerButtonDisabled: {
-    opacity: 0.7,
-  },
   ageRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,11 +366,6 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.sm,
     color: COLORS.text,
     flex: 1,
-  },
-  registerButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
   },
   terms: {
     fontSize: FONTS.sizes.sm,

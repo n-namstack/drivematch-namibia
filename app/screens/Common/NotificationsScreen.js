@@ -177,14 +177,13 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        {notifications.length > 0 && (
+      {notifications.length > 0 && (
+        <View style={styles.header}>
           <TouchableOpacity onPress={handleClearAll}>
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
@@ -207,15 +206,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  headerTitle: {
-    fontSize: FONTS.sizes["2xl"],
-    fontWeight: "bold",
-    color: COLORS.text,
+    paddingVertical: SPACING.sm,
   },
   clearAllText: {
     fontSize: FONTS.sizes.sm,

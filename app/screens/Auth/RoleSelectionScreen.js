@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const RoleSelectionScreen = ({ navigation, route }) => {
   const { signUp } = useAuth();
@@ -161,23 +162,13 @@ const RoleSelectionScreen = ({ navigation, route }) => {
 
       {/* Continue Button - pinned at bottom */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            !selectedRole && styles.continueButtonDisabled,
-          ]}
+        <PrimaryButton
+          title="Create Account"
+          icon="arrow-forward"
           onPress={handleContinue}
-          disabled={!selectedRole || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <>
-              <Text style={styles.continueButtonText}>Create Account</Text>
-              <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-            </>
-          )}
-        </TouchableOpacity>
+          loading={loading}
+          disabled={!selectedRole}
+        />
       </View>
     </SafeAreaView>
   );
@@ -280,24 +271,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.gray[100],
     backgroundColor: COLORS.background,
-  },
-  continueButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  continueButtonDisabled: {
-    backgroundColor: COLORS.gray[300],
-  },
-  continueButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
   },
 });
 

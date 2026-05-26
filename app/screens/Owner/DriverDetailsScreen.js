@@ -898,7 +898,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       {/* Action Bar */}
       {!isDriverVerified && (
         <View style={styles.unverifiedBanner}>
-          <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+          <Ionicons name="alert-circle" size={18} color={COLORS.warning} />
           <Text style={styles.unverifiedBannerText}>
             This driver's documents have not been verified yet
           </Text>
@@ -906,15 +906,22 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       )}
       <View style={styles.actionBar}>
         <TouchableOpacity
-          style={[styles.actionSecondary, !isDriverVerified && styles.actionDisabled]}
+          style={[styles.actionSecondary, (!isDriverVerified || messaging) && styles.actionDisabled]}
           onPress={handleMessage}
+          disabled={messaging}
         >
-          <Ionicons
-            name="chatbubble-outline"
-            size={20}
-            color={isDriverVerified ? COLORS.primary : COLORS.gray[400]}
-          />
-          <Text style={[styles.actionSecondaryText, !isDriverVerified && styles.actionDisabledText]}>Message</Text>
+          {messaging ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Ionicons
+              name="chatbubble-outline"
+              size={20}
+              color={isDriverVerified ? COLORS.primary : COLORS.gray[400]}
+            />
+          )}
+          <Text style={[styles.actionSecondaryText, !isDriverVerified && styles.actionDisabledText]}>
+            {messaging ? "Opening…" : "Message"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionPrimary, !isDriverVerified && styles.actionPrimaryDisabled]}
@@ -1394,7 +1401,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING.xs,
-    backgroundColor: "#F59E0B" + "15",
+    backgroundColor: COLORS.warning + "15",
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     marginHorizontal: SPACING.lg,
@@ -1403,7 +1410,7 @@ const styles = StyleSheet.create({
   },
   unverifiedBannerText: {
     fontSize: FONTS.sizes.sm,
-    color: "#F59E0B",
+    color: COLORS.warning,
     fontWeight: "500",
     flex: 1,
   },

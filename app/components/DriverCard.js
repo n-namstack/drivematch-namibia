@@ -99,7 +99,7 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
               <Ionicons name="shield-checkmark" size={14} color={COLORS.secondary} />
             ) : (
               <View style={styles.unverifiedTag}>
-                <Ionicons name="alert-circle" size={12} color="#F59E0B" />
+                <Ionicons name="alert-circle" size={12} color={COLORS.warning} />
                 <Text style={styles.unverifiedTagText}>Unverified</Text>
               </View>
             )}
@@ -231,15 +231,15 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: COLORS.white,
   },
   unverifiedBadge: {
-    position: 'absolute', bottom: 0, right: 0, backgroundColor: '#F59E0B',
+    position: 'absolute', bottom: 0, right: 0, backgroundColor: COLORS.warning,
     borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: COLORS.white,
   },
   unverifiedTag: {
     flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: '#F59E0B' + '15', paddingHorizontal: SPACING.xs + 2, paddingVertical: 2, borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.warning + '15', paddingHorizontal: SPACING.xs + 2, paddingVertical: 2, borderRadius: BORDER_RADIUS.full,
   },
-  unverifiedTagText: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: '#F59E0B' },
+  unverifiedTagText: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: COLORS.warning },
   headerInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.xs },
   name: { fontSize: FONTS.sizes.lg, fontWeight: '600', color: COLORS.text, flex: 1 },

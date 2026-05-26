@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
 import useModerationStore from '../../store/useModerationStore';
+import ScreenHeader from '../../components/ScreenHeader';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { formatDistanceToNow } from 'date-fns';
@@ -185,7 +186,7 @@ const ConversationsScreen = ({ navigation }) => {
         </TouchableOpacity>
       );
     },
-    [profile?.role]
+    [profile?.role, user?.id]
   );
 
   const renderEmpty = () => {
@@ -213,9 +214,7 @@ const ConversationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-      </View>
+      <ScreenHeader title="Messages" />
 
       {conversations.length > 0 && (
         <View style={styles.searchContainer}>
@@ -257,15 +256,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  title: {
-    fontSize: FONTS.sizes['2xl'],
-    fontWeight: 'bold',
-    color: COLORS.text,
   },
   searchContainer: {
     paddingHorizontal: SPACING.lg,

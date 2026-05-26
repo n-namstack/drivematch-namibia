@@ -43,6 +43,7 @@ import BlockedUsersScreen from "../screens/Common/BlockedUsersScreen";
 
 // Guest Screens
 import GuestSignInScreen from "../screens/Guest/GuestSignInScreen";
+import GuestDriversScreen from "../screens/Guest/GuestDriversScreen";
 
 // Onboarding Screens
 import AgreementGateScreen from "../screens/Onboarding/AgreementGateScreen";
@@ -187,7 +188,7 @@ const GuestTabs = () => (
       headerShown: false,
     })}
   >
-    <Tab.Screen name="Drivers" component={AllDriversScreen} />
+    <Tab.Screen name="Drivers" component={GuestDriversScreen} />
     <Tab.Screen name="Jobs" component={JobBoardScreen} />
     <Tab.Screen name="Sign In" component={GuestSignInScreen} />
   </Tab.Navigator>

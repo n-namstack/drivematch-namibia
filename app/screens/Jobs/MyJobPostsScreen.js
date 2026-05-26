@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
+import ScreenHeader from "../../components/ScreenHeader";
 import {
   COLORS,
   FONTS,
@@ -425,16 +426,18 @@ const MyJobPostsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Job Posts</Text>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => navigation.navigate("CreateJobPost")}
-        >
-          <Ionicons name="add" size={20} color={COLORS.white} />
-          <Text style={styles.createButtonText}>Post Job</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="My Job Posts"
+        right={
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => navigation.navigate("CreateJobPost")}
+          >
+            <Ionicons name="add" size={20} color={COLORS.white} />
+            <Text style={styles.createButtonText}>Post Job</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* Search */}
       {myJobs.length > 0 && (
@@ -505,18 +508,6 @@ const MyJobPostsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  headerTitle: {
-    fontSize: FONTS.sizes["2xl"],
-    fontWeight: "bold",
-    color: COLORS.text,
-  },
   searchContainer: {
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.sm,
