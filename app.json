@@ -3,7 +3,7 @@
     "name": "DuoLink",
     "slug": "namdriver",
     "owner": "namstack",
-    "version": "1.0.0",
+    "version": "1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,9 +16,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.namstack.duolink",
+      "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
-      "buildNumber": "6",
+      "buildNumber": "9",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -35,7 +35,7 @@
         "backgroundColor": "#1E40AF"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.namstack.duolink",
+      "package": "com.namstack.namdriver",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",

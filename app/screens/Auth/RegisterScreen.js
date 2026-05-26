@@ -11,11 +11,13 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { SUPPORT_EMAIL } from '../../constants/appConfig';
+import { EULA_URL } from '../../constants/legal';
 
 const RegisterScreen = ({ navigation }) => {
   const [legalModal, setLegalModal] = useState(null);
@@ -28,6 +30,7 @@ const RegisterScreen = ({ navigation }) => {
     confirmPassword: '',
   });
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -74,6 +77,11 @@ const RegisterScreen = ({ navigation }) => {
       return false;
     }
 
+    if (!termsAccepted) {
+      Alert.alert('Error', 'You must agree to the Terms of Service and EULA to continue');
+      return false;
+    }
+
     return true;
   };
 
@@ -81,8 +89,8 @@ const RegisterScreen = ({ navigation }) => {
     if (!validateForm()) return;
 
     setLoading(true);
-    // Navigate to role selection with form data
-    navigation.navigate('RoleSelection', { formData });
+    // Navigate to role selection; carry acceptance forward to persist after signup
+    navigation.navigate('RoleSelection', { formData, termsAccepted: true });
     setLoading(false);
   };
 
@@ -199,6 +207,23 @@ const RegisterScreen = ({ navigation }) => {
                 {ageConfirmed && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
               </View>
               <Text style={styles.ageText}>I confirm that I am at least 18 years old</Text>
+            </TouchableOpacity>
+
+            {/* Terms & EULA Acceptance */}
+            <TouchableOpacity
+              style={styles.ageRow}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                {termsAccepted && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
+              </View>
+              <Text style={styles.ageText}>
+                I agree to the{' '}
+                <Text style={styles.termsLink} onPress={() => setLegalModal('terms')}>Terms of Service</Text>,{' '}
+                <Text style={styles.termsLink} onPress={() => setLegalModal('privacy')}>Privacy Policy</Text>, and{' '}
+                <Text style={styles.termsLink} onPress={() => Linking.openURL(EULA_URL)}>EULA</Text>
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity

@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
 import useChatStore from '../store/useChatStore';
+import useModerationStore from '../store/useModerationStore';
 
 const AuthContext = createContext({});
 
@@ -14,10 +16,32 @@ export const AuthProvider = ({ children }) => {
   const [driverProfile, setDriverProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
+  // null = still loading from storage, true/false once known
+  const [termsGateAccepted, setTermsGateAccepted] = useState(null);
+
+  const TERMS_GATE_KEY = 'duolink_terms_gate_v1';
+
+  const continueAsGuest = () => setIsGuest(true);
+  const exitGuest = () => setIsGuest(false);
+
+  const acceptTerms = async () => {
+    try {
+      await AsyncStorage.setItem(TERMS_GATE_KEY, new Date().toISOString());
+    } catch (err) {
+      // Persist failed — still let the user through this session
+    }
+    setTermsGateAccepted(true);
+  };
 
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
+    // Load device-level Terms/EULA gate acceptance (applies to guests too)
+    AsyncStorage.getItem(TERMS_GATE_KEY)
+      .then((value) => setTermsGateAccepted(!!value))
+      .catch(() => setTermsGateAccepted(false));
+
     // Check current session on mount
     checkSession();
 
@@ -40,6 +64,7 @@ export const AuthProvider = ({ children }) => {
             setProfile(null);
             setDriverProfile(null);
           } else {
+            setIsGuest(false);
             setUser(session.user);
             await fetchProfile(session.user.id);
           }
@@ -92,6 +117,7 @@ export const AuthProvider = ({ children }) => {
           setProfile(null);
           setDriverProfile(null);
         } else {
+          setIsGuest(false);
           setUser(session.user);
           await fetchProfile(session.user.id);
         }
@@ -116,6 +142,22 @@ export const AuthProvider = ({ children }) => {
       if (profileError) throw profileError;
       setProfile(profileData);
 
+      // Backfill Terms/EULA acceptance recorded at sign-up (carried in auth metadata)
+      if (!profileData?.terms_accepted_at) {
+        const { data: authData } = await supabase.auth.getUser();
+        const acceptedAt = authData?.user?.user_metadata?.terms_accepted_at;
+        if (acceptedAt) {
+          await supabase
+            .from('profiles')
+            .update({ terms_accepted_at: acceptedAt })
+            .eq('id', userId);
+          setProfile({ ...profileData, terms_accepted_at: acceptedAt });
+        }
+      }
+
+      // Load the set of users this account has blocked (for feed filtering)
+      useModerationStore.getState().fetchBlocked(userId);
+
       // If user is a driver, fetch driver profile
       if (profileData?.role === 'driver') {
         const { data: driverData, error: driverError } = await supabase
@@ -133,7 +175,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async ({ email, password, firstname, lastname, phone, role }) => {
+  const signUp = async ({ email, password, firstname, lastname, phone, role, termsAccepted }) => {
     try {
       setError(null);
       const { data, error } = await supabase.auth.signUp({
@@ -145,6 +187,7 @@ export const AuthProvider = ({ children }) => {
             lastname,
             phone,
             role: role || 'owner',
+            ...(termsAccepted ? { terms_accepted_at: new Date().toISOString() } : {}),
           },
         },
       });
@@ -166,6 +209,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (error) throw error;
+      setIsGuest(false);
       return { data, error: null };
     } catch (err) {
       setError(err.message);
@@ -212,9 +256,11 @@ export const AuthProvider = ({ children }) => {
       // Reset Zustand stores to prevent data leakage between accounts
       useDriverStore.getState().resetStore();
       useChatStore.getState().resetStore();
+      useModerationStore.getState().resetStore();
       setUser(null);
       setProfile(null);
       setDriverProfile(null);
+      setIsGuest(false);
     } catch (err) {
       // Sign-out failed — state already cleared above
     }
@@ -281,6 +327,11 @@ export const AuthProvider = ({ children }) => {
     driverProfile,
     loading,
     error,
+    isGuest,
+    continueAsGuest,
+    exitGuest,
+    termsGateAccepted,
+    acceptTerms,
     isDriver: profile?.role === 'driver',
     isOwner: profile?.role === 'owner',
     isAdmin: profile?.role === 'admin',

@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
+import useModerationStore from '../../store/useModerationStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,6 +24,7 @@ import { formatDistanceToNow } from 'date-fns';
 const ConversationsScreen = ({ navigation }) => {
   const { user, profile, driverProfile } = useAuth();
   const { conversations, loading, fetchConversations, setCurrentConversation, deleteConversation } = useChatStore();
+  const blockedIds = useModerationStore((s) => s.blockedIds);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -43,17 +45,27 @@ const ConversationsScreen = ({ navigation }) => {
     }
   }, [profile?.role]);
 
+  const getOtherUserId = useCallback(
+    (conv) => (profile?.role === 'owner' ? conv.driver?.user_id : conv.owner_id),
+    [profile?.role]
+  );
+
   const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return conversations;
+    // Hide conversations with blocked users (instant feed removal)
+    let result = blockedIds.size
+      ? conversations.filter((conv) => !blockedIds.has(getOtherUserId(conv)))
+      : conversations;
+
+    if (!searchQuery.trim()) return result;
     const q = searchQuery.toLowerCase().trim();
-    return conversations.filter((conv) => {
+    return result.filter((conv) => {
       const participant = getOtherParticipant(conv);
       return (
         participant.name?.toLowerCase().includes(q) ||
         conv.last_message?.content?.toLowerCase().includes(q)
       );
     });
-  }, [conversations, searchQuery, getOtherParticipant]);
+  }, [conversations, searchQuery, getOtherParticipant, blockedIds, getOtherUserId]);
 
   useFocusEffect(
     useCallback(() => {

@@ -39,6 +39,13 @@ import ChatScreen from "../screens/Chat/ChatScreen";
 // Common Screens
 import ProfileSettingsScreen from "../screens/Common/ProfileSettingsScreen";
 import NotificationsScreen from "../screens/Common/NotificationsScreen";
+import BlockedUsersScreen from "../screens/Common/BlockedUsersScreen";
+
+// Guest Screens
+import GuestSignInScreen from "../screens/Guest/GuestSignInScreen";
+
+// Onboarding Screens
+import AgreementGateScreen from "../screens/Onboarding/AgreementGateScreen";
 
 // Job Board Screens
 import JobBoardScreen from "../screens/Jobs/JobBoardScreen";
@@ -160,11 +167,37 @@ const AdminTabs = () => (
   </Tab.Navigator>
 );
 
+// Guest Tab Navigator (no account — browse only)
+const GuestTabs = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+        if (route.name === "Drivers") {
+          iconName = focused ? "people" : "people-outline";
+        } else if (route.name === "Jobs") {
+          iconName = focused ? "briefcase" : "briefcase-outline";
+        } else if (route.name === "Sign In") {
+          iconName = focused ? "log-in" : "log-in-outline";
+        }
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: COLORS.primary,
+      tabBarInactiveTintColor: COLORS.gray[400],
+      headerShown: false,
+    })}
+  >
+    <Tab.Screen name="Drivers" component={AllDriversScreen} />
+    <Tab.Screen name="Jobs" component={JobBoardScreen} />
+    <Tab.Screen name="Sign In" component={GuestSignInScreen} />
+  </Tab.Navigator>
+);
+
 // Main App Navigator
 const AppNavigator = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isGuest, termsGateAccepted } = useAuth();
 
-  if (loading) {
+  if (loading || termsGateAccepted === null) {
     return (
       <View
         style={{
@@ -200,8 +233,40 @@ const AppNavigator = () => {
           headerBackButtonDisplayMode: 'minimal',
         }}
       >
-        {!user ? (
+        {!termsGateAccepted ? (
+          <Stack.Screen name="AgreementGate" component={AgreementGateScreen} />
+        ) : !user && !isGuest ? (
           <Stack.Screen name="Auth" component={AuthStack} />
+        ) : !user && isGuest ? (
+          <>
+            <Stack.Screen name="GuestMain" component={GuestTabs} />
+            {/* Read-only screens guests may open */}
+            <Stack.Screen
+              name="DriverDetails"
+              component={DriverDetailsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="JobPostDetails"
+              component={JobPostDetailsScreen}
+              options={{ headerShown: true, title: "Job Details" }}
+            />
+            <Stack.Screen
+              name="AllDrivers"
+              component={AllDriversScreen}
+              options={{ headerShown: true, title: "All Drivers" }}
+            />
+            <Stack.Screen
+              name="Search"
+              component={SearchDriversScreen}
+              options={{ headerShown: true, title: "Search Drivers" }}
+            />
+            {/* Auth screens pushable so "Sign in to continue" can navigate */}
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+          </>
         ) : (
           <>
             {getMainScreens()}
@@ -288,6 +353,11 @@ const AppNavigator = () => {
               name="DemandMap"
               component={DemandMapScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BlockedUsers"
+              component={BlockedUsersScreen}
+              options={{ headerShown: true, title: "Blocked Users" }}
             />
 
 

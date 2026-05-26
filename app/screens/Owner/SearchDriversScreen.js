@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useDriverStore from '../../store/useDriverStore';
+import useModerationStore from '../../store/useModerationStore';
 import DriverCard from '../../components/DriverCard';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
 import {
@@ -28,7 +29,11 @@ import {
 } from '../../constants/theme';
 
 const SearchDriversScreen = ({ navigation, route }) => {
-  const drivers = useDriverStore((s) => s.drivers);
+  const allDrivers = useDriverStore((s) => s.drivers);
+  const blockedIds = useModerationStore((s) => s.blockedIds);
+  const drivers = blockedIds.size
+    ? allDrivers.filter((d) => !blockedIds.has(d.user_id))
+    : allDrivers;
   const loading = useDriverStore((s) => s.loading);
   const filters = useDriverStore((s) => s.filters);
   const pagination = useDriverStore((s) => s.pagination);

@@ -91,6 +91,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
       items: [
         { icon: 'person-outline', label: 'Edit Profile', onPress: handleEditProfile },
         { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
+        { icon: 'ban-outline', label: 'Blocked Users', onPress: () => navigation.navigate('BlockedUsers') },
       ],
     },
     {

@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../lib/supabase';
 import DriverCard from '../../components/DriverCard';
+import useModerationStore from '../../store/useModerationStore';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 
 const PAGE_SIZE = 20;
@@ -23,6 +24,10 @@ const AllDriversScreen = ({ navigation }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  const blockedIds = useModerationStore((s) => s.blockedIds);
+  const visibleDrivers = blockedIds.size
+    ? drivers.filter((d) => !blockedIds.has(d.user_id))
+    : drivers;
 
   const fetchDrivers = async (offset = 0, isRefresh = false) => {
     try {
@@ -91,7 +96,7 @@ const AllDriversScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>All Drivers</Text>
         <Text style={styles.resultsCount}>
-          {drivers.length} driver{drivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
+          {visibleDrivers.length} driver{visibleDrivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
         </Text>
       </View>
 
@@ -109,7 +114,7 @@ const AllDriversScreen = ({ navigation }) => {
         </View>
       ) : (
         <FlatList
-          data={drivers}
+          data={visibleDrivers}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <DriverCard

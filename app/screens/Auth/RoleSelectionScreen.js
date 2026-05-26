@@ -15,7 +15,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/
 
 const RoleSelectionScreen = ({ navigation, route }) => {
   const { signUp } = useAuth();
-  const { formData } = route.params;
+  const { formData, termsAccepted } = route.params;
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +57,7 @@ const RoleSelectionScreen = ({ navigation, route }) => {
       const { data, error } = await signUp({
         ...formData,
         role: selectedRole,
+        termsAccepted,
       });
 
       if (error) {

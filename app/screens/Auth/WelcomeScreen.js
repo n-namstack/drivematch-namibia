@@ -9,8 +9,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { useAuth } from '../../context/AuthContext';
 
 const WelcomeScreen = ({ navigation }) => {
+  const { continueAsGuest } = useAuth();
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -45,6 +47,15 @@ const WelcomeScreen = ({ navigation }) => {
             <Text style={styles.secondaryButtonText}>
               Already have an account? <Text style={styles.signInText}>Sign In</Text>
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guestButton}
+            onPress={continueAsGuest}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.guestButtonText}>Browse as guest</Text>
+            <Ionicons name="arrow-forward" size={16} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -117,6 +128,18 @@ const styles = StyleSheet.create({
   signInText: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  guestButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+  },
+  guestButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: FONTS.sizes.md,
+    fontWeight: '500',
   },
 });
 

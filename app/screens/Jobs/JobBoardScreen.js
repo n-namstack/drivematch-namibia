@@ -18,6 +18,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { useRoute } from "@react-navigation/native";
 import useJobStore from "../../store/useJobStore";
+import useModerationStore from "../../store/useModerationStore";
+import { requireAuth } from "../../utils/requireAuth";
 import JobCard from "../../components/JobCard";
 import LocationAutocomplete from "../../components/LocationAutocomplete";
 import {
@@ -46,8 +48,9 @@ const DEFAULT_FILTERS = {
 
 const JobBoardScreen = ({ navigation }) => {
   const route = useRoute();
-  const { profile, driverProfile } = useAuth();
+  const { user, profile, driverProfile } = useAuth();
   const isOwner = profile?.role === "owner";
+  const blockedIds = useModerationStore((s) => s.blockedIds);
   const { filterStatus } = route.params || {};
   const {
     jobs,
@@ -76,7 +79,10 @@ const JobBoardScreen = ({ navigation }) => {
   );
 
   const filteredJobs = useMemo(() => {
-    let result = jobs;
+    // Hide posts from blocked users (instant feed removal)
+    let result = blockedIds.size
+      ? jobs.filter((job) => !blockedIds.has(job.owner_id))
+      : jobs;
 
     // Text search
     if (searchQuery.trim()) {
@@ -124,7 +130,7 @@ const JobBoardScreen = ({ navigation }) => {
     }
 
     return result;
-  }, [jobs, searchQuery, myInterests, filters]);
+  }, [jobs, searchQuery, myInterests, filters, blockedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -172,6 +178,7 @@ const JobBoardScreen = ({ navigation }) => {
   };
 
   const handleInterest = (job) => {
+    if (!requireAuth(user, navigation, "Sign in to apply for jobs.")) return;
     if (driverProfile && driverProfile.verification_status !== 'verified') {
       Alert.alert("Verification Required", "Complete document verification before applying for jobs.");
       return;

@@ -15,6 +15,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
+import useModerationStore from "../../store/useModerationStore";
+import { requireAuth } from "../../utils/requireAuth";
+import ReportModal from "../../components/ReportModal";
 import {
   COLORS,
   FONTS,
@@ -42,7 +45,7 @@ const EXPERIENCE_LABELS = {
 
 const JobPostDetailsScreen = ({ route, navigation }) => {
   const { jobId } = route.params;
-  const { profile, driverProfile } = useAuth();
+  const { user, profile, driverProfile } = useAuth();
   const {
     selectedJob,
     fetchJobById,
@@ -51,8 +54,10 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
     fetchMyInterests,
     myInterests,
   } = useJobStore();
+  const blockUser = useModerationStore((s) => s.blockUser);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const isDriver = profile?.role === "driver";
   const isOwner = selectedJob?.owner_id === profile?.id;
@@ -74,6 +79,7 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleInterestToggle = async () => {
+    if (!requireAuth(user, navigation, "Sign in to apply for jobs.")) return;
     if (!isDriverVerified) {
       Alert.alert("Verification Required", "Complete document verification before applying for jobs.");
       return;
@@ -110,6 +116,44 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
       return;
     }
     Linking.openURL(`tel:${selectedJob.owner.phone}`);
+  };
+
+  const ownerName = selectedJob?.owner
+    ? `${selectedJob.owner.firstname || ""} ${selectedJob.owner.lastname || ""}`.trim()
+    : "this user";
+
+  const handleReport = () => {
+    if (!requireAuth(user, navigation, "Sign in to report a job post.")) return;
+    setShowReport(true);
+  };
+
+  const handleBlock = () => {
+    if (!requireAuth(user, navigation, "Sign in to block users.")) return;
+    if (!selectedJob?.owner_id) {
+      Alert.alert("Error", "Unable to block this user.");
+      return;
+    }
+    Alert.alert(
+      `Block ${ownerName}?`,
+      "You won't see their job posts or messages, and they'll be removed from your feed. This also reports them to our team.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await blockUser(user.id, selectedJob.owner_id);
+            if (error) {
+              Alert.alert("Error", "Could not block this user. Please try again.");
+              return;
+            }
+            Alert.alert("User Blocked", `${ownerName} has been blocked.`, [
+              { text: "OK", onPress: () => navigation.goBack() },
+            ]);
+          },
+        },
+      ]
+    );
   };
 
 
@@ -202,6 +246,19 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
                 </Text>
               )}
             </View>
+          </View>
+        )}
+
+        {!isOwner && selectedJob.owner && (
+          <View style={styles.moderationRow}>
+            <TouchableOpacity style={styles.moderationBtn} onPress={handleReport}>
+              <Ionicons name="flag-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.moderationText}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.moderationBtn} onPress={handleBlock}>
+              <Ionicons name="ban-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.moderationText}>Block</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -393,6 +450,13 @@ const JobPostDetailsScreen = ({ route, navigation }) => {
           )}
         </View>
       )}
+
+      <ReportModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        reportedUserId={selectedJob?.owner_id}
+        reportedUserName={ownerName}
+      />
     </SafeAreaView>
   );
 };
@@ -407,6 +471,21 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: FONTS.sizes.md, color: COLORS.textSecondary },
   content: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  moderationRow: {
+    flexDirection: "row",
+    gap: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  moderationBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+  },
+  moderationText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
   closedBanner: {
     flexDirection: "row",
     alignItems: "center",

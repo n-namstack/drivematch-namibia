@@ -13,13 +13,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useDriverStore from '../../store/useDriverStore';
+import useModerationStore from '../../store/useModerationStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
 
 const OwnerHomeScreen = ({ navigation }) => {
   const { profile } = useAuth();
-  const featuredDrivers = useDriverStore((s) => s.featuredDrivers);
+  const allFeaturedDrivers = useDriverStore((s) => s.featuredDrivers);
+  const blockedIds = useModerationStore((s) => s.blockedIds);
+  const featuredDrivers = blockedIds.size
+    ? allFeaturedDrivers.filter((d) => !blockedIds.has(d.user_id))
+    : allFeaturedDrivers;
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
   const [refreshing, setRefreshing] = useState(false);

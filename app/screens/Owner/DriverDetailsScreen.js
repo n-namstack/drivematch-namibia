@@ -16,7 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import useDriverStore from "../../store/useDriverStore";
 import useChatStore from "../../store/useChatStore";
+import useModerationStore from "../../store/useModerationStore";
 import supabase from "../../lib/supabase";
+import { requireAuth } from "../../utils/requireAuth";
 import {
   COLORS,
   FONTS,
@@ -38,6 +40,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const unsaveDriver = useDriverStore((s) => s.unsaveDriver);
   const savedDrivers = useDriverStore((s) => s.savedDrivers);
   const { startConversation, setCurrentConversation } = useChatStore();
+  const blockUser = useModerationStore((s) => s.blockUser);
   const [messaging, setMessaging] = useState(false);
   const [loading, setLoading] = useState(true);
   const [interestData, setInterestData] = useState(null);
@@ -88,6 +91,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const isDriverVerified = driver?.verification_status === 'verified';
 
   const handleCall = async () => {
+    if (!requireAuth(user, navigation, "Sign in to contact drivers.")) return;
     if (!isDriverVerified) {
       Alert.alert("Unverified Driver", "This driver's documents have not been verified yet. You cannot contact unverified drivers.");
       return;
@@ -137,6 +141,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleToggleSave = async () => {
+    if (!requireAuth(user, navigation, "Sign in to save drivers.")) return;
     try {
       if (isSaved) {
         const { error } = await unsaveDriver(currentUser.id, driverId);
@@ -151,6 +156,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleMessage = async () => {
+    if (!requireAuth(user, navigation, "Sign in to message drivers.")) return;
     if (!isDriverVerified) {
       Alert.alert("Unverified Driver", "This driver's documents have not been verified yet. You cannot message unverified drivers.");
       return;
@@ -170,6 +176,42 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     } finally {
       setMessaging(false);
     }
+  };
+
+  const handleBlock = () => {
+    if (!requireAuth(user, navigation, "Sign in to block users.")) return;
+    const blockedUserId = userProfile?.user_id || driver?.user_id;
+    if (!blockedUserId) {
+      Alert.alert("Error", "Unable to block this user.");
+      return;
+    }
+    const name = `${userProfile?.firstname || ""} ${userProfile?.lastname || ""}`.trim() || "this user";
+    Alert.alert(
+      `Block ${name}?`,
+      "You won't see their profile, posts, or messages, and they'll be removed from your feed. This also reports them to our team.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await blockUser(user.id, blockedUserId);
+            if (error) {
+              Alert.alert("Error", "Could not block this user. Please try again.");
+              return;
+            }
+            Alert.alert("User Blocked", `${name} has been blocked.`, [
+              { text: "OK", onPress: () => navigation.goBack() },
+            ]);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReport = () => {
+    if (!requireAuth(user, navigation, "Sign in to report users.")) return;
+    setShowReport(true);
   };
 
   const renderStars = (rating) => {
@@ -375,10 +417,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setShowReport(true)}
+                onPress={handleReport}
                 style={styles.navButton}
               >
                 <Ionicons name="flag-outline" size={20} color={COLORS.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleBlock}
+                style={styles.navButton}
+              >
+                <Ionicons name="ban-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
             </View>
           </SafeAreaView>

@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useChatStore from '../../store/useChatStore';
+import useModerationStore from '../../store/useModerationStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -23,6 +24,7 @@ import ReportModal from '../../components/ReportModal';
 const ChatScreen = ({ route, navigation }) => {
   const { conversationId } = route.params;
   const { user, profile } = useAuth();
+  const blockUser = useModerationStore((s) => s.blockUser);
   const [showReport, setShowReport] = useState(false);
   const {
     messages,
@@ -92,13 +94,55 @@ const ChatScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         ),
         headerRight: () => (
-          <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: SPACING.sm }}>
-            <Ionicons name="flag-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: SPACING.sm }}>
+              <Ionicons name="flag-outline" size={20} color={COLORS.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleBlock} style={{ padding: SPACING.sm }}>
+              <Ionicons name="ban-outline" size={20} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
         ),
       });
     }
   }, [currentConversation]);
+
+  const getOtherUserId = () => {
+    if (!currentConversation) return null;
+    return profile?.role === 'owner'
+      ? currentConversation.driver?.user_id
+      : currentConversation.owner_id;
+  };
+
+  const handleBlock = () => {
+    const otherId = getOtherUserId();
+    const name = getOtherParticipant().name;
+    if (!otherId) {
+      Alert.alert('Error', 'Unable to block this user.');
+      return;
+    }
+    Alert.alert(
+      `Block ${name}?`,
+      "You won't see their messages or content, and they'll be removed from your feed. This also reports them to our team.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await blockUser(user.id, otherId);
+            if (error) {
+              Alert.alert('Error', 'Could not block this user. Please try again.');
+              return;
+            }
+            Alert.alert('User Blocked', `${name} has been blocked.`, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          },
+        },
+      ]
+    );
+  };
 
   const getOtherParticipant = () => {
     if (!currentConversation) return { name: 'Chat', image: null };
