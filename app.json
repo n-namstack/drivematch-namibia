@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
-      "buildNumber": "9",
+      "buildNumber": "10",
       "config": {
         "usesNonExemptEncryption": false
       },
