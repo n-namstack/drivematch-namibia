@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, View } from "react-native";
+import {
+  addNotificationResponseListener,
+  addNotificationReceivedListener,
+  clearBadge,
+} from "../services/notificationService";
 
 import { useAuth } from "../context/AuthContext";
 import { COLORS } from "../constants/theme";
@@ -194,9 +199,49 @@ const GuestTabs = () => (
   </Tab.Navigator>
 );
 
+function navigateFromNotification(navigationRef, notification) {
+  const data = notification?.request?.content?.data;
+  if (!data || !navigationRef?.isReady()) return;
+  const { type, conversation_id, job_post_id } = data;
+  if (type === 'message' && conversation_id) {
+    navigationRef.navigate('Chat', { conversationId: conversation_id });
+  } else if (type === 'job_update' && job_post_id) {
+    navigationRef.navigate('JobPostDetails', { jobId: job_post_id });
+  } else if (type === 'job_update') {
+    navigationRef.navigate('JobStatusDashboard');
+  } else if (type === 'verification' || type === 'document_expiry' || type === 'document_expired') {
+    navigationRef.navigate('DocumentUpload');
+  } else if (type === 'review' || type === 'engagement') {
+    navigationRef.navigate('Notifications');
+  } else {
+    navigationRef.navigate('Notifications');
+  }
+}
+
 // Main App Navigator
 const AppNavigator = () => {
   const { user, profile, loading, isGuest, termsGateAccepted } = useAuth();
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    // Clear badge when user opens the app
+    clearBadge();
+
+    // Handle tapping a notification (app in background or killed)
+    const responseSub = addNotificationResponseListener((response) => {
+      navigateFromNotification(navigationRef.current, response.notification);
+    });
+
+    // Clear badge when a notification arrives while app is in foreground
+    const receivedSub = addNotificationReceivedListener(() => {
+      clearBadge();
+    });
+
+    return () => {
+      responseSub.remove();
+      receivedSub.remove();
+    };
+  }, []);
 
   if (loading || termsGateAccepted === null) {
     return (
@@ -224,7 +269,7 @@ const AppNavigator = () => {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

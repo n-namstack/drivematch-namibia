@@ -10,24 +10,38 @@ const useModerationStore = create((set, get) => ({
   fetchBlocked: async (userId) => {
     if (!userId) return;
     try {
-      const { data, error } = await supabase
+      const { data: blocks, error: blocksError } = await supabase
         .from('blocked_users')
-        .select(`
-          blocked_id,
-          created_at,
-          blocked:blocked_id (
-            firstname,
-            lastname,
-            profile_image
-          )
-        `)
+        .select('blocked_id, created_at')
         .eq('blocker_id', userId);
 
-      if (error) throw error;
+      if (blocksError) throw blocksError;
+
+      if (!blocks || blocks.length === 0) {
+        set({ blockedIds: new Set(), blockedUsers: [] });
+        return;
+      }
+
+      const ids = blocks.map((b) => b.blocked_id);
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, firstname, lastname, profile_image')
+        .in('id', ids);
+
+      if (profilesError) throw profilesError;
+
+      const profileMap = {};
+      (profiles || []).forEach((p) => { profileMap[p.id] = p; });
+
+      const blockedUsers = blocks.map((b) => ({
+        ...b,
+        blocked: profileMap[b.blocked_id] || null,
+      }));
 
       set({
-        blockedIds: new Set((data || []).map((row) => row.blocked_id)),
-        blockedUsers: data || [],
+        blockedIds: new Set(ids),
+        blockedUsers,
       });
     } catch (err) {
       // Block list fetch failed silently — feed stays unfiltered

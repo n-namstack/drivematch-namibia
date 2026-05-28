@@ -5,6 +5,7 @@ import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
 import useChatStore from '../store/useChatStore';
 import useModerationStore from '../store/useModerationStore';
+import { registerForPushNotifications } from '../services/notificationService';
 
 const AuthContext = createContext({});
 
@@ -157,6 +158,9 @@ export const AuthProvider = ({ children }) => {
 
       // Load the set of users this account has blocked (for feed filtering)
       useModerationStore.getState().fetchBlocked(userId);
+
+      // Register device for push notifications and persist the token
+      registerForPushNotifications(userId);
 
       // If user is a driver, fetch driver profile
       if (profileData?.role === 'driver') {
