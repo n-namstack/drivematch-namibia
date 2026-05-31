@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
           } else {
             setIsGuest(false);
             setUser(session.user);
-            await fetchProfile(session.user.id);
+            fetchProfile(session.user.id); // fire-and-forget — don't block the listener
           }
         }
         setLoading(false);
@@ -98,20 +98,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkSession = async () => {
+    // If the network is slow on startup (e.g. token refresh hangs after the app
+    // has been closed for a while), this timer unblocks the loading screen so
+    // the user isn't stuck forever. They can log in again manually.
+    const safetyTimer = setTimeout(() => setLoading(false), 15000);
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
-        // Invalid refresh token — clear stale auth state so user sees login screen
         if (error.message?.includes('Refresh Token') || error.name === 'AuthApiError') {
           await supabase.auth.signOut();
         }
-        setLoading(false);
         return;
       }
-      if (!session) {
-        setLoading(false);
-        return;
-      }
+      if (!session) return;
       if (session.user) {
         if (!session.user.email_confirmed_at) {
           setUser(null);
@@ -125,8 +124,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       // Network error — don't sign out, just stop loading.
-      // User may still have a valid refresh token for when connectivity returns.
     } finally {
+      clearTimeout(safetyTimer);
       setLoading(false);
     }
   };
