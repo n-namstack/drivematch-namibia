@@ -61,7 +61,7 @@ const SendOfferScreen = ({ navigation, route }) => {
       Toast.show({ type: 'success', text1: 'Offer sent!', text2: `Your offer has been sent to ${driverName}.` });
       navigation.goBack();
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Failed to send offer', text2: 'Please try again.' });
+      Toast.show({ type: 'error', text1: 'Failed to send offer', text2: err?.message || 'Please try again.' });
     } finally {
       setSubmitting(false);
     }

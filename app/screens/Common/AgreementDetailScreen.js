@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, TextInput,
-  Switch, Platform, Linking, Alert, Image,
+  Switch, Platform, Linking, Alert, Image, ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +25,7 @@ const fmt = (dateStr) =>
 const fmtMoney = (n) =>
   `N$${parseFloat(n || 0).toLocaleString('en-NA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// ─── Log Entry Modal (owner only) ────────────────────────────────────────────
+// ─── Log Entry Modal (driver only) ───────────────────────────────────────────
 const LogEntryModal = ({ visible, onClose, onSave }) => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -33,7 +34,7 @@ const LogEntryModal = ({ visible, onClose, onSave }) => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes(''); };
+  const reset = () => { setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes(''); setShowDatePicker(false); };
 
   const handleSave = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
@@ -51,70 +52,87 @@ const LogEntryModal = ({ visible, onClose, onSave }) => {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={modal.overlay}>
-        <View style={modal.sheet}>
-          <View style={modal.handle} />
-          <Text style={modal.title}>Log Entry</Text>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={modal.overlay}>
+          <View style={modal.sheet}>
+            <View style={modal.handle} />
+            <Text style={modal.title}>Log Today's Entry</Text>
 
-          <Text style={modal.label}>Date</Text>
-          <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker(true)}>
-            <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
-            <Text style={modal.dateBtnText}>{fmt(date.toISOString().split('T')[0])}</Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              maximumDate={new Date()}
-              onChange={(_, d) => { setShowDatePicker(Platform.OS === 'ios'); if (d) setDate(d); }}
-            />
-          )}
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-          <Text style={[modal.label, { marginTop: SPACING.md }]}>Amount Brought (N$)</Text>
-          <TextInput
-            style={modal.input}
-            placeholder="e.g. 400"
-            placeholderTextColor={COLORS.gray[400]}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
+              <Text style={modal.label}>Date</Text>
+              <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker((v) => !v)}>
+                <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+                <Text style={modal.dateBtnText}>{fmt(date.toISOString().split('T')[0])}</Text>
+                <Ionicons name={showDatePicker ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray[400]} />
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={(event, d) => {
+                    setShowDatePicker(false);
+                    if (d) setDate(d);
+                  }}
+                />
+              )}
 
-          <View style={modal.row}>
-            <Text style={modal.label}>Public Holiday</Text>
-            <Switch value={isHoliday} onValueChange={setIsHoliday} trackColor={{ true: COLORS.primary }} thumbColor={COLORS.white} />
-          </View>
+              <Text style={[modal.label, { marginTop: SPACING.md }]}>
+                Amount I Brought Today (N$) <Text style={{ color: COLORS.error }}>*</Text>
+              </Text>
+              <TextInput
+                style={modal.input}
+                placeholder="e.g. 400"
+                placeholderTextColor={COLORS.gray[400]}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
 
-          <Text style={modal.label}>Notes <Text style={modal.optional}>(optional)</Text></Text>
-          <TextInput
-            style={[modal.input, { height: 70, paddingTop: 10, textAlignVertical: 'top' }]}
-            placeholder="Any notes for this day..."
-            placeholderTextColor={COLORS.gray[400]}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-          />
+              <View style={modal.row}>
+                <Text style={modal.label}>Public Holiday</Text>
+                <Switch value={isHoliday} onValueChange={setIsHoliday} trackColor={{ true: COLORS.primary }} thumbColor={COLORS.white} />
+              </View>
 
-          <View style={modal.actions}>
-            <TouchableOpacity style={modal.cancelBtn} onPress={() => { reset(); onClose(); }}>
-              <Text style={modal.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={modal.saveBtn} onPress={handleSave} disabled={saving}>
-              {saving
-                ? <ActivityIndicator size="small" color={COLORS.white} />
-                : <Text style={modal.saveBtnText}>Save Entry</Text>}
-            </TouchableOpacity>
+              <Text style={modal.label}>Notes <Text style={modal.optional}>(optional)</Text></Text>
+              <TextInput
+                style={[modal.input, { height: 70, paddingTop: 10, textAlignVertical: 'top' }]}
+                placeholder="Any notes for this day..."
+                placeholderTextColor={COLORS.gray[400]}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                returnKeyType="done"
+              />
+
+              <View style={modal.actions}>
+                <TouchableOpacity style={modal.cancelBtn} onPress={() => { reset(); onClose(); }}>
+                  <Text style={modal.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={modal.saveBtn} onPress={handleSave} disabled={saving}>
+                  {saving
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Text style={modal.saveBtnText}>Save & Sign</Text>}
+                </TouchableOpacity>
+              </View>
+
+            </ScrollView>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 // ─── Entry Row ───────────────────────────────────────────────────────────────
-const EntryRow = ({ item, isDriver, onConfirm }) => {
+const EntryRow = ({ item, isOwner, onConfirm }) => {
   const [confirming, setConfirming] = useState(false);
 
   const handleConfirm = async () => {
@@ -123,8 +141,8 @@ const EntryRow = ({ item, isDriver, onConfirm }) => {
     finally { setConfirming(false); }
   };
 
-  const bothSigned = item.is_locked;
-  const driverPending = !item.driver_confirmed_at;
+  const bothSigned   = item.is_locked;
+  const ownerPending = !item.owner_confirmed_at;
 
   return (
     <View style={styles.entryRow}>
@@ -144,7 +162,7 @@ const EntryRow = ({ item, isDriver, onConfirm }) => {
           ) : (
             <View style={styles.pendingChip}>
               <Ionicons name="time-outline" size={10} color="#D97706" />
-              <Text style={styles.pendingChipText}>Awaiting driver</Text>
+              <Text style={styles.pendingChipText}>Awaiting owner</Text>
             </View>
           )}
         </View>
@@ -153,19 +171,19 @@ const EntryRow = ({ item, isDriver, onConfirm }) => {
         {/* Signature indicators */}
         <View style={styles.sigsRow}>
           <View style={styles.sigItem}>
-            <Ionicons name={item.owner_confirmed_at ? 'checkmark-circle' : 'ellipse-outline'} size={13} color={item.owner_confirmed_at ? '#059669' : COLORS.gray[300]} />
-            <Text style={styles.sigLabel}>Owner</Text>
-          </View>
-          <View style={styles.sigItem}>
             <Ionicons name={item.driver_confirmed_at ? 'checkmark-circle' : 'ellipse-outline'} size={13} color={item.driver_confirmed_at ? '#059669' : COLORS.gray[300]} />
             <Text style={styles.sigLabel}>Driver</Text>
+          </View>
+          <View style={styles.sigItem}>
+            <Ionicons name={item.owner_confirmed_at ? 'checkmark-circle' : 'ellipse-outline'} size={13} color={item.owner_confirmed_at ? '#059669' : COLORS.gray[300]} />
+            <Text style={styles.sigLabel}>Owner</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.entryRight}>
         <Text style={styles.entryAmount}>{fmtMoney(item.amount)}</Text>
-        {isDriver && driverPending && !bothSigned && (
+        {isOwner && ownerPending && !bothSigned && (
           <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={confirming}>
             {confirming
               ? <ActivityIndicator size="small" color={COLORS.white} />
@@ -202,7 +220,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const handleLogEntry = async (data) => {
     try {
       await logEntry(agreementId, activeAgreement.owner_id, activeAgreement.driver_id, data);
-      Toast.show({ type: 'success', text1: 'Entry logged!', text2: 'Driver has been notified to confirm.' });
+      Toast.show({ type: 'success', text1: 'Entry logged!', text2: 'Owner will be notified to confirm receipt.' });
     } catch (err) {
       const msg = err?.message === 'LOCKED'
         ? 'This entry is locked and confirmed by both parties.'
@@ -241,7 +259,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const handleConfirmEntry = async (entryId) => {
     try {
       await confirmEntry(entryId);
-      Toast.show({ type: 'success', text1: 'Entry confirmed!', text2: 'This entry is now locked.' });
+      Toast.show({ type: 'success', text1: 'Receipt confirmed!', text2: 'This entry is now locked by both parties.' });
     } catch {
       Toast.show({ type: 'error', text1: 'Could not confirm. Please try again.' });
     }
@@ -477,7 +495,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
           </>
         }
         renderItem={({ item }) => (
-          <EntryRow item={item} isDriver={isDriver} onConfirm={handleConfirmEntry} />
+          <EntryRow item={item} isOwner={isOwner} onConfirm={handleConfirmEntry} />
         )}
         ListEmptyComponent={
           isActive ? (
@@ -489,11 +507,11 @@ const AgreementDetailScreen = ({ navigation, route }) => {
         }
       />
 
-      {/* Log Entry FAB — owner only, active agreements */}
-      {isOwner && isActive && (
+      {/* Log Entry FAB — driver only, active agreements */}
+      {isDriver && isActive && (
         <TouchableOpacity style={styles.fab} onPress={() => setShowLog(true)} activeOpacity={0.85}>
           <Ionicons name="add" size={24} color={COLORS.white} />
-          <Text style={styles.fabText}>Log Entry</Text>
+          <Text style={styles.fabText}>Log Today</Text>
         </TouchableOpacity>
       )}
 
@@ -634,7 +652,7 @@ const styles = StyleSheet.create({
 
 const modal = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACING.lg, paddingBottom: 40 },
+  sheet: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACING.lg, paddingBottom: 40, maxHeight: '90%' },
   handle: { width: 40, height: 4, backgroundColor: COLORS.gray[200], borderRadius: 2, alignSelf: 'center', marginBottom: SPACING.md },
   title: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md },
   label: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },

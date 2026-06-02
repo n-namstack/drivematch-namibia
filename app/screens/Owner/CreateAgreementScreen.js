@@ -101,7 +101,7 @@ const CreateAgreementScreen = ({ navigation, route }) => {
       Toast.show({ type: 'success', text1: 'Agreement created!', text2: `Agreement with ${driverName} is now active.` });
       navigation.goBack();
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Failed to create agreement', text2: 'Please try again.' });
+      Toast.show({ type: 'error', text1: 'Failed to create agreement', text2: err?.message || 'Please try again.' });
     } finally {
       setSubmitting(false);
     }

@@ -30,7 +30,7 @@ const JOB_TYPE_LABELS = {
   contract:  'Contract',
 };
 
-const OfferCard = ({ offer, onRespond }) => {
+const OfferCard = ({ offer, onRespond, onViewAgreements }) => {
   const [responding, setResponding] = useState(false);
   const status = STATUS_CONFIG[offer.status] || STATUS_CONFIG.pending;
   const ownerName = offer.owner
@@ -87,13 +87,12 @@ const OfferCard = ({ offer, onRespond }) => {
         <Text style={styles.offerMessage} numberOfLines={3}>{offer.message}</Text>
       ) : null}
 
-      {/* Action buttons — only for pending offers */}
-      {offer.status === 'pending' && (
-        <View style={styles.actions}>
-          {responding ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: SPACING.sm }} />
-          ) : (
-            <>
+      {responding ? (
+        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: SPACING.sm }} />
+      ) : (
+        <>
+          {offer.status === 'pending' && (
+            <View style={styles.actions}>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.acceptBtn]}
                 onPress={() => handleRespond('accepted')}
@@ -110,15 +109,25 @@ const OfferCard = ({ offer, onRespond }) => {
                 <Ionicons name="close-circle-outline" size={16} color={COLORS.error} />
                 <Text style={styles.declineBtnText}>Decline</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
-        </View>
+          {offer.status === 'accepted' && (
+            <TouchableOpacity
+              style={styles.agreementsBtn}
+              onPress={onViewAgreements}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="document-text-outline" size={16} color={COLORS.white} />
+              <Text style={styles.agreementsBtnText}>View Agreements</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
 };
 
-const MyOffersScreen = () => {
+const MyOffersScreen = ({ navigation }) => {
   const { profile } = useAuth();
   const receivedOffers = useHireOfferStore((s) => s.receivedOffers);
   const loading = useHireOfferStore((s) => s.loading);
@@ -171,7 +180,11 @@ const MyOffersScreen = () => {
         data={receivedOffers}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <OfferCard offer={item} onRespond={handleRespond} />
+          <OfferCard
+            offer={item}
+            onRespond={handleRespond}
+            onViewAgreements={() => navigation.navigate('Agreements')}
+          />
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -268,6 +281,13 @@ const styles = StyleSheet.create({
   acceptBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
   declineBtn: { backgroundColor: '#FEE2E2' },
   declineBtnText: { color: COLORS.error, fontWeight: '700', fontSize: FONTS.sizes.sm },
+
+  agreementsBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: SPACING.md, paddingVertical: 11, borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#7C3AED',
+  },
+  agreementsBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
 
   emptyState: { alignItems: 'center', paddingTop: SPACING['2xl'] * 2, paddingHorizontal: SPACING.xl },
   emptyTitle: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, marginTop: SPACING.md },

@@ -37,6 +37,7 @@ import WriteReviewScreen from "../screens/Owner/WriteReviewScreen";
 import HireHistoryScreen from "../screens/Owner/HireHistoryScreen";
 import AllDriversScreen from "../screens/Owner/AllDriversScreen";
 import SendOfferScreen from "../screens/Owner/SendOfferScreen";
+import SentOffersScreen from "../screens/Owner/SentOffersScreen";
 import MyOffersScreen from "../screens/Driver/MyOffersScreen";
 import CreateAgreementScreen from "../screens/Owner/CreateAgreementScreen";
 import AgreementsScreen from "../screens/Common/AgreementsScreen";
@@ -256,7 +257,7 @@ const AppNavigator = () => {
     };
   }, []);
 
-  if (loading || termsGateAccepted === null) {
+  if (loading || termsGateAccepted === null || (user && !profile)) {
     return (
       <View
         style={{
@@ -422,6 +423,11 @@ const AppNavigator = () => {
               name="SendOffer"
               component={SendOfferScreen}
               options={{ headerShown: true, title: "Send Hire Offer" }}
+            />
+            <Stack.Screen
+              name="SentOffers"
+              component={SentOffersScreen}
+              options={{ headerShown: true, title: "Sent Offers" }}
             />
             <Stack.Screen
               name="MyOffers"

@@ -207,28 +207,36 @@ const DriverHomeScreen = ({ navigation }) => {
       id: "documents",
       icon: "document-text-outline",
       label: "Documents",
+      sub: "Upload & manage",
       color: COLORS.secondary,
+      bg: '#D1FAE5',
       onPress: () => navigation.navigate("DocumentUpload"),
     },
     {
       id: "work",
       icon: "briefcase-outline",
       label: "Work History",
+      sub: "View past work",
       color: COLORS.accent,
+      bg: '#FEF3C7',
       onPress: () => navigation.navigate("WorkHistory"),
     },
     {
       id: "job-status",
-      icon: "briefcase-outline",
+      icon: "stats-chart-outline",
       label: "Job Status",
-      color: COLORS.secondary,
+      sub: "Track applications",
+      color: COLORS.info,
+      bg: '#E0F2FE',
       onPress: () => navigation.navigate("JobStatusDashboard"),
     },
     {
       id: "offers",
       icon: "paper-plane-outline",
       label: "Hire Offers",
+      sub: pendingOfferCount > 0 ? `${pendingOfferCount} pending` : "View offers",
       color: COLORS.primary,
+      bg: '#EEF2FF',
       badge: pendingOfferCount,
       onPress: () => navigation.navigate("MyOffers"),
     },
@@ -236,7 +244,9 @@ const DriverHomeScreen = ({ navigation }) => {
       id: "agreements",
       icon: "document-text-outline",
       label: "Agreements",
+      sub: "Track earnings",
       color: '#7C3AED',
+      bg: '#EDE9FE',
       onPress: () => navigation.navigate("Agreements"),
     },
   ];
@@ -457,15 +467,11 @@ const DriverHomeScreen = ({ navigation }) => {
                 key={action.id}
                 style={styles.actionCard}
                 onPress={action.onPress}
+                activeOpacity={0.8}
               >
-                <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
-                  <View
-                    style={[
-                      styles.actionIcon,
-                      { backgroundColor: action.color + "15" },
-                    ]}
-                  >
-                    <Ionicons name={action.icon} size={22} color={action.color} />
+                <View style={{ position: 'relative', alignSelf: 'flex-start', marginBottom: SPACING.sm }}>
+                  <View style={[styles.actionIconWrap, { backgroundColor: action.bg }]}>
+                    <Ionicons name={action.icon} size={24} color={action.color} />
                   </View>
                   {action.badge > 0 && (
                     <View style={styles.actionBadge}>
@@ -476,6 +482,7 @@ const DriverHomeScreen = ({ navigation }) => {
                   )}
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
+                <Text style={styles.actionSub}>{action.sub}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -753,26 +760,28 @@ const styles = StyleSheet.create({
   },
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
   actionCard: {
-    flex: 1,
-    minWidth: "45%",
+    width: '48.5%',
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
-    alignItems: "center",
-    gap: SPACING.sm,
     ...SHADOWS.sm,
   },
-  actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  actionIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: BORDER_RADIUS.lg,
     justifyContent: "center",
     alignItems: "center",
   },
   actionLabel: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: "500",
+    fontSize: FONTS.sizes.sm,
+    fontWeight: "700",
     color: COLORS.text,
+  },
+  actionSub: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   actionBadge: {
     position: 'absolute',

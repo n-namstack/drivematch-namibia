@@ -85,6 +85,8 @@ const ProfileSettingsScreen = ({ navigation }) => {
     ]);
   };
 
+  const isOwner = profile?.role !== 'driver' && profile?.role !== 'admin';
+
   const menuItems = [
     {
       title: 'Account',
@@ -94,6 +96,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
         { icon: 'person-outline', label: 'Edit Profile', onPress: handleEditProfile },
         { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
         { icon: 'ban-outline', label: 'Blocked Users', onPress: () => navigation.navigate('BlockedUsers') },
+        ...(isOwner ? [{ icon: 'heart-outline', label: 'Saved Drivers', onPress: () => navigation.navigate('SavedDrivers') }] : []),
       ],
     },
     {

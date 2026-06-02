@@ -136,13 +136,14 @@ const useAgreementStore = create((set, get) => ({
     }));
   },
 
-  // Owner logs a daily entry — owner_confirmed_at set automatically by DB DEFAULT NOW()
+  // Driver logs a daily entry and signs it in one step
   // Refuses to overwrite a locked entry
   logEntry: async (agreementId, ownerId, driverId, { entry_date, amount, is_public_holiday, notes }) => {
     const existing = get().entries.find((e) => e.entry_date === entry_date && e.agreement_id === agreementId);
     if (existing?.is_locked) {
       throw new Error('LOCKED');
     }
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('agreement_entries')
       .upsert(
@@ -150,8 +151,9 @@ const useAgreementStore = create((set, get) => ({
           agreement_id: agreementId, owner_id: ownerId, driver_id: driverId,
           entry_date, amount: parseFloat(amount),
           is_public_holiday: !!is_public_holiday, notes: notes || null,
-          // reset driver confirmation if owner re-logs (only possible before lock)
-          driver_confirmed_at: null, is_locked: false,
+          driver_confirmed_at: now,   // driver signs when logging
+          owner_confirmed_at: null,   // owner hasn't confirmed receipt yet
+          is_locked: false,
         },
         { onConflict: 'agreement_id,entry_date' },
       )
@@ -169,12 +171,12 @@ const useAgreementStore = create((set, get) => ({
     return data;
   },
 
-  // Driver confirms an entry → locked forever
+  // Owner confirms receipt of an entry → locked forever
   confirmEntry: async (entryId) => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('agreement_entries')
-      .update({ driver_confirmed_at: now, is_locked: true })
+      .update({ owner_confirmed_at: now, is_locked: true })
       .eq('id', entryId)
       .select()
       .single();
