@@ -18,6 +18,51 @@ import useModerationStore from '../../store/useModerationStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
+import PromoCarousel from '../../components/PromoCarousel';
+
+const OWNER_PROMOS = [
+  {
+    id: '1',
+    title: 'Find Your Driver',
+    subtitle: 'Browse verified, experienced drivers ready for work',
+    gradient: ['#4F46E5', '#7C3AED'],
+    icon: 'search-outline',
+    decorIcon: 'people',
+    cta: 'Browse Drivers',
+    route: 'AllDrivers',
+    params: { showAll: true },
+  },
+  {
+    id: '2',
+    title: 'Post a Job',
+    subtitle: 'Get applications from qualified drivers fast',
+    gradient: ['#059669', '#0D9488'],
+    icon: 'megaphone-outline',
+    decorIcon: 'megaphone',
+    cta: 'Post Now',
+    route: 'CreateJobPost',
+  },
+  {
+    id: '3',
+    title: 'Track Earnings',
+    subtitle: 'Digital logbook — daily entries confirmed by both parties',
+    gradient: ['#7C3AED', '#4F46E5'],
+    icon: 'document-text-outline',
+    decorIcon: 'document-text',
+    cta: 'View Agreements',
+    route: 'Agreements',
+  },
+  {
+    id: '4',
+    title: 'Direct Hire',
+    subtitle: 'Send a formal offer to any driver you like',
+    gradient: ['#D97706', '#DC2626'],
+    icon: 'paper-plane-outline',
+    decorIcon: 'paper-plane',
+    cta: 'Sent Offers',
+    route: 'SentOffers',
+  },
+];
 
 const QUICK_ACTIONS = [
   {
@@ -205,6 +250,11 @@ const OwnerHomeScreen = ({ navigation }) => {
             <Text style={styles.statValue}>{featuredDrivers.length}</Text>
             <Text style={styles.statLabel}>Available</Text>
           </View>
+        </View>
+
+        {/* ── Promo Carousel ── */}
+        <View style={{ marginTop: SPACING.lg }}>
+          <PromoCarousel items={OWNER_PROMOS} navigation={navigation} />
         </View>
 
         {/* ── Quick Actions ── */}

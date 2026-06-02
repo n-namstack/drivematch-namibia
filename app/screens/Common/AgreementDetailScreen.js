@@ -14,9 +14,12 @@ import useAgreementStore, { getTotals, getBuyoutProgress, filterEntries } from '
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const FILTERS = [
-  { key: 'all',   label: 'All Time' },
-  { key: 'month', label: 'This Month' },
-  { key: '7days', label: 'Last 7 Days' },
+  { key: 'all',       label: 'All Time' },
+  { key: 'month',     label: 'This Month' },
+  { key: '7days',     label: 'Last 7 Days' },
+  { key: 'lastMonth', label: 'Last Month' },
+  { key: 'year',      label: 'This Year' },
+  { key: 'custom',    label: 'Custom Range' },
 ];
 
 const fmt = (dateStr) =>
@@ -208,7 +211,11 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const confirmEntry    = useAgreementStore((s) => s.confirmEntry);
   const updateAgreementStatus = useAgreementStore((s) => s.updateAgreementStatus);
 
-  const [filter, setFilter]   = useState('all');
+  const [filter, setFilter]     = useState('all');
+  const [customFrom, setCustomFrom] = useState(new Date());
+  const [customTo, setCustomTo]     = useState(new Date());
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker]     = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [signing, setSigning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -301,9 +308,12 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const isDaily    = activeAgreement.agreement_type === 'daily_remittance';
   const isPending  = activeAgreement.status === 'pending_signature';
   const isActive   = activeAgreement.status === 'active';
-  const totals     = getTotals(entries, activeAgreement, filter);
+  const customRange = filter === 'custom'
+    ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
+    : null;
+  const totals     = getTotals(entries, activeAgreement, filter, customRange);
   const buyout     = !isDaily ? getBuyoutProgress(activeAgreement, entries) : null;
-  const visibleEntries = filterEntries(entries, filter);
+  const visibleEntries = filterEntries(entries, filter, customRange);
   const typeColor  = isDaily ? COLORS.primary : '#7C3AED';
 
   return (
@@ -476,17 +486,72 @@ const AgreementDetailScreen = ({ navigation, route }) => {
 
             {/* Filter row — only when active */}
             {isActive && (
-              <View style={styles.filterRow}>
-                {FILTERS.map((f) => (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-                    onPress={() => setFilter(f.key)}
-                  >
-                    <Text style={[styles.filterBtnText, filter === f.key && styles.filterBtnTextActive]}>{f.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterRow}
+                >
+                  {FILTERS.map((f) => (
+                    <TouchableOpacity
+                      key={f.key}
+                      style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+                      onPress={() => {
+                        setFilter(f.key);
+                        setShowFromPicker(false);
+                        setShowToPicker(false);
+                      }}
+                    >
+                      <Text style={[styles.filterBtnText, filter === f.key && styles.filterBtnTextActive]}>{f.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {filter === 'custom' && (
+                  <View style={styles.customRangeRow}>
+                    <TouchableOpacity
+                      style={styles.customDateBtn}
+                      onPress={() => { setShowFromPicker((v) => !v); setShowToPicker(false); }}
+                    >
+                      <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+                      <Text style={styles.customDateBtnText}>
+                        From: {customFrom.toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </TouchableOpacity>
+                    <Ionicons name="arrow-forward" size={14} color={COLORS.gray[400]} />
+                    <TouchableOpacity
+                      style={styles.customDateBtn}
+                      onPress={() => { setShowToPicker((v) => !v); setShowFromPicker(false); }}
+                    >
+                      <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+                      <Text style={styles.customDateBtnText}>
+                        To: {customTo.toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {filter === 'custom' && showFromPicker && (
+                  <DateTimePicker
+                    value={customFrom}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    maximumDate={customTo}
+                    onChange={(_, d) => { setShowFromPicker(false); if (d) setCustomFrom(d); }}
+                  />
+                )}
+
+                {filter === 'custom' && showToPicker && (
+                  <DateTimePicker
+                    value={customTo}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={customFrom}
+                    maximumDate={new Date()}
+                    onChange={(_, d) => { setShowToPicker(false); if (d) setCustomTo(d); }}
+                  />
+                )}
+              </>
             )}
 
             {isActive && (
@@ -602,11 +667,23 @@ const styles = StyleSheet.create({
   contractLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.sm },
   contractLinkText: { fontSize: FONTS.sizes.xs, color: COLORS.primary, fontWeight: '600' },
 
-  filterRow: { flexDirection: 'row', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginVertical: SPACING.sm },
+  filterRow: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
   filterBtn: { paddingHorizontal: SPACING.md, paddingVertical: 7, borderRadius: BORDER_RADIUS.full, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray[200] },
   filterBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterBtnText: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, fontWeight: '600' },
   filterBtnTextActive: { color: COLORS.white },
+
+  customRangeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.sm,
+  },
+  customDateBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.sm, paddingVertical: 9,
+    borderWidth: 1, borderColor: COLORS.primary,
+  },
+  customDateBtnText: { fontSize: FONTS.sizes.xs, color: COLORS.text, fontWeight: '600', flex: 1 },
 
   entriesTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text, marginHorizontal: SPACING.lg, marginBottom: SPACING.sm },
 

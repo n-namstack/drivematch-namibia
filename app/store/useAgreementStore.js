@@ -3,18 +3,32 @@ import supabase from '../lib/supabase';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+const isoDate = (d) => d.toISOString().split('T')[0];
+
 const startOfMonth = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  return isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
 };
 
 const sevenDaysAgo = () => {
   const d = new Date();
   d.setDate(d.getDate() - 7);
-  return d.toISOString().split('T')[0];
+  return isoDate(d);
 };
 
-export const filterEntries = (entries, filter) => {
+const startOfLastMonth = () => {
+  const d = new Date();
+  return isoDate(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+};
+
+const endOfLastMonth = () => {
+  const d = new Date();
+  return isoDate(new Date(d.getFullYear(), d.getMonth(), 0));
+};
+
+const startOfYear = () => isoDate(new Date(new Date().getFullYear(), 0, 1));
+
+export const filterEntries = (entries, filter, customRange = null) => {
   if (filter === 'month') {
     const from = startOfMonth();
     return entries.filter((e) => e.entry_date >= from);
@@ -23,11 +37,23 @@ export const filterEntries = (entries, filter) => {
     const from = sevenDaysAgo();
     return entries.filter((e) => e.entry_date >= from);
   }
+  if (filter === 'lastMonth') {
+    const from = startOfLastMonth();
+    const to   = endOfLastMonth();
+    return entries.filter((e) => e.entry_date >= from && e.entry_date <= to);
+  }
+  if (filter === 'year') {
+    const from = startOfYear();
+    return entries.filter((e) => e.entry_date >= from);
+  }
+  if (filter === 'custom' && customRange?.from && customRange?.to) {
+    return entries.filter((e) => e.entry_date >= customRange.from && e.entry_date <= customRange.to);
+  }
   return entries;
 };
 
-export const getTotals = (entries, agreement, filter = 'all') => {
-  const filtered = filterEntries(entries, filter);
+export const getTotals = (entries, agreement, filter = 'all', customRange = null) => {
+  const filtered = filterEntries(entries, filter, customRange);
   const totalBrought = filtered.reduce((sum, e) => sum + parseFloat(e.amount), 0);
   const daysWorked = filtered.length;
   const driverCut =

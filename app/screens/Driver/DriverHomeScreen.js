@@ -13,12 +13,53 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { useAuth } from "../../context/AuthContext";
-import useJobStore from "../../store/useJobStore";
 import useDocumentStore from "../../store/useDocumentStore";
-import useDemandStore from "../../store/useDemandStore";
 import useHireOfferStore from "../../store/useHireOfferStore";
 import supabase from "../../lib/supabase";
-import JobCard from "../../components/JobCard";
+import PromoCarousel from "../../components/PromoCarousel";
+
+const DRIVER_PROMOS = [
+  {
+    id: '1',
+    title: 'Get Verified',
+    subtitle: 'A verified badge gets you hired faster — upload your docs today',
+    gradient: ['#059669', '#0D9488'],
+    icon: 'shield-checkmark-outline',
+    decorIcon: 'shield-checkmark',
+    cta: 'Upload Documents',
+    route: 'DocumentUpload',
+  },
+  {
+    id: '2',
+    title: 'Browse Jobs',
+    subtitle: 'Car owners are posting jobs — find work that suits you',
+    gradient: ['#4F46E5', '#7C3AED'],
+    icon: 'briefcase-outline',
+    decorIcon: 'briefcase',
+    cta: 'See All Jobs',
+    route: 'Jobs',
+  },
+  {
+    id: '3',
+    title: 'Track Your Pay',
+    subtitle: 'Log daily earnings — confirmed and locked by both parties',
+    gradient: ['#7C3AED', '#4F46E5'],
+    icon: 'cash-outline',
+    decorIcon: 'cash',
+    cta: 'View Agreements',
+    route: 'Agreements',
+  },
+  {
+    id: '4',
+    title: 'Hire Offers',
+    subtitle: 'Car owners are sending you direct offers — check them now',
+    gradient: ['#D97706', '#F59E0B'],
+    icon: 'paper-plane-outline',
+    decorIcon: 'paper-plane',
+    cta: 'View Offers',
+    route: 'MyOffers',
+  },
+];
 import {
   COLORS,
   FONTS,
@@ -31,9 +72,7 @@ import {
 const DriverHomeScreen = ({ navigation }) => {
   const { profile, driverProfile, refreshProfile, updateDriverProfile } =
     useAuth();
-  const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
   const { documents, fetchDocuments } = useDocumentStore();
-  const { fetchInsights } = useDemandStore();
   const fetchReceivedOffers = useHireOfferStore((s) => s.fetchReceivedOffers);
   const receivedOffers = useHireOfferStore((s) => s.receivedOffers);
   const pendingOfferCount = receivedOffers.filter((o) => o.status === 'pending').length;
@@ -46,12 +85,7 @@ const DriverHomeScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
-      fetchJobs(true);
-      fetchInsights();
-      if (driverProfile?.id) {
-        fetchMyInterests(driverProfile.id);
-        fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
-      }
+      if (driverProfile?.id) fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
       if (profile?.id) fetchReceivedOffers(profile.id);
     }, [profile?.id, driverProfile?.id]),
   );
@@ -112,11 +146,7 @@ const DriverHomeScreen = ({ navigation }) => {
     await Promise.all([
       refreshProfile(),
       fetchUnreadCount(),
-      fetchJobs(true),
-      fetchInsights(true),
-      driverProfile?.id
-        ? fetchMyInterests(driverProfile.id)
-        : Promise.resolve(),
+      driverProfile?.id ? fetchDocuments(driverProfile.id) : Promise.resolve(),
     ]);
     setRefreshing(false);
   };
@@ -267,24 +297,13 @@ const DriverHomeScreen = ({ navigation }) => {
               <Text style={styles.greeting}>
                 {profile?.firstname || "Driver"}
               </Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusInfo.color + "18" },
-                ]}
-              >
+              <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + "18" }]}>
                 <Ionicons
-                  name={
-                    driverProfile?.verification_status === "verified"
-                      ? "shield-checkmark"
-                      : "shield-outline"
-                  }
-                  size={14}
+                  name={driverProfile?.verification_status === "verified" ? "shield-checkmark" : "shield-outline"}
+                  size={12}
                   color={statusInfo.color}
                 />
-                <Text
-                  style={[styles.statusBadgeText, { color: statusInfo.color }]}
-                >
+                <Text style={[styles.statusBadgeText, { color: statusInfo.color }]}>
                   {statusInfo.label}
                 </Text>
               </View>
@@ -293,70 +312,39 @@ const DriverHomeScreen = ({ navigation }) => {
               style={styles.notificationButton}
               onPress={() => navigation.navigate("Notifications")}
             >
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color={COLORS.white}
-              />
+              <Ionicons name="notifications-outline" size={20} color={COLORS.white} />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </Text>
+                  <Text style={styles.notifBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
                 </View>
               )}
             </TouchableOpacity>
           </View>
 
-          {/* Availability Toggle inside Hero */}
-          <TouchableOpacity
-            style={[
-              styles.availabilityRow,
-              isAvailable && styles.availabilityRowActive,
-            ]}
-            onPress={toggleAvailability}
-            activeOpacity={0.8}
-          >
-            <View style={styles.availabilityLeft}>
-              <View
-                style={[
-                  styles.availabilityDot,
-                  isAvailable && styles.availabilityDotActive,
-                ]}
-              />
-              <Text style={styles.availabilityText}>
-                {isAvailable ? "Available for work" : "Set yourself available"}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.toggleTrack,
-                isAvailable && styles.toggleTrackActive,
-              ]}
+          {/* Availability + Stats in one row */}
+          <View style={styles.heroBottom}>
+            <TouchableOpacity
+              style={[styles.availabilityRow, isAvailable && styles.availabilityRowActive]}
+              onPress={toggleAvailability}
+              activeOpacity={0.8}
             >
-              <View
-                style={[
-                  styles.toggleThumb,
-                  isAvailable && styles.toggleThumbActive,
-                ]}
-              />
-            </View>
-          </TouchableOpacity>
-
-          {/* Stats inside Hero */}
-          <View style={styles.statsRow}>
-            {stats.map((stat, index) => (
-              <View key={index} style={styles.statItem}>
-                <Ionicons
-                  name={stat.icon}
-                  size={18}
-                  color={COLORS.white}
-                  style={{ opacity: 0.7 }}
-                />
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+              <View style={[styles.availabilityDot, isAvailable && styles.availabilityDotActive]} />
+              <Text style={styles.availabilityText}>
+                {isAvailable ? "Available" : "Unavailable"}
+              </Text>
+              <View style={[styles.toggleTrack, isAvailable && styles.toggleTrackActive]}>
+                <View style={[styles.toggleThumb, isAvailable && styles.toggleThumbActive]} />
               </View>
-            ))}
+            </TouchableOpacity>
+
+            <View style={styles.statsRow}>
+              {stats.map((stat, index) => (
+                <View key={index} style={styles.statItem}>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -458,6 +446,9 @@ const DriverHomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
+        {/* Promo Carousel */}
+        <PromoCarousel items={DRIVER_PROMOS} navigation={navigation} />
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -488,39 +479,6 @@ const DriverHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Recent Job Opportunities */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Job Opportunities</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Jobs")}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          {jobs.length === 0 ? (
-            <View style={styles.emptyJobs}>
-              <Ionicons
-                name="briefcase-outline"
-                size={32}
-                color={COLORS.gray[300]}
-              />
-              <Text style={styles.emptyJobsText}>No job posts yet</Text>
-            </View>
-          ) : (
-            jobs
-              .slice(0, 3)
-              .map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  hasInterest={myInterests.some(i => i.job_post_id === job.id)}
-                  compact
-                  onPress={() =>
-                    navigation.navigate("JobPostDetails", { jobId: job.id })
-                  }
-                />
-              ))
-          )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -537,35 +495,32 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     ...SHADOWS.lg,
   },
   heroTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: SPACING.lg,
+    alignItems: "center",
+    marginBottom: SPACING.sm,
   },
   heroGreeting: { flex: 1 },
   greeting: {
-    fontSize: FONTS.sizes["3xl"],
+    fontSize: FONTS.sizes['2xl'],
     fontWeight: "bold",
     color: COLORS.white,
-    marginBottom: SPACING.sm,
+    marginBottom: 3,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    gap: SPACING.xs,
+    gap: 3,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
   },
-  statusBadgeText: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: "600",
-  },
+  statusBadgeText: { fontSize: FONTS.sizes.xs, fontWeight: "600" },
   notificationButton: {
     padding: SPACING.sm,
     position: "relative",
@@ -578,90 +533,57 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: COLORS.error,
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    minWidth: 16,
+    height: 16,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
-  notifBadgeText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: "700",
+  notifBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: "700" },
+
+  heroBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
   },
 
-  // Availability Row (inside hero)
+  // Availability toggle (compact inline)
   availabilityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
     backgroundColor: COLORS.white + "12",
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    marginBottom: SPACING.lg,
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
   },
-  availabilityRowActive: {
-    backgroundColor: COLORS.secondary + "30",
-  },
-  availabilityLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.sm,
-  },
-  availabilityDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.gray[400],
-  },
-  availabilityDotActive: {
-    backgroundColor: COLORS.secondaryLight,
-  },
-  availabilityText: {
-    fontSize: FONTS.sizes.sm,
-    fontWeight: "600",
-    color: COLORS.white,
-  },
+  availabilityRowActive: { backgroundColor: COLORS.secondary + "35" },
+  availabilityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gray[400] },
+  availabilityDotActive: { backgroundColor: COLORS.secondaryLight },
+  availabilityText: { fontSize: FONTS.sizes.xs, fontWeight: "600", color: COLORS.white },
   toggleTrack: {
-    width: 44,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.white + "30",
-    padding: 2,
+    width: 34, height: 20, borderRadius: 10,
+    backgroundColor: COLORS.white + "30", padding: 2,
   },
   toggleTrackActive: { backgroundColor: COLORS.secondary },
-  toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.white,
-  },
-  toggleThumbActive: { transform: [{ translateX: 18 }] },
+  toggleThumb: { width: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.white },
+  toggleThumbActive: { transform: [{ translateX: 14 }] },
 
   // Stats Row (inside hero)
   statsRow: {
+    flex: 1,
     flexDirection: "row",
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
   statItem: {
     flex: 1,
     backgroundColor: COLORS.white + "12",
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.sm + 2,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.xs,
     alignItems: "center",
-    gap: 2,
   },
-  statValue: {
-    fontSize: FONTS.sizes.xl,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  statLabel: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.white,
-    opacity: 0.7,
-  },
+  statValue: { fontSize: FONTS.sizes.sm, fontWeight: "bold", color: COLORS.white },
+  statLabel: { fontSize: 9, color: COLORS.white, opacity: 0.7 },
 
   // Profile Completeness
   completenessCard: {
