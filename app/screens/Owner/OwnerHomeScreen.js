@@ -11,6 +11,7 @@ import Toast from 'react-native-toast-message';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import useDriverStore from '../../store/useDriverStore';
 import useModerationStore from '../../store/useModerationStore';
@@ -18,9 +19,54 @@ import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
 
+const QUICK_ACTIONS = [
+  {
+    label: 'Post a Job',
+    sub: 'Hire the right driver',
+    icon: 'megaphone',
+    color: COLORS.primary,
+    bg: '#EEF2FF',
+    route: 'CreateJobPost',
+  },
+  {
+    label: 'Browse Drivers',
+    sub: 'Search & filter',
+    icon: 'people',
+    color: COLORS.secondary,
+    bg: '#D1FAE5',
+    route: 'AllDrivers',
+    params: { showAll: true },
+  },
+  {
+    label: 'My Job Posts',
+    sub: 'Manage listings',
+    icon: 'briefcase',
+    color: COLORS.accent,
+    bg: '#FEF3C7',
+    route: 'My Jobs',
+  },
+  {
+    label: 'Saved Drivers',
+    sub: 'Your favourites',
+    icon: 'heart',
+    color: COLORS.error,
+    bg: '#FEE2E2',
+    route: 'SavedDrivers',
+  },
+  {
+    label: 'Agreements',
+    sub: 'Track earnings',
+    icon: 'document-text',
+    color: '#7C3AED',
+    bg: '#EDE9FE',
+    route: 'Agreements',
+  },
+];
+
 const OwnerHomeScreen = ({ navigation }) => {
   const { profile } = useAuth();
   const allFeaturedDrivers = useDriverStore((s) => s.featuredDrivers);
+  const savedDrivers = useDriverStore((s) => s.savedDrivers);
   const blockedIds = useModerationStore((s) => s.blockedIds);
   const featuredDrivers = blockedIds.size
     ? allFeaturedDrivers.filter((d) => !blockedIds.has(d.user_id))
@@ -29,6 +75,7 @@ const OwnerHomeScreen = ({ navigation }) => {
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeJobCount, setActiveJobCount] = useState(0);
 
   const fetchUnreadCount = async () => {
     if (!profile?.id) return;
@@ -39,43 +86,46 @@ const OwnerHomeScreen = ({ navigation }) => {
         .eq('user_id', profile.id)
         .eq('is_read', false);
       setUnreadCount(count || 0);
-    } catch (err) {
-      // silent
-    }
+    } catch {}
+  };
+
+  const fetchActiveJobCount = async () => {
+    if (!profile?.id) return;
+    try {
+      const { count } = await supabase
+        .from('job_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', profile.id)
+        .eq('status', 'open');
+      setActiveJobCount(count || 0);
+    } catch {}
   };
 
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
+      fetchActiveJobCount();
     }, [profile?.id]),
   );
 
   useEffect(() => {
     loadData();
 
-    // Realtime: auto-refresh when driver profiles change (availability, rating, etc.)
     const channel = supabase
       .channel('owner-home-drivers')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'driver_profiles' },
-        () => { fetchFeaturedDrivers(); }
-      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'driver_profiles' }, () => {
+        fetchFeaturedDrivers();
+      })
       .subscribe();
 
-    // Realtime: update notification badge
     const notifChannel = supabase
       .channel('owner-notifications')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` },
-        () => { fetchUnreadCount(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` },
-        () => { fetchUnreadCount(); }
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` }, () => {
+        fetchUnreadCount();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile?.id}` }, () => {
+        fetchUnreadCount();
+      })
       .subscribe();
 
     return () => {
@@ -90,8 +140,9 @@ const OwnerHomeScreen = ({ navigation }) => {
         fetchFeaturedDrivers(),
         profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
         fetchUnreadCount(),
+        fetchActiveJobCount(),
       ]);
-    } catch (err) {
+    } catch {
       Toast.show({ type: 'error', text1: 'Connection issue', text2: 'Could not load data. Pull to refresh.' });
     }
   };
@@ -103,81 +154,94 @@ const OwnerHomeScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
-        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.white} />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, {profile?.firstname || 'there'}!</Text>
-            <Text style={styles.subtitle}>Find your perfect driver today</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-            {unreadCount > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Search Bar */}
-        <TouchableOpacity
-          style={styles.searchBar}
-          onPress={() => navigation.navigate('Search')}
+        {/* ── Gradient Header ── */}
+        <LinearGradient
+          colors={[COLORS.primaryDark, COLORS.primary, COLORS.primaryLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          <Ionicons name="search" size={20} color={COLORS.gray[400]} />
-          <Text style={styles.searchPlaceholder}>Search by name or location...</Text>
-        </TouchableOpacity>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greetingSmall}>Good day,</Text>
+              <Text style={styles.greetingName}>{profile?.firstname || 'there'} 👋</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
+          <Text style={styles.headerSub}>Ready to find your perfect driver?</Text>
+
           <TouchableOpacity
-            style={styles.quickActionCard}
-            onPress={() => navigation.navigate('CreateJobPost')}
+            style={styles.searchBar}
+            onPress={() => navigation.navigate('Search')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.primary + '15' }]}>
-              <Ionicons name="megaphone-outline" size={22} color={COLORS.primary} />
-            </View>
-            <Text style={styles.quickActionLabel}>Post a Job</Text>
+            <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
+            <Text style={styles.searchPlaceholder}>Search by name, location or skills...</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickActionCard}
-            onPress={() => navigation.navigate('SavedDrivers')}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.error + '15' }]}>
-              <Ionicons name="heart-outline" size={22} color={COLORS.error} />
-            </View>
-            <Text style={styles.quickActionLabel}>Saved Drivers</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickActionCard}
-            onPress={() => navigation.navigate('My Jobs')}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: COLORS.secondary + '15' }]}>
-              <Ionicons name="briefcase-outline" size={22} color={COLORS.secondary} />
-            </View>
-            <Text style={styles.quickActionLabel}>My Job Posts</Text>
-          </TouchableOpacity>
+        </LinearGradient>
+
+        {/* ── Stats Row (overlaps gradient) ── */}
+        <View style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{activeJobCount}</Text>
+            <Text style={styles.statLabel}>Active Jobs</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{savedDrivers?.length ?? 0}</Text>
+            <Text style={styles.statLabel}>Saved Drivers</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{featuredDrivers.length}</Text>
+            <Text style={styles.statLabel}>Available</Text>
+          </View>
         </View>
 
-        {/* Top Drivers */}
+        {/* ── Quick Actions ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
+            {QUICK_ACTIONS.map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={styles.actionCard}
+                onPress={() => navigation.navigate(action.route, action.params)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIconWrap, { backgroundColor: action.bg }]}>
+                  <Ionicons name={action.icon} size={24} color={action.color} />
+                </View>
+                <Text style={styles.actionLabel}>{action.label}</Text>
+                <Text style={styles.actionSub}>{action.sub}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Top Drivers ── */}
+        <View style={[styles.section, styles.sectionLast, styles.sectionNoHPad]}>
+          <View style={[styles.sectionHeader, styles.sectionHPad]}>
             <Text style={styles.sectionTitle}>Top Drivers</Text>
             <TouchableOpacity onPress={() => navigation.navigate('AllDrivers', { showAll: true })}>
-              <Text style={styles.seeAll}>See All</Text>
+              <Text style={styles.seeAll}>See all →</Text>
             </TouchableOpacity>
           </View>
 
@@ -187,14 +251,20 @@ const OwnerHomeScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>No drivers available yet</Text>
             </View>
           ) : (
-            featuredDrivers.slice(0, 5).map((item) => (
-              <DriverCard
-                key={item.id}
-                driver={item}
-                onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
-                compact
-              />
-            ))
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.driversCarousel}
+            >
+              {featuredDrivers.slice(0, 5).map((item) => (
+                <DriverCard
+                  key={item.id}
+                  driver={item}
+                  onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
+                  horizontal
+                />
+              ))}
+            </ScrollView>
           )}
         </View>
       </ScrollView>
@@ -204,72 +274,119 @@ const OwnerHomeScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollView: { flex: 1 },
+
+  // Header
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: 36,
   },
-  greeting: { fontSize: FONTS.sizes['2xl'], fontWeight: 'bold', color: COLORS.text },
-  subtitle: { fontSize: FONTS.sizes.md, color: COLORS.textSecondary, marginTop: SPACING.xs },
-  notificationButton: {
-    padding: SPACING.sm,
-    position: 'relative',
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  greetingSmall: {
+    fontSize: FONTS.sizes.sm,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  greetingName: {
+    fontSize: FONTS.sizes['2xl'],
+    fontWeight: '700',
+    color: COLORS.white,
+    marginTop: 2,
+  },
+  headerSub: {
+    fontSize: FONTS.sizes.sm,
+    color: 'rgba(255,255,255,0.75)',
+    marginBottom: SPACING.md,
+  },
+  notifBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notifBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 7,
+    right: 7,
     backgroundColor: COLORS.error,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
-  notifBadgeText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: '700',
-  },
+  notifBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '700' },
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg, paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg, gap: SPACING.sm, ...SHADOWS.sm,
-  },
-  searchPlaceholder: { color: COLORS.gray[400], fontSize: FONTS.sizes.md },
-  quickActions: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
     alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 13,
     gap: SPACING.sm,
+    ...SHADOWS.md,
+  },
+  searchPlaceholder: { color: COLORS.gray[400], fontSize: FONTS.sizes.sm, flex: 1 },
+
+  // Stats
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl,
+    marginTop: -22,
+    zIndex: 1,
+    ...SHADOWS.md,
+  },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: SPACING.md },
+  statValue: { fontSize: FONTS.sizes['2xl'], fontWeight: '700', color: COLORS.text },
+  statLabel: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
+  statDivider: { width: 1, alignSelf: 'center', height: '55%', backgroundColor: COLORS.gray[200] },
+
+  // Sections
+  section: { paddingHorizontal: SPACING.lg, marginTop: SPACING.lg },
+  sectionLast: { marginBottom: SPACING.xl },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  sectionTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md },
+  seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600', marginBottom: SPACING.md },
+
+  // Actions
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  actionCard: {
+    width: '48.5%',
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
     ...SHADOWS.sm,
   },
-  quickActionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  actionIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: BORDER_RADIUS.lg,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: SPACING.sm,
   },
-  quickActionLabel: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: '500',
-    color: COLORS.text,
-    textAlign: 'center',
-  },
-  section: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, marginTop: SPACING.md },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  sectionTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
-  seeAll: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '500' },
+  actionLabel: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text },
+  actionSub: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
+
+  sectionNoHPad: { paddingHorizontal: 0 },
+  sectionHPad: { paddingHorizontal: SPACING.lg },
+  driversCarousel: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, paddingBottom: SPACING.sm },
+
+  // Empty
   emptyState: { alignItems: 'center', paddingVertical: SPACING['2xl'] },
   emptyText: { marginTop: SPACING.md, fontSize: FONTS.sizes.md, color: COLORS.textSecondary },
 });

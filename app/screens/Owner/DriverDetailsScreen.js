@@ -905,31 +905,65 @@ const DriverDetailsScreen = ({ route, navigation }) => {
         </View>
       )}
       <View style={styles.actionBar}>
-        <TouchableOpacity
-          style={[styles.actionSecondary, (!isDriverVerified || messaging) && styles.actionDisabled]}
-          onPress={handleMessage}
-          disabled={messaging}
-        >
-          {messaging ? (
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          ) : (
-            <Ionicons
-              name="chatbubble-outline"
-              size={20}
-              color={isDriverVerified ? COLORS.primary : COLORS.gray[400]}
-            />
-          )}
-          <Text style={[styles.actionSecondaryText, !isDriverVerified && styles.actionDisabledText]}>
-            {messaging ? "Opening…" : "Message"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionPrimary, !isDriverVerified && styles.actionPrimaryDisabled]}
-          onPress={handleCall}
-        >
-          <Ionicons name="call-outline" size={20} color={COLORS.white} />
-          <Text style={styles.actionPrimaryText}>Call Driver</Text>
-        </TouchableOpacity>
+        {currentUser?.role === "owner" && (
+          <View style={styles.ownerActionRow}>
+            <TouchableOpacity
+              style={[styles.hireBtn, { flex: 1 }]}
+              onPress={() =>
+                navigation.navigate("SendOffer", {
+                  driverId: driver.user_id,
+                  driverName: fullName,
+                  driverImage: userProfile?.profile_image ?? null,
+                })
+              }
+              activeOpacity={0.85}
+            >
+              <Ionicons name="paper-plane-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.hireBtnText}>Hire Directly</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.hireBtn, { flex: 1, borderColor: '#7C3AED' }]}
+              onPress={() =>
+                navigation.navigate("CreateAgreement", {
+                  driverId: driver.user_id,
+                  driverName: fullName,
+                  driverImage: userProfile?.profile_image ?? null,
+                })
+              }
+              activeOpacity={0.85}
+            >
+              <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
+              <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>New Agreement</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.actionSecondary, (!isDriverVerified || messaging) && styles.actionDisabled]}
+            onPress={handleMessage}
+            disabled={messaging}
+          >
+            {messaging ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={isDriverVerified ? COLORS.primary : COLORS.gray[400]}
+              />
+            )}
+            <Text style={[styles.actionSecondaryText, !isDriverVerified && styles.actionDisabledText]}>
+              {messaging ? "Opening…" : "Message"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionPrimary, !isDriverVerified && styles.actionPrimaryDisabled]}
+            onPress={handleCall}
+          >
+            <Ionicons name="call-outline" size={20} color={COLORS.white} />
+            <Text style={styles.actionPrimaryText}>Call Driver</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ReportModal
@@ -1387,7 +1421,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
+    flexDirection: "column",
     gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
@@ -1396,6 +1430,29 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     ...SHADOWS.lg,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+  },
+  ownerActionRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+  },
+  hireBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.xl,
+    paddingVertical: 12,
+  },
+  hireBtnText: {
+    color: COLORS.primary,
+    fontWeight: "700",
+    fontSize: FONTS.sizes.sm,
   },
   unverifiedBanner: {
     flexDirection: "row",

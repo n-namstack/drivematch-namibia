@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,27 +7,39 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../lib/supabase';
 import DriverCard from '../../components/DriverCard';
 import useModerationStore from '../../store/useModerationStore';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const PAGE_SIZE = 20;
 
-const AllDriversScreen = ({ navigation }) => {
+const AllDriversScreen = ({ navigation, route }) => {
+  const initialLocation = route?.params?.location ?? '';
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState(initialLocation);
   const blockedIds = useModerationStore((s) => s.blockedIds);
-  const visibleDrivers = blockedIds.size
-    ? drivers.filter((d) => !blockedIds.has(d.user_id))
-    : drivers;
+
+  const visibleDrivers = useMemo(() => {
+    let list = blockedIds.size ? drivers.filter((d) => !blockedIds.has(d.user_id)) : drivers;
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((d) => {
+      const name = `${d.profiles?.firstname ?? ''} ${d.profiles?.lastname ?? ''}`.toLowerCase();
+      const location = (d.profiles?.location ?? '').toLowerCase();
+      const experience = (d.experience_type ?? '').toLowerCase();
+      return name.includes(q) || location.includes(q) || experience.includes(q);
+    });
+  }, [drivers, blockedIds, searchQuery]);
 
   const fetchDrivers = async (offset = 0, isRefresh = false) => {
     try {
@@ -93,8 +105,27 @@ const AllDriversScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, location or experience..."
+          placeholderTextColor={COLORS.gray[400]}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <Text style={styles.resultsCount}>
-        {visibleDrivers.length} driver{visibleDrivers.length !== 1 ? 's' : ''}{hasMore ? '+' : ''} found
+        {visibleDrivers.length} driver{visibleDrivers.length !== 1 ? 's' : ''}{!searchQuery && hasMore ? '+' : ''} found
       </Text>
 
       {error && drivers.length === 0 ? (
@@ -153,6 +184,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.xl,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.text,
+    padding: 0,
   },
   centered: {
     flex: 1,

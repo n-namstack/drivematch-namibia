@@ -36,6 +36,11 @@ import SavedDriversScreen from "../screens/Owner/SavedDriversScreen";
 import WriteReviewScreen from "../screens/Owner/WriteReviewScreen";
 import HireHistoryScreen from "../screens/Owner/HireHistoryScreen";
 import AllDriversScreen from "../screens/Owner/AllDriversScreen";
+import SendOfferScreen from "../screens/Owner/SendOfferScreen";
+import MyOffersScreen from "../screens/Driver/MyOffersScreen";
+import CreateAgreementScreen from "../screens/Owner/CreateAgreementScreen";
+import AgreementsScreen from "../screens/Common/AgreementsScreen";
+import AgreementDetailScreen from "../screens/Common/AgreementDetailScreen";
 
 // Chat Screens
 import ConversationsScreen from "../screens/Chat/ConversationsScreen";
@@ -211,6 +216,14 @@ function navigateFromNotification(navigationRef, notification) {
     navigationRef.navigate('JobStatusDashboard');
   } else if (type === 'verification' || type === 'document_expiry' || type === 'document_expired') {
     navigationRef.navigate('DocumentUpload');
+  } else if (type === 'hire_offer') {
+    navigationRef.navigate('MyOffers');
+  } else if (type === 'hire_offer_response') {
+    navigationRef.navigate('Notifications');
+  } else if (type === 'agreement_signature' || type === 'entry_confirmation') {
+    navigationRef.navigate('Agreements');
+  } else if (type === 'agreement_signed' || type === 'entry_confirmed') {
+    navigationRef.navigate('Agreements');
   } else if (type === 'review' || type === 'engagement') {
     navigationRef.navigate('Notifications');
   } else {
@@ -404,6 +417,31 @@ const AppNavigator = () => {
               name="BlockedUsers"
               component={BlockedUsersScreen}
               options={{ headerShown: true, title: "Blocked Users" }}
+            />
+            <Stack.Screen
+              name="SendOffer"
+              component={SendOfferScreen}
+              options={{ headerShown: true, title: "Send Hire Offer" }}
+            />
+            <Stack.Screen
+              name="MyOffers"
+              component={MyOffersScreen}
+              options={{ headerShown: true, title: "Hire Offers" }}
+            />
+            <Stack.Screen
+              name="Agreements"
+              component={AgreementsScreen}
+              options={{ headerShown: true, title: "Agreements" }}
+            />
+            <Stack.Screen
+              name="AgreementDetail"
+              component={AgreementDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreateAgreement"
+              component={CreateAgreementScreen}
+              options={{ headerShown: true, title: "New Agreement" }}
             />
 
 

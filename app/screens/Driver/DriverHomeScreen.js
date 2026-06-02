@@ -16,6 +16,7 @@ import { useAuth } from "../../context/AuthContext";
 import useJobStore from "../../store/useJobStore";
 import useDocumentStore from "../../store/useDocumentStore";
 import useDemandStore from "../../store/useDemandStore";
+import useHireOfferStore from "../../store/useHireOfferStore";
 import supabase from "../../lib/supabase";
 import JobCard from "../../components/JobCard";
 import {
@@ -33,6 +34,9 @@ const DriverHomeScreen = ({ navigation }) => {
   const { jobs, fetchJobs, myInterests, fetchMyInterests } = useJobStore();
   const { documents, fetchDocuments } = useDocumentStore();
   const { fetchInsights } = useDemandStore();
+  const fetchReceivedOffers = useHireOfferStore((s) => s.fetchReceivedOffers);
+  const receivedOffers = useHireOfferStore((s) => s.receivedOffers);
+  const pendingOfferCount = receivedOffers.filter((o) => o.status === 'pending').length;
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -48,6 +52,7 @@ const DriverHomeScreen = ({ navigation }) => {
         fetchMyInterests(driverProfile.id);
         fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
       }
+      if (profile?.id) fetchReceivedOffers(profile.id);
     }, [profile?.id, driverProfile?.id]),
   );
 
@@ -218,6 +223,21 @@ const DriverHomeScreen = ({ navigation }) => {
       label: "Job Status",
       color: COLORS.secondary,
       onPress: () => navigation.navigate("JobStatusDashboard"),
+    },
+    {
+      id: "offers",
+      icon: "paper-plane-outline",
+      label: "Hire Offers",
+      color: COLORS.primary,
+      badge: pendingOfferCount,
+      onPress: () => navigation.navigate("MyOffers"),
+    },
+    {
+      id: "agreements",
+      icon: "document-text-outline",
+      label: "Agreements",
+      color: '#7C3AED',
+      onPress: () => navigation.navigate("Agreements"),
     },
   ];
 
@@ -438,13 +458,22 @@ const DriverHomeScreen = ({ navigation }) => {
                 style={styles.actionCard}
                 onPress={action.onPress}
               >
-                <View
-                  style={[
-                    styles.actionIcon,
-                    { backgroundColor: action.color + "15" },
-                  ]}
-                >
-                  <Ionicons name={action.icon} size={22} color={action.color} />
+                <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
+                  <View
+                    style={[
+                      styles.actionIcon,
+                      { backgroundColor: action.color + "15" },
+                    ]}
+                  >
+                    <Ionicons name={action.icon} size={22} color={action.color} />
+                  </View>
+                  {action.badge > 0 && (
+                    <View style={styles.actionBadge}>
+                      <Text style={styles.actionBadgeText}>
+                        {action.badge > 9 ? '9+' : action.badge}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -745,6 +774,19 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: COLORS.text,
   },
+  actionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: COLORS.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  actionBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '700' },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -88,6 +88,8 @@ const ProfileSettingsScreen = ({ navigation }) => {
   const menuItems = [
     {
       title: 'Account',
+      iconBg: '#EEF2FF',
+      iconColor: COLORS.primary,
       items: [
         { icon: 'person-outline', label: 'Edit Profile', onPress: handleEditProfile },
         { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
@@ -96,6 +98,8 @@ const ProfileSettingsScreen = ({ navigation }) => {
     },
     {
       title: 'Support',
+      iconBg: '#D1FAE5',
+      iconColor: COLORS.secondary,
       items: [
         { icon: 'help-circle-outline', label: 'Help Center', onPress: handleHelpCenter },
         { icon: 'document-text-outline', label: 'Terms of Service', onPress: () => setLegalModal('terms') },
@@ -104,6 +108,8 @@ const ProfileSettingsScreen = ({ navigation }) => {
     },
     {
       title: 'Danger Zone',
+      iconBg: '#FEE2E2',
+      iconColor: COLORS.error,
       items: [
         { icon: 'trash-outline', label: 'Delete Account', onPress: handleDeleteAccount, destructive: true },
       ],
@@ -113,6 +119,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
         </View>
@@ -129,9 +136,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
             )}
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {profile?.firstname} {profile?.lastname}
-            </Text>
+            <Text style={styles.userName}>{profile?.firstname} {profile?.lastname}</Text>
             <Text style={styles.userEmail}>{profile?.email}</Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>
@@ -142,7 +147,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
           <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
         </TouchableOpacity>
 
-        {/* Menu Sections */}
+        {/* ── Menu Sections ── */}
         {menuItems.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -157,16 +162,18 @@ const ProfileSettingsScreen = ({ navigation }) => {
                   onPress={item.onPress}
                 >
                   <View style={styles.menuItemLeft}>
-                    <Ionicons
-                      name={item.icon}
-                      size={20}
-                      color={item.destructive ? COLORS.error : COLORS.primary}
-                    />
+                    <View style={[styles.menuIconWrap, { backgroundColor: item.destructive ? '#FEE2E2' : section.iconBg }]}>
+                      <Ionicons
+                        name={item.icon}
+                        size={18}
+                        color={item.destructive ? COLORS.error : section.iconColor}
+                      />
+                    </View>
                     <Text style={[styles.menuItemLabel, item.destructive && { color: COLORS.error }]}>
                       {item.label}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.gray[300]} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -336,25 +343,43 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full, alignSelf: 'flex-start', marginTop: SPACING.xs,
   },
   roleText: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: COLORS.primary, textTransform: 'capitalize' },
+
+  // Menu
   section: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg },
   sectionTitle: {
-    fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.textSecondary,
-    marginBottom: SPACING.sm, textTransform: 'uppercase',
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    letterSpacing: 0.4,
   },
-  menuCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm },
+  menuCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xl, ...SHADOWS.sm },
   menuItem: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: SPACING.md,
   },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.gray[100] },
   menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  menuItemLabel: { fontSize: FONTS.sizes.md, color: COLORS.text },
+  menuIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuItemLabel: { fontSize: FONTS.sizes.md, color: COLORS.text, fontWeight: '500' },
+
+  // Sign out
   signOutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md,
+    backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xl, padding: SPACING.md,
     gap: SPACING.sm, ...SHADOWS.sm,
   },
-  signOutText: { fontSize: FONTS.sizes.md, color: COLORS.error, fontWeight: '500' },
-  version: { textAlign: 'center', color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, marginVertical: SPACING.xl },
+  signOutText: { fontSize: FONTS.sizes.md, color: COLORS.error, fontWeight: '600' },
+
+  version: { textAlign: 'center', color: COLORS.textLight, fontSize: FONTS.sizes.xs, marginVertical: SPACING.xl },
+
+  // Modal
   modalContainer: { flex: 1, backgroundColor: COLORS.background },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -363,6 +388,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text },
   modalContent: { flex: 1 },
+
+  // Overlay
   overlay: {
     ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center', alignItems: 'center', gap: SPACING.md,
