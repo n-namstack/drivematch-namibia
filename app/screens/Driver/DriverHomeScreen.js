@@ -279,6 +279,24 @@ const DriverHomeScreen = ({ navigation }) => {
       bg: '#EDE9FE',
       onPress: () => navigation.navigate("Agreements"),
     },
+    {
+      id: "earnings",
+      icon: "bar-chart-outline",
+      label: "Earnings",
+      sub: "View analytics",
+      color: '#0891B2',
+      bg: '#E0F2FE',
+      onPress: () => navigation.navigate("Earnings"),
+    },
+    {
+      id: "doc-tracker",
+      icon: "shield-checkmark-outline",
+      label: "Doc Tracker",
+      sub: "Expiry dates",
+      color: '#059669',
+      bg: '#D1FAE5',
+      onPress: () => navigation.navigate("DocumentTracker"),
+    },
   ];
 
   return (

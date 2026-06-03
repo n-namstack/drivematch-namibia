@@ -71,6 +71,11 @@ import JobStatusDashboard from "../screens/Common/JobStatusScreen";
 import AdminDashboardScreen from "../screens/Admin/AdminDashboardScreen";
 import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
 
+// New feature screens
+import EarningsScreen from "../screens/Common/EarningsScreen";
+import DocumentTrackerScreen from "../screens/Driver/DocumentTrackerScreen";
+import ExpenseLogScreen from "../screens/Owner/ExpenseLogScreen";
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -449,7 +454,21 @@ const AppNavigator = () => {
               component={CreateAgreementScreen}
               options={{ headerShown: true, title: "New Agreement" }}
             />
-
+            <Stack.Screen
+              name="Earnings"
+              component={EarningsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="DocumentTracker"
+              component={DocumentTrackerScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ExpenseLog"
+              component={ExpenseLogScreen}
+              options={{ headerShown: false }}
+            />
 
           </>
         )}

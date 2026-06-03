@@ -97,6 +97,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
         { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
         { icon: 'ban-outline', label: 'Blocked Users', onPress: () => navigation.navigate('BlockedUsers') },
         ...(isOwner ? [{ icon: 'heart-outline', label: 'Saved Drivers', onPress: () => navigation.navigate('SavedDrivers') }] : []),
+        ...(!isOwner ? [{ icon: 'shield-checkmark-outline', label: 'Document Tracker', onPress: () => navigation.navigate('DocumentTracker') }] : []),
       ],
     },
     {

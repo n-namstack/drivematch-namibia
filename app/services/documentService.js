@@ -292,7 +292,7 @@ export const documentService = {
     try {
       const { data, error } = await supabase
         .from('driver_documents')
-        .select('*, document_expiry_alerts(*)')
+        .select('*')
         .eq('driver_id', driverId)
         .order('created_at', { ascending: false });
 

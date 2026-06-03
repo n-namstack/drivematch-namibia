@@ -1,10 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, TextInput,
   Switch, Platform, Linking, Alert, Image, ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -216,9 +220,10 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const [customTo, setCustomTo]     = useState(new Date());
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker]     = useState(false);
-  const [showLog, setShowLog] = useState(false);
-  const [signing, setSigning] = useState(false);
+  const [showLog, setShowLog]   = useState(false);
+  const [signing, setSigning]   = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting]   = useState(false);
 
   useEffect(() => { fetchAgreement(agreementId); }, [agreementId]);
 
@@ -292,6 +297,223 @@ const AgreementDetailScreen = ({ navigation, route }) => {
     );
   };
 
+  const handleExportPDF = async () => {
+    if (!activeAgreement || entries.length === 0) {
+      Toast.show({ type: 'info', text1: 'No entries to export yet' });
+      return;
+    }
+    setExporting(true);
+    try {
+      // Load app icon as base64 for embedding in PDF
+      let logoSrc = '';
+      try {
+        const asset = Asset.fromModule(require('../../../assets/icon.png'));
+        await asset.downloadAsync();
+        if (asset.localUri) {
+          const b64 = await FileSystem.readAsStringAsync(asset.localUri, { encoding: 'base64' });
+          if (b64) logoSrc = `data:image/png;base64,${b64}`;
+        }
+      } catch { /* logo omitted if asset load fails */ }
+
+      const sorted = [...entries].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+      const isDaily = activeAgreement.agreement_type === 'daily_remittance';
+      const ownerName  = activeAgreement.owner  ? `${activeAgreement.owner.firstname ?? ''} ${activeAgreement.owner.lastname ?? ''}`.trim() : 'Owner';
+      const driverName = activeAgreement.driver ? `${activeAgreement.driver.firstname ?? ''} ${activeAgreement.driver.lastname ?? ''}`.trim() : 'Driver';
+      const allTotals  = getTotals(entries, activeAgreement, 'all');
+
+      const rows = sorted.map((e, idx) => {
+        const status = e.is_locked
+          ? '<span class="chip chip-green">&#10003; Confirmed</span>'
+          : '<span class="chip chip-amber">Pending</span>';
+        const holiday = e.is_public_holiday
+          ? '<span class="chip chip-amber">Public Holiday</span>'
+          : '';
+        const rowBg = idx % 2 === 0 ? '' : 'style="background:#f9fafb;"';
+        return `
+          <tr ${rowBg}>
+            <td>${fmt(e.entry_date)}</td>
+            <td class="amount">N$${parseFloat(e.amount).toFixed(2)}</td>
+            <td>${holiday}</td>
+            <td class="notes">${e.notes ?? ''}</td>
+            <td>${status}</td>
+          </tr>`;
+      }).join('');
+
+      const summaryBlock = isDaily
+        ? `<div class="summary-grid">
+            <div class="sum-item">
+              <span class="sum-val">N$${allTotals.totalBrought.toFixed(2)}</span>
+              <span class="sum-lbl">Total Brought</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-val green">N$${allTotals.driverCut.toFixed(2)}</span>
+              <span class="sum-lbl">Driver's Cut (${activeAgreement.owner_percentage}%)</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-val blue">${allTotals.daysWorked}</span>
+              <span class="sum-lbl">Days Worked</span>
+            </div>
+           </div>`
+        : (() => {
+            const b = getBuyoutProgress(activeAgreement, entries);
+            const pct = Math.min(100, b.progressPct);
+            return `<div class="summary-grid">
+              <div class="sum-item"><span class="sum-val green">N$${b.totalPaid.toFixed(2)}</span><span class="sum-lbl">Total Paid</span></div>
+              <div class="sum-item"><span class="sum-val red">N$${b.remaining.toFixed(2)}</span><span class="sum-lbl">Remaining</span></div>
+              <div class="sum-item"><span class="sum-val blue">${b.progressPct.toFixed(1)}%</span><span class="sum-lbl">Progress</span></div>
+             </div>
+             <div class="progress-wrap">
+               <div class="progress-fill" style="width:${pct}%"></div>
+             </div>`;
+          })();
+
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, Helvetica Neue, Arial, sans-serif; font-size: 13px; color: #111827; padding: 36px; background: #fff; }
+
+  /* ── Header banner ── */
+  .banner {
+    background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 55%, #3B82F6 100%);
+    border-radius: 14px;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .banner-left { display: flex; align-items: center; gap: 16px; }
+  .logo { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; background: rgba(255,255,255,0.15); }
+  .app-name { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: 0.3px; }
+  .doc-subtitle { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 3px; }
+  .banner-right { text-align: right; font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.6; }
+  .entries-count { font-size: 20px; font-weight: 800; color: #fff; display: block; }
+
+  /* ── Type badge ── */
+  .type-badge { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.22); color: #fff; margin-left: 10px; vertical-align: middle; }
+
+  /* ── Party cards ── */
+  .party-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .party-block { flex: 1; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+  .party-role { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 600; }
+  .party-name { font-size: 16px; font-weight: 800; color: #111827; margin-top: 4px; }
+
+  /* ── Meta info ── */
+  .meta-row { font-size: 12px; color: #6b7280; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .meta-icon { color: #1E40AF; font-style: normal; }
+
+  /* ── Section titles ── */
+  .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #1E40AF; margin: 20px 0 10px; border-left: 3px solid #1E40AF; padding-left: 8px; }
+
+  /* ── Summary ── */
+  .summary-grid { display: flex; gap: 12px; margin-bottom: 8px; }
+  .sum-item { flex: 1; background: #EFF6FF; border-radius: 12px; padding: 14px 16px; border: 1px solid #DBEAFE; }
+  .sum-val { display: block; font-size: 19px; font-weight: 900; color: #111827; }
+  .sum-val.green { color: #059669; }
+  .sum-val.blue  { color: #1E40AF; }
+  .sum-val.red   { color: #DC2626; }
+  .sum-lbl { display: block; font-size: 11px; color: #6b7280; margin-top: 4px; }
+
+  /* ── Progress bar ── */
+  .progress-wrap { height: 10px; background: #DBEAFE; border-radius: 5px; margin-bottom: 20px; overflow: hidden; }
+  .progress-fill { height: 10px; background: linear-gradient(90deg, #1E40AF, #3B82F6); border-radius: 5px; }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  thead tr { background: linear-gradient(135deg, #1E40AF, #3B82F6); }
+  th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; }
+  th.amount { text-align: right; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; }
+  td.amount { text-align: right; font-weight: 700; color: #111827; }
+  td.notes { color: #6b7280; font-size: 11px; }
+
+  /* ── Chips ── */
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .chip-green { background: #D1FAE5; color: #059669; }
+  .chip-amber { background: #FEF3C7; color: #D97706; }
+
+  /* ── Footer ── */
+  .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; display: flex; justify-content: space-between; }
+</style>
+</head><body>
+
+  <!-- Branded banner header -->
+  <div class="banner">
+    <div class="banner-left">
+      ${logoSrc ? `<img src="${logoSrc}" class="logo" alt="DuoLink" />` : '<div class="logo" style="background:rgba(255,255,255,0.2);"></div>'}
+      <div>
+        <div class="app-name">DuoLink <span class="type-badge">${isDaily ? 'Daily Remittance' : 'Buyout Contract'}</span></div>
+        <div class="doc-subtitle">Agreement Statement</div>
+      </div>
+    </div>
+    <div class="banner-right">
+      <span class="entries-count">${sorted.length}</span>
+      entries<br>
+      ${new Date().toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })}
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="party-row">
+    <div class="party-block">
+      <div class="party-role">Owner</div>
+      <div class="party-name">${ownerName}</div>
+    </div>
+    <div class="party-block">
+      <div class="party-role">Driver</div>
+      <div class="party-name">${driverName}</div>
+    </div>
+  </div>
+
+  ${activeAgreement.vehicle_description
+    ? `<div class="meta-row"><em class="meta-icon">&#128663;</em> ${activeAgreement.vehicle_description}</div>`
+    : ''}
+  <div class="meta-row">
+    <em class="meta-icon">&#128197;</em>
+    Started ${fmt(activeAgreement.start_date)}${activeAgreement.end_date ? ` &nbsp;&middot;&nbsp; Ends ${fmt(activeAgreement.end_date)}` : ''}
+  </div>
+
+  <!-- Summary -->
+  <div class="section-title">Summary — All Time</div>
+  ${summaryBlock}
+
+  <!-- Entries table -->
+  <div class="section-title">Entries — Sorted by Date</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th class="amount">Amount</th>
+        <th></th>
+        <th>Notes</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="footer">
+    <span>DuoLink &mdash; Connecting Owners &amp; Drivers in Namibia</span>
+    <span>Exported ${new Date().toISOString().split('T')[0]}</span>
+  </div>
+
+</body></html>`;
+
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { UTI: 'com.adobe.pdf', mimeType: 'application/pdf' });
+      } else {
+        Toast.show({ type: 'info', text1: 'Sharing not available on this device' });
+      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Export failed', text2: err?.message });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading && !activeAgreement) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -313,7 +535,9 @@ const AgreementDetailScreen = ({ navigation, route }) => {
     : null;
   const totals     = getTotals(entries, activeAgreement, filter, customRange);
   const buyout     = !isDaily ? getBuyoutProgress(activeAgreement, entries) : null;
-  const visibleEntries = filterEntries(entries, filter, customRange);
+  const visibleEntries = filterEntries(entries, filter, customRange)
+    .slice()
+    .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
   const typeColor  = isDaily ? COLORS.primary : '#7C3AED';
 
   return (
@@ -334,21 +558,30 @@ const AgreementDetailScreen = ({ navigation, route }) => {
               <Text style={styles.headerTitle} numberOfLines={1}>
                 {isDaily ? 'Daily Remittance' : 'Buyout Contract'}
               </Text>
-              {isOwner && isActive && (
-                <TouchableOpacity
-                  onPress={() =>
-                    Alert.alert('Update Status', 'What would you like to do?', [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Mark Completed', onPress: () => handleStatusChange('completed') },
-                      { text: 'Terminate', style: 'destructive', onPress: () => handleStatusChange('terminated') },
-                    ])
-                  }
-                  style={styles.moreBtn}
-                >
-                  <Ionicons name="ellipsis-vertical" size={20} color={COLORS.text} />
-                </TouchableOpacity>
-              )}
-              {!(isOwner && isActive) && <View style={{ width: 40 }} />}
+              <View style={styles.headerRight}>
+                {entries.length > 0 && (
+                  <TouchableOpacity onPress={handleExportPDF} style={styles.exportBtn} disabled={exporting} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    {exporting
+                      ? <ActivityIndicator size="small" color={COLORS.primary} />
+                      : <Ionicons name="download-outline" size={21} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                )}
+                {isOwner && isActive && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      Alert.alert('Update Status', 'What would you like to do?', [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Mark Completed', onPress: () => handleStatusChange('completed') },
+                        { text: 'Terminate', style: 'destructive', onPress: () => handleStatusChange('terminated') },
+                      ])
+                    }
+                    style={styles.moreBtn}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={20} color={COLORS.text} />
+                  </TouchableOpacity>
+                )}
+                {!(entries.length > 0) && !(isOwner && isActive) && <View style={{ width: 40 }} />}
+              </View>
             </View>
 
             {/* Signature status banners */}
@@ -603,6 +836,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  exportBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   moreBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
 
   signBanner: {

@@ -1,9 +1,9 @@
 {
   "expo": {
     "name": "DuoLink",
-    "slug": "namdriver",
+    "slug": "DuoLink",
     "owner": "namstack",
-    "version": "1.2",
+    "version": "1.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
-      "buildNumber": "11",
+      "buildNumber": "13",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -36,7 +36,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.namstack.namdriver",
-      "versionCode": 1,
+      "versionCode": 3,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -69,7 +69,8 @@
           "androidMode": "default",
           "androidCollapsedTitle": "DuoLink"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "privacy": "public",
     "scheme": "duolink",

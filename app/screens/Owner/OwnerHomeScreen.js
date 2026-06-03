@@ -98,6 +98,22 @@ const QUICK_ACTIONS = [
     bg: '#EDE9FE',
     route: 'Agreements',
   },
+  {
+    label: 'Earnings',
+    sub: 'View analytics',
+    icon: 'bar-chart',
+    color: '#0891B2',
+    bg: '#E0F2FE',
+    route: 'Earnings',
+  },
+  {
+    label: 'Expenses',
+    sub: 'Log vehicle costs',
+    icon: 'receipt',
+    color: '#D97706',
+    bg: '#FEF3C7',
+    route: 'ExpenseLog',
+  },
 ];
 
 const OwnerHomeScreen = ({ navigation }) => {

@@ -46,6 +46,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const [interestData, setInterestData] = useState(null);
   const [jobPostInfo, setJobPostInfo] = useState(null);
   const [profileInfo, setProfileInfo] = useState(null);
+  const [hasAcceptedOffer, setHasAcceptedOffer] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +91,19 @@ const DriverDetailsScreen = ({ route, navigation }) => {
 
   const isDriverVerified = driver?.verification_status === 'verified';
 
+  // Check if owner has an accepted hire offer with this driver
+  useEffect(() => {
+    if (!driver?.user_id || currentUser?.role !== 'owner') return;
+    supabase
+      .from('hire_offers')
+      .select('id')
+      .eq('owner_id', currentUser.id)
+      .eq('driver_id', driver.user_id)
+      .eq('status', 'accepted')
+      .limit(1)
+      .then(({ data }) => setHasAcceptedOffer((data?.length ?? 0) > 0));
+  }, [driver?.user_id, currentUser?.id]);
+
   const handleCall = async () => {
     if (!requireAuth(user, navigation, "Sign in to contact drivers.")) return;
     if (!isDriverVerified) {
@@ -122,22 +136,32 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleShare = async () => {
-    const name =
-      `${userProfile?.firstname || ""} ${userProfile?.lastname || ""}`.trim();
-    const loc = userProfile?.location || "Namibia";
-    const exp = driver?.years_of_experience || 0;
+  const buildShareMessage = () => {
+    const name = `${userProfile?.firstname || ""} ${userProfile?.lastname || ""}`.trim();
+    const loc  = userProfile?.location || "Namibia";
+    const exp  = driver?.years_of_experience || 0;
     const rating = (driver?.rating || 0).toFixed(1);
-    const verified =
-      driver?.verification_status === "verified" ? " (Verified)" : "";
+    const verified = driver?.verification_status === "verified" ? " ✓ Verified" : "";
+    return `👤 ${name}${verified}\n📍 ${loc} · ${exp} yrs experience · ⭐ ${rating}/5\nAvailable for hire on DuoLink\n\nDownload DuoLink to connect with professional drivers in Namibia.`;
+  };
 
+  const handleShare = async () => {
     try {
-      await Share.share({
-        message: `Check out ${name}${verified} on DuoLink!\n\nLocation: ${loc}\nExperience: ${exp} years\nRating: ${rating}/5\n\nDownload DuoLink to connect with professional drivers in Namibia.`,
-      });
-    } catch (err) {
-      // User cancelled share
-    }
+      await Share.share({ message: buildShareMessage() });
+    } catch { /* user cancelled */ }
+  };
+
+  const handleWhatsAppShare = async () => {
+    const msg = buildShareMessage();
+    const url = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        await Share.share({ message: msg });
+      }
+    } catch { /* fallback failed */ }
   };
 
   const handleToggleSave = async () => {
@@ -403,6 +427,9 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="chevron-back" size={24} color={COLORS.white} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: SPACING.sm }}>
+              <TouchableOpacity onPress={handleWhatsAppShare} style={styles.navButton}>
+                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={handleShare} style={styles.navButton}>
                 <Ionicons name="share-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
@@ -921,20 +948,22 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="paper-plane-outline" size={16} color={COLORS.primary} />
               <Text style={styles.hireBtnText}>Hire Directly</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.hireBtn, { flex: 1, borderColor: '#7C3AED' }]}
-              onPress={() =>
-                navigation.navigate("CreateAgreement", {
-                  driverId: driver.user_id,
-                  driverName: fullName,
-                  driverImage: userProfile?.profile_image ?? null,
-                })
-              }
-              activeOpacity={0.85}
-            >
-              <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
-              <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>New Agreement</Text>
-            </TouchableOpacity>
+            {hasAcceptedOffer && (
+              <TouchableOpacity
+                style={[styles.hireBtn, { flex: 1, borderColor: '#7C3AED' }]}
+                onPress={() =>
+                  navigation.navigate("CreateAgreement", {
+                    driverId: driver.user_id,
+                    driverName: fullName,
+                    driverImage: userProfile?.profile_image ?? null,
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
+                <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>New Agreement</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         <View style={styles.actionRow}>

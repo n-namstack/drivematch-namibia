@@ -100,6 +100,16 @@ const AgreementsScreen = ({ navigation }) => {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => navigation.navigate('Earnings')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 8 }}>
+          <Ionicons name="bar-chart-outline" size={22} color={COLORS.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();

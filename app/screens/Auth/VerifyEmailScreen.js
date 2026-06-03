@@ -15,14 +15,16 @@ import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
+const CODE_LENGTH = 6;
+
 const VerifyEmailScreen = ({ route, navigation }) => {
   const email = route?.params?.email || '';
 
-  const [code, setCode] = useState(['', '', '', '', '', '', '', '']);
+  const [code, setCode]       = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [countdown, setCountdown] = useState(60); // Email was just sent on signup
-  const inputRefs = useRef([]);
+  const [countdown, setCountdown] = useState(60);
+  const inputRef = useRef(null);
 
   const maskEmail = (raw) => {
     if (!raw) return '';
@@ -35,51 +37,37 @@ const VerifyEmailScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
+    // Auto-focus the hidden input on mount
+    setTimeout(() => inputRef.current?.focus(), 300);
+  }, []);
+
+  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
 
+  const handleCodeChange = (text) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, CODE_LENGTH);
+    setCode(digits);
+    if (digits.length === CODE_LENGTH) {
+      verifyOTP(digits);
+    }
+  };
+
   const resendOTP = async () => {
     if (sending || countdown > 0) return;
     setSending(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-      });
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
       if (error) throw error;
       setCountdown(60);
+      setCode('');
     } catch (err) {
       Alert.alert('Error', err.message || 'Could not resend code.');
     } finally {
       setSending(false);
-    }
-  };
-
-  const handleCodeChange = (text, index) => {
-    const digit = text.replace(/[^0-9]/g, '');
-    const newCode = [...code];
-    newCode[index] = digit;
-    setCode(newCode);
-
-    if (digit && index < 7) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-verify when all 8 digits entered
-    if (digit && index === 7) {
-      const fullCode = newCode.join('');
-      if (fullCode.length === 8) {
-        verifyOTP(fullCode);
-      }
-    }
-  };
-
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -93,25 +81,25 @@ const VerifyEmailScreen = ({ route, navigation }) => {
         type: 'email',
       });
       if (error) throw error;
-      // Success — session is created automatically.
-      // onAuthStateChange in AuthContext picks it up and navigates to the main app.
     } catch (err) {
       Alert.alert('Verification Failed', err.message || 'Invalid code. Please try again.');
-      setCode(['', '', '', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
+      setCode('');
+      inputRef.current?.focus();
     } finally {
       setVerifying(false);
     }
   };
 
   const handleVerify = () => {
-    const fullCode = code.join('');
-    if (fullCode.length !== 8) {
-      Alert.alert('Error', 'Please enter the full 8-digit code');
+    if (code.length !== CODE_LENGTH) {
+      Alert.alert('Error', `Please enter the full ${CODE_LENGTH}-digit code`);
       return;
     }
-    verifyOTP(fullCode);
+    verifyOTP(code);
   };
+
+  const digits = code.split('');
+  const activeIndex = Math.min(digits.length, CODE_LENGTH - 1);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,32 +126,53 @@ const VerifyEmailScreen = ({ route, navigation }) => {
 
           <Text style={styles.title}>Verify Your Email</Text>
           <Text style={styles.subtitle}>
-            We sent a verification code to{'\n'}
+            We sent a {CODE_LENGTH}-digit code to{'\n'}
             <Text style={styles.emailText}>{maskEmail(email)}</Text>
           </Text>
 
-          {/* OTP Input */}
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={[styles.codeInput, digit && styles.codeInputFilled]}
-                value={digit}
-                onChangeText={(text) => handleCodeChange(text, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-              />
-            ))}
-          </View>
+          {/* OTP boxes — tap anywhere to focus the hidden input */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => inputRef.current?.focus()}
+            style={styles.codeContainer}
+          >
+            {Array.from({ length: CODE_LENGTH }).map((_, i) => {
+              const filled  = i < digits.length;
+              const focused = i === activeIndex && !verifying;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.codeBox,
+                    filled  && styles.codeBoxFilled,
+                    focused && styles.codeBoxFocused,
+                  ]}
+                >
+                  <Text style={styles.codeDigit}>{digits[i] ?? ''}</Text>
+                  {focused && !filled && <View style={styles.cursor} />}
+                </View>
+              );
+            })}
+          </TouchableOpacity>
+
+          {/* Hidden input that receives all keyboard/paste input */}
+          <TextInput
+            ref={inputRef}
+            value={code}
+            onChangeText={handleCodeChange}
+            keyboardType="number-pad"
+            maxLength={CODE_LENGTH}
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            style={styles.hiddenInput}
+            caretHidden
+          />
 
           {/* Verify Button */}
           <TouchableOpacity
-            style={[styles.verifyButton, code.join('').length !== 8 && styles.verifyButtonDisabled]}
+            style={[styles.verifyButton, code.length !== CODE_LENGTH && styles.verifyButtonDisabled]}
             onPress={handleVerify}
-            disabled={code.join('').length !== 8 || verifying}
+            disabled={code.length !== CODE_LENGTH || verifying}
           >
             {verifying ? (
               <ActivityIndicator color={COLORS.white} />
@@ -184,7 +193,6 @@ const VerifyEmailScreen = ({ route, navigation }) => {
             )}
           </View>
 
-          {/* Check spam hint */}
           <Text style={styles.spamHint}>Check your spam folder if you don't see it</Text>
         </View>
       </KeyboardAvoidingView>
@@ -193,13 +201,8 @@ const VerifyEmailScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  keyboardView: { flex: 1 },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -217,61 +220,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 96, height: 96, borderRadius: 48,
     backgroundColor: COLORS.primary + '08',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.lg,
   },
   iconInner: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 68, height: 68, borderRadius: 34,
     backgroundColor: COLORS.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
   title: {
-    fontSize: FONTS.sizes['2xl'],
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+    fontSize: FONTS.sizes['2xl'], fontWeight: 'bold',
+    color: COLORS.text, marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: SPACING.xl,
+    fontSize: FONTS.sizes.md, color: COLORS.textSecondary,
+    textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xl,
   },
-  emailText: {
-    fontWeight: '600',
-    color: COLORS.text,
-  },
+  emailText: { fontWeight: '600', color: COLORS.text },
+
   codeContainer: {
     flexDirection: 'row',
     gap: SPACING.sm,
     marginBottom: SPACING.xl,
   },
-  codeInput: {
-    width: 40,
-    height: 50,
+  codeBox: {
+    width: 46, height: 56,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.white,
     borderWidth: 2,
     borderColor: COLORS.gray[200],
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
     ...SHADOWS.sm,
   },
-  codeInputFilled: {
+  codeBoxFilled: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary + '05',
   },
+  codeBoxFocused: {
+    borderColor: COLORS.primary,
+    borderWidth: 2.5,
+  },
+  codeDigit: {
+    fontSize: FONTS.sizes.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  cursor: {
+    width: 2, height: 22,
+    backgroundColor: COLORS.primary,
+    borderRadius: 1,
+  },
+
+  // Hidden behind the boxes — receives all actual input
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+
   verifyButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
@@ -280,38 +290,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...SHADOWS.md,
   },
-  verifyButtonDisabled: {
-    backgroundColor: COLORS.gray[300],
-  },
-  verifyButtonText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: 'bold',
-  },
-  resendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.lg,
-  },
-  resendText: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.textSecondary,
-  },
-  countdownText: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.gray[400],
-    fontWeight: '500',
-  },
-  resendLink: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  spamHint: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.gray[400],
-    marginTop: SPACING.md,
-  },
+  verifyButtonDisabled: { backgroundColor: COLORS.gray[300] },
+  verifyButtonText: { color: COLORS.white, fontSize: FONTS.sizes.lg, fontWeight: 'bold' },
+
+  resendRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.lg },
+  resendText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary },
+  countdownText: { fontSize: FONTS.sizes.sm, color: COLORS.gray[400], fontWeight: '500' },
+  resendLink: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
+  spamHint: { fontSize: FONTS.sizes.xs, color: COLORS.gray[400], marginTop: SPACING.md },
 });
 
 export default VerifyEmailScreen;

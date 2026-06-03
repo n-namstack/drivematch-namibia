@@ -4,36 +4,44 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import supabase from '../lib/supabase';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // expo-notifications not supported in Expo Go (SDK 53+); no-op in dev
+}
 
 export async function registerForPushNotifications(userId) {
   if (!Device.isDevice) return null;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'DuoLink',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#1E40AF',
-      sound: true,
-    });
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'DuoLink',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1E40AF',
+        sound: true,
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return null;
+  } catch {
+    return null;
   }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') return null;
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -57,14 +65,16 @@ export async function registerForPushNotifications(userId) {
   }
 }
 
+const noop = { remove: () => {} };
+
 export function addNotificationResponseListener(handler) {
-  return Notifications.addNotificationResponseReceivedListener(handler);
+  try { return Notifications.addNotificationResponseReceivedListener(handler); } catch { return noop; }
 }
 
 export function addNotificationReceivedListener(handler) {
-  return Notifications.addNotificationReceivedListener(handler);
+  try { return Notifications.addNotificationReceivedListener(handler); } catch { return noop; }
 }
 
 export async function clearBadge() {
-  await Notifications.setBadgeCountAsync(0);
+  try { await Notifications.setBadgeCountAsync(0); } catch {}
 }
