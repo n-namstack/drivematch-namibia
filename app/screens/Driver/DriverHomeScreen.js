@@ -80,13 +80,23 @@ const DriverHomeScreen = ({ navigation }) => {
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [docsLoaded, setDocsLoaded] = useState(false);
+  const [hasBeenHired, setHasBeenHired] = useState(false);
+  const [hiringCheckDone, setHiringCheckDone] = useState(false);
 
   // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
       if (driverProfile?.id) fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
-      if (profile?.id) fetchReceivedOffers(profile.id);
+      if (profile?.id) {
+        fetchReceivedOffers(profile.id);
+        supabase
+          .from('hire_offers')
+          .select('id', { count: 'exact', head: true })
+          .eq('driver_id', profile.id)
+          .eq('status', 'accepted')
+          .then(({ count }) => { setHasBeenHired((count || 0) > 0); setHiringCheckDone(true); });
+      }
     }, [profile?.id, driverProfile?.id]),
   );
 
@@ -277,6 +287,7 @@ const DriverHomeScreen = ({ navigation }) => {
       sub: "Track earnings",
       color: '#7C3AED',
       bg: '#EDE9FE',
+      gated: true,
       onPress: () => navigation.navigate("Agreements"),
     },
     {
@@ -286,16 +297,18 @@ const DriverHomeScreen = ({ navigation }) => {
       sub: "View analytics",
       color: '#0891B2',
       bg: '#E0F2FE',
+      gated: true,
       onPress: () => navigation.navigate("Earnings"),
     },
     {
-      id: "doc-tracker",
-      icon: "shield-checkmark-outline",
-      label: "Doc Tracker",
-      sub: "Expiry dates",
-      color: '#059669',
-      bg: '#D1FAE5',
-      onPress: () => navigation.navigate("DocumentTracker"),
+      id: "expenses",
+      icon: "receipt-outline",
+      label: "Expenses",
+      sub: "Fuel & costs",
+      color: '#EF4444',
+      bg: '#FEE2E2',
+      gated: true,
+      onPress: () => navigation.navigate("ExpenseLog"),
     },
   ];
 
@@ -471,7 +484,7 @@ const DriverHomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
+            {quickActions.filter(a => !a.gated || (hiringCheckDone && hasBeenHired)).map((action) => (
               <TouchableOpacity
                 key={action.id}
                 style={styles.actionCard}

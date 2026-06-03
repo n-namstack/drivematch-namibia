@@ -73,7 +73,6 @@ import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
 
 // New feature screens
 import EarningsScreen from "../screens/Common/EarningsScreen";
-import DocumentTrackerScreen from "../screens/Driver/DocumentTrackerScreen";
 import ExpenseLogScreen from "../screens/Owner/ExpenseLogScreen";
 
 const Stack = createNativeStackNavigator();
@@ -457,11 +456,6 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Earnings"
               component={EarningsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="DocumentTracker"
-              component={DocumentTrackerScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

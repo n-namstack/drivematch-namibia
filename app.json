@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "DuoLink",
-    "slug": "DuoLink",
+    "slug": "namdriver",
     "owner": "namstack",
     "version": "1.3",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
-      "buildNumber": "13",
+      "buildNumber": "14",
       "config": {
         "usesNonExemptEncryption": false
       },

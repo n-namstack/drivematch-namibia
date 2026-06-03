@@ -97,6 +97,7 @@ const QUICK_ACTIONS = [
     color: '#7C3AED',
     bg: '#EDE9FE',
     route: 'Agreements',
+    gated: true,
   },
   {
     label: 'Earnings',
@@ -105,6 +106,7 @@ const QUICK_ACTIONS = [
     color: '#0891B2',
     bg: '#E0F2FE',
     route: 'Earnings',
+    gated: true,
   },
   {
     label: 'Expenses',
@@ -113,6 +115,7 @@ const QUICK_ACTIONS = [
     color: '#D97706',
     bg: '#FEF3C7',
     route: 'ExpenseLog',
+    gated: true,
   },
 ];
 
@@ -129,6 +132,8 @@ const OwnerHomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeJobCount, setActiveJobCount] = useState(0);
+  const [hasHiredDriver, setHasHiredDriver] = useState(false);
+  const [hiringCheckDone, setHiringCheckDone] = useState(false);
 
   const fetchUnreadCount = async () => {
     if (!profile?.id) return;
@@ -154,10 +159,24 @@ const OwnerHomeScreen = ({ navigation }) => {
     } catch {}
   };
 
+  const fetchHiredDriver = async () => {
+    if (!profile?.id) { setHiringCheckDone(true); return; }
+    try {
+      const { count } = await supabase
+        .from('hire_offers')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', profile.id)
+        .eq('status', 'accepted');
+      setHasHiredDriver((count || 0) > 0);
+    } catch {}
+    setHiringCheckDone(true);
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
       fetchActiveJobCount();
+      fetchHiredDriver();
     }, [profile?.id]),
   );
 
@@ -194,6 +213,7 @@ const OwnerHomeScreen = ({ navigation }) => {
         profile?.id ? fetchSavedDrivers(profile.id) : Promise.resolve(),
         fetchUnreadCount(),
         fetchActiveJobCount(),
+        fetchHiredDriver(),
       ]);
     } catch {
       Toast.show({ type: 'error', text1: 'Connection issue', text2: 'Could not load data. Pull to refresh.' });
@@ -277,7 +297,7 @@ const OwnerHomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            {QUICK_ACTIONS.map((action) => (
+            {(hiringCheckDone ? QUICK_ACTIONS.filter(a => !a.gated || hasHiredDriver) : QUICK_ACTIONS.filter(a => !a.gated)).map((action) => (
               <TouchableOpacity
                 key={action.label}
                 style={styles.actionCard}

@@ -151,19 +151,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     } catch { /* user cancelled */ }
   };
 
-  const handleWhatsAppShare = async () => {
-    const msg = buildShareMessage();
-    const url = `whatsapp://send?text=${encodeURIComponent(msg)}`;
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        await Share.share({ message: msg });
-      }
-    } catch { /* fallback failed */ }
-  };
-
   const handleToggleSave = async () => {
     if (!requireAuth(user, navigation, "Sign in to save drivers.")) return;
     try {
@@ -427,9 +414,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="chevron-back" size={24} color={COLORS.white} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: SPACING.sm }}>
-              <TouchableOpacity onPress={handleWhatsAppShare} style={styles.navButton}>
-                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-              </TouchableOpacity>
               <TouchableOpacity onPress={handleShare} style={styles.navButton}>
                 <Ionicons name="share-outline" size={20} color={COLORS.white} />
               </TouchableOpacity>
