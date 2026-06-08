@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
@@ -35,7 +36,7 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
       <TouchableOpacity style={styles.horizontalCard} onPress={onPress}>
         <View style={styles.horizontalImageContainer}>
           {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.horizontalImage} />
+            <Image source={{ uri: profileImage }} style={styles.horizontalImage} contentFit="cover" cachePolicy="disk" transition={200} />
           ) : (
             <View style={[styles.horizontalImage, styles.placeholderImage]}>
               <Ionicons name="person" size={32} color={COLORS.gray[400]} />
@@ -80,7 +81,7 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
     return (
       <TouchableOpacity style={styles.compactCard} onPress={onPress}>
         {profileImage ? (
-          <Image source={{ uri: profileImage }} style={styles.compactImage} />
+          <Image source={{ uri: profileImage }} style={styles.compactImage} contentFit="cover" cachePolicy="disk" transition={200} />
         ) : (
           <View style={[styles.compactImage, styles.placeholderImage]}>
             <Ionicons name="person" size={20} color={COLORS.gray[400]} />
@@ -135,7 +136,7 @@ const DriverCard = ({ driver, onPress, horizontal = false, compact = false }) =>
       <View style={styles.cardHeader}>
         <View style={styles.imageContainer}>
           {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.image} />
+            <Image source={{ uri: profileImage }} style={styles.image} contentFit="cover" cachePolicy="disk" transition={200} />
           ) : (
             <View style={[styles.image, styles.placeholderImage]}>
               <Ionicons name="person" size={24} color={COLORS.gray[400]} />

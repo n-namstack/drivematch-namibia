@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Image, Alert,
+  ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -10,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import useHireOfferStore from '../../store/useHireOfferStore';
 import useAgreementStore from '../../store/useAgreementStore';
+import { SkeletonCard } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const STATUS_CONFIG = {
@@ -26,14 +28,14 @@ const JOB_TYPE_LABELS = {
   contract:  'Contract',
 };
 
-const SentOfferCard = ({ offer, agreementId, hadPriorAgreement, onWithdraw, onCreateAgreement, onViewAgreement }) => {
+const SentOfferCard = memo(({ offer, agreementId, hadPriorAgreement, onWithdraw, onCreateAgreement, onViewAgreement }) => {
   const [acting, setActing] = useState(false);
   const status = STATUS_CONFIG[offer.status] || STATUS_CONFIG.pending;
   const driverName = offer.driver
     ? `${offer.driver.firstname ?? ''} ${offer.driver.lastname ?? ''}`.trim()
     : 'Unknown Driver';
 
-  const handleWithdraw = () => {
+  const handleWithdraw = useCallback(() => {
     Alert.alert('Withdraw Offer', 'Are you sure you want to withdraw this offer?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -45,13 +47,19 @@ const SentOfferCard = ({ offer, agreementId, hadPriorAgreement, onWithdraw, onCr
         },
       },
     ]);
-  };
+  }, [offer.id, onWithdraw]);
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         {offer.driver?.profile_image ? (
-          <Image source={{ uri: offer.driver.profile_image }} style={styles.avatar} />
+          <Image
+            source={{ uri: offer.driver.profile_image }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="disk"
+            transition={200}
+          />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
             <Ionicons name="person" size={18} color={COLORS.gray[400]} />
@@ -126,7 +134,9 @@ const SentOfferCard = ({ offer, agreementId, hadPriorAgreement, onWithdraw, onCr
       )}
     </View>
   );
-};
+});
+
+const CARD_HEIGHT = 180;
 
 const SentOffersScreen = ({ navigation }) => {
   const { profile } = useAuth();
@@ -144,35 +154,33 @@ const SentOffersScreen = ({ navigation }) => {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Map driver_id → agreement.id for active/pending agreements
   const activeAgreementByDriver = new Map(
     agreements
       .filter((a) => a.status === 'active' || a.status === 'pending_signature')
       .map((a) => [a.driver_id, a.id]),
   );
-  // Set of driver IDs that had a past agreement (terminated/completed)
   const pastAgreementDriverIds = new Set(
     agreements
       .filter((a) => a.status === 'terminated' || a.status === 'completed')
       .map((a) => a.driver_id),
   );
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
     setRefreshing(false);
-  };
+  }, [load]);
 
-  const handleWithdraw = async (offerId) => {
+  const handleWithdraw = useCallback(async (offerId) => {
     try {
       await withdrawOffer(offerId);
       Toast.show({ type: 'success', text1: 'Offer Withdrawn' });
     } catch {
       Toast.show({ type: 'error', text1: 'Failed to withdraw', text2: 'Please try again.' });
     }
-  };
+  }, [withdrawOffer]);
 
-  const handleCreateAgreement = (offer) => {
+  const handleCreateAgreement = useCallback((offer) => {
     const driverName = offer.driver
       ? `${offer.driver.firstname ?? ''} ${offer.driver.lastname ?? ''}`.trim()
       : '';
@@ -181,13 +189,36 @@ const SentOffersScreen = ({ navigation }) => {
       driverName,
       driverImage: offer.driver?.profile_image ?? null,
     });
-  };
+  }, [navigation]);
+
+  const handleViewAgreement = useCallback((id) => {
+    navigation.navigate('AgreementDetail', { agreementId: id });
+  }, [navigation]);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  const getItemLayout = useCallback((_, index) => ({
+    length: CARD_HEIGHT,
+    offset: CARD_HEIGHT * index,
+    index,
+  }), []);
+
+  const renderItem = useCallback(({ item }) => (
+    <SentOfferCard
+      offer={item}
+      agreementId={activeAgreementByDriver.get(item.driver_id) ?? null}
+      hadPriorAgreement={pastAgreementDriverIds.has(item.driver_id)}
+      onWithdraw={handleWithdraw}
+      onCreateAgreement={handleCreateAgreement}
+      onViewAgreement={handleViewAgreement}
+    />
+  ), [activeAgreementByDriver, pastAgreementDriverIds, handleWithdraw, handleCreateAgreement, handleViewAgreement]);
 
   if (loading && sentOffers.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={[]}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.skeletonContent}>
+          {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
         </View>
       </SafeAreaView>
     );
@@ -197,17 +228,13 @@ const SentOffersScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container} edges={[]}>
       <FlatList
         data={sentOffers}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <SentOfferCard
-            offer={item}
-            agreementId={activeAgreementByDriver.get(item.driver_id) ?? null}
-            hadPriorAgreement={pastAgreementDriverIds.has(item.driver_id)}
-            onWithdraw={handleWithdraw}
-            onCreateAgreement={handleCreateAgreement}
-            onViewAgreement={(id) => navigation.navigate('AgreementDetail', { agreementId: id })}
-          />
-        )}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
+        windowSize={5}
+        maxToRenderPerBatch={8}
+        initialNumToRender={6}
+        removeClippedSubviews
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -227,7 +254,7 @@ const SentOffersScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  skeletonContent: { padding: SPACING.lg },
   listContent: { padding: SPACING.lg, paddingBottom: SPACING.xl },
 
   card: {

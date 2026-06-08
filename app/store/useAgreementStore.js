@@ -123,7 +123,8 @@ const useAgreementStore = create((set, get) => ({
             .from('agreement_entries')
             .select('*')
             .eq('agreement_id', id)
-            .order('entry_date', { ascending: false }),
+            .order('entry_date', { ascending: false })
+            .limit(150),
         ]);
       if (aErr) throw aErr;
       if (eErr) throw eErr;

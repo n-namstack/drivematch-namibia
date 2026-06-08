@@ -294,6 +294,10 @@ const SearchDriversScreen = ({ navigation, route }) => {
         data={hasSearched ? drivers : []}
         keyExtractor={(item) => item.id}
         renderItem={renderDriver}
+        windowSize={5}
+        maxToRenderPerBatch={8}
+        initialNumToRender={8}
+        removeClippedSubviews
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}

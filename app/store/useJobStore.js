@@ -120,38 +120,27 @@ const useJobStore = create((set, get) => ({
 
         const rawInterests = intData || [];
 
-        // Step 2: batch-fetch driver profiles for interested drivers
+        // Step 2: batch-fetch driver profiles for interested drivers in one query
         const driverIds = [
           ...new Set(rawInterests.map((i) => i.driver_id).filter(Boolean)),
         ];
         let driverMap = {};
         if (driverIds.length > 0) {
-          // Fetch one-by-one using same query pattern as fetchDriverById
-          const driverResults = await Promise.all(
-            driverIds.map(async (dId) => {
-              try {
-                const { data: drv } = await supabase
-                  .from("driver_profiles")
-                  .select(
-                    `
-                    *,
-                    profiles:user_id (
-                      firstname,
-                      lastname,
-                      profile_image,
-                      location
-                    )
-                  `,
-                  )
-                  .eq("id", dId)
-                  .single();
-                return drv;
-              } catch (_) {
-                return null;
-              }
-            }),
-          );
-          driverResults.forEach((drv) => {
+          const { data: driverResults } = await supabase
+            .from("driver_profiles")
+            .select(
+              `
+              *,
+              profiles:user_id (
+                firstname,
+                lastname,
+                profile_image,
+                location
+              )
+            `,
+            )
+            .in("id", driverIds);
+          (driverResults || []).forEach((drv) => {
             if (drv) driverMap[drv.id] = drv;
           });
         }

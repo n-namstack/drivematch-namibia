@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../lib/supabase';
 import DriverCard from '../../components/DriverCard';
 import useModerationStore from '../../store/useModerationStore';
+import { SkeletonDriverRow } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const PAGE_SIZE = 20;
@@ -93,11 +94,34 @@ const AllDriversScreen = ({ navigation, route }) => {
     }
   };
 
+  const renderItem = useCallback(({ item }) => (
+    <DriverCard
+      driver={item}
+      onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
+      compact
+    />
+  ), [navigation]);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={[]}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, location or experience..."
+            placeholderTextColor={COLORS.gray[400]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            autoCorrect={false}
+          />
+        </View>
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3, 4, 5].map((i) => <SkeletonDriverRow key={i} />)}
         </View>
       </SafeAreaView>
     );
@@ -143,14 +167,12 @@ const AllDriversScreen = ({ navigation, route }) => {
       ) : (
         <FlatList
           data={visibleDrivers}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <DriverCard
-              driver={item}
-              onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
-              compact
-            />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          windowSize={5}
+          maxToRenderPerBatch={8}
+          initialNumToRender={8}
+          removeClippedSubviews
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={

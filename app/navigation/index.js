@@ -3,7 +3,8 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+import { SkeletonHomeScreen } from "../components/SkeletonLoader";
 import {
   addNotificationResponseListener,
   addNotificationReceivedListener,
@@ -263,15 +264,8 @@ const AppNavigator = () => {
 
   if (loading || termsGateAccepted === null || (user && !profile)) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: COLORS.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <SkeletonHomeScreen />
       </View>
     );
   }
@@ -295,6 +289,9 @@ const AppNavigator = () => {
           headerTintColor: COLORS.text,
           headerShadowVisible: false,
           headerBackButtonDisplayMode: 'minimal',
+          animation: 'slide_from_right',
+          animationDuration: 250,
+          gestureEnabled: true,
         }}
       >
         {passwordRecovery ? (

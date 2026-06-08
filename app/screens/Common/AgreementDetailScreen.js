@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, TextInput,
-  Switch, Platform, Linking, Alert, Image, ScrollView,
+  Switch, Platform, Linking, Alert, ScrollView,
   KeyboardAvoidingView, Animated, PanResponder, TouchableWithoutFeedback,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Asset } from 'expo-asset';
@@ -16,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import useAgreementStore, { getTotals, getBuyoutProgress, filterEntries } from '../../store/useAgreementStore';
+import { SkeletonEntryRow } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { getWorkingDays, getDayOffInfo } from '../../constants/namibiaHolidays';
 
@@ -35,7 +37,7 @@ const fmtMoney = (n) =>
   `N$${parseFloat(n || 0).toLocaleString('en-NA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // ─── Log Entry Modal (driver only) ───────────────────────────────────────────
-const LogEntryModal = ({ visible, onClose, onSave, entries = [], dailyAmount = 0 }) => {
+const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmount = 0 }) => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState('');
@@ -220,10 +222,10 @@ const LogEntryModal = ({ visible, onClose, onSave, entries = [], dailyAmount = 0
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 // ─── Entry Row ───────────────────────────────────────────────────────────────
-const EntryRow = ({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
+const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
   const [confirming, setConfirming] = useState(false);
 
   const handleConfirm = async () => {
@@ -319,7 +321,14 @@ const EntryRow = ({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
       </View>
     </View>
   );
-};
+}, (prev, next) =>
+  prev.item.id === next.item.id &&
+  prev.item.is_locked === next.item.is_locked &&
+  prev.item.owner_confirmed_at === next.item.owner_confirmed_at &&
+  prev.item.amount === next.item.amount &&
+  prev.isOwner === next.isOwner &&
+  prev.dailyAmount === next.dailyAmount
+);
 
 // ─── Monthly Projection Card ─────────────────────────────────────────────────
 
@@ -486,14 +495,14 @@ const AgreementDetailScreen = ({ navigation, route }) => {
     );
   };
 
-  const handleConfirmEntry = async (entryId) => {
+  const handleConfirmEntry = useCallback(async (entryId) => {
     try {
       await confirmEntry(entryId);
       Toast.show({ type: 'success', text1: 'Receipt confirmed!', text2: 'This entry is now locked by both parties.' });
     } catch {
       Toast.show({ type: 'error', text1: 'Could not confirm. Please try again.' });
     }
-  };
+  }, [confirmEntry]);
 
   const handleStatusChange = (status) => {
     Alert.alert(
@@ -752,7 +761,9 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   if (loading && !activeAgreement) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.primary} /></View>
+        <View style={styles.skeletonPad}>
+          {[0, 1, 2, 3, 4].map((i) => <SkeletonEntryRow key={i} />)}
+        </View>
       </SafeAreaView>
     );
   }
@@ -766,23 +777,34 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const isPending    = activeAgreement.status === 'pending_signature';
   const isActive     = activeAgreement.status === 'active';
   const isEnded      = activeAgreement.status === 'terminated' || activeAgreement.status === 'completed';
-  const customRange = filter === 'custom'
-    ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
-    : null;
-  const totals     = getTotals(entries, activeAgreement, filter, customRange);
-  const buyout     = !isDaily ? getBuyoutProgress(activeAgreement, entries) : null;
-  const visibleEntries = filterEntries(entries, filter, customRange)
-    .slice()
-    .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+  const customRange = useMemo(() =>
+    filter === 'custom'
+      ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
+      : null,
+    [filter, customFrom, customTo],
+  );
+  const totals     = useMemo(() => getTotals(entries, activeAgreement, filter, customRange), [entries, activeAgreement, filter, customRange]);
+  const buyout     = useMemo(() => !isDaily ? getBuyoutProgress(activeAgreement, entries) : null, [isDaily, activeAgreement, entries]);
+  const visibleEntries = useMemo(() =>
+    filterEntries(entries, filter, customRange)
+      .slice()
+      .sort((a, b) => a.entry_date.localeCompare(b.entry_date)),
+    [entries, filter, customRange],
+  );
   const typeColor  = isDaily ? COLORS.primary : '#7C3AED';
+  const dailyAmountParsed = useMemo(() => parseFloat(activeAgreement?.daily_amount || 0), [activeAgreement?.daily_amount]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <FlatList
         data={visibleEntries}
-        keyExtractor={(item) => item.id}
+        keyExtractor={useCallback((item) => item.id, [])}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
+        windowSize={5}
+        maxToRenderPerBatch={8}
+        initialNumToRender={8}
+        removeClippedSubviews
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
@@ -863,7 +885,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
             {/* Party card */}
             <View style={styles.partyCard}>
               {otherParty?.profile_image ? (
-                <Image source={{ uri: otherParty.profile_image }} style={styles.partyAvatar} />
+                <Image source={{ uri: otherParty.profile_image }} style={styles.partyAvatar} contentFit="cover" cachePolicy="disk" transition={200} />
               ) : (
                 <View style={[styles.partyAvatar, styles.avatarFallback]}>
                   <Ionicons name="person" size={22} color={COLORS.gray[400]} />
@@ -1078,14 +1100,14 @@ const AgreementDetailScreen = ({ navigation, route }) => {
             )}
           </>
         }
-        renderItem={({ item }) => (
+        renderItem={useCallback(({ item }) => (
           <EntryRow
             item={item}
             isOwner={isOwner}
             onConfirm={handleConfirmEntry}
-            dailyAmount={parseFloat(activeAgreement?.daily_amount || 0)}
+            dailyAmount={dailyAmountParsed}
           />
-        )}
+        ), [isOwner, handleConfirmEntry, dailyAmountParsed])}
         ListEmptyComponent={
           isActive ? (
             <View style={styles.emptyEntries}>
@@ -1115,16 +1137,17 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   );
 };
 
-const SumItem = ({ label, value, color }) => (
+const SumItem = memo(({ label, value, color }) => (
   <View style={styles.sumItem}>
     <Text style={[styles.sumValue, { color }]}>{value}</Text>
     <Text style={styles.sumLabel}>{label}</Text>
   </View>
-);
+));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  skeletonPad: { padding: SPACING.lg, paddingTop: SPACING.xl },
   listContent: { paddingBottom: 100 },
 
   header: {
