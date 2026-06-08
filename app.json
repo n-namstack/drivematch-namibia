@@ -3,7 +3,7 @@
     "name": "DuoLink",
     "slug": "namdriver",
     "owner": "namstack",
-    "version": "1.3",
+    "version": "1.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
       "requireFullScreen": true,
-      "buildNumber": "14",
+      "buildNumber": "18",
       "config": {
         "usesNonExemptEncryption": false
       },

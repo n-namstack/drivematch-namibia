@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   // null = still loading from storage, true/false once known
   const [termsGateAccepted, setTermsGateAccepted] = useState(null);
 
@@ -46,9 +47,43 @@ export const AuthProvider = ({ children }) => {
     // Check current session on mount
     checkSession();
 
+    // Handle password-recovery deep links
+    const handleUrl = async ({ url }) => {
+      if (!url) return;
+
+      // Parse both hash (#) and query (?) params
+      const afterScheme = url.includes('#') ? url.split('#')[1] : url.split('?')[1] || '';
+      const parseParams = (str) => Object.fromEntries(
+        str.split('&').map((p) => { const [k, ...v] = p.split('='); return [k, decodeURIComponent(v.join('='))]; })
+      );
+      const params = parseParams(afterScheme);
+
+      // Implicit flow: access_token in URL
+      if (params.access_token && params.refresh_token) {
+        const { error } = await supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token,
+        });
+        if (!error) setPasswordRecovery(true);
+        return;
+      }
+
+      // PKCE flow: code param in URL
+      if (params.code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+        if (!error) setPasswordRecovery(true);
+      }
+    };
+    Linking.getInitialURL().then((url) => { if (url) handleUrl({ url }); });
+    const linkingSub = Linking.addEventListener('url', handleUrl);
+
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecovery(true);
+          return;
+        }
         if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
           setUser(null);
           setProfile(null);
@@ -94,6 +129,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription?.unsubscribe();
       appStateSub.remove();
+      linkingSub.remove();
     };
   }, []);
 
@@ -346,6 +382,8 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     updateDriverProfile,
     refreshProfile: () => fetchProfile(user?.id),
+    passwordRecovery,
+    clearPasswordRecovery: () => setPasswordRecovery(false),
   };
 
   return (

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, TextInput,
   Switch, Platform, Linking, Alert, Image, ScrollView,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Animated, PanResponder, TouchableWithoutFeedback,
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -16,6 +17,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import useAgreementStore, { getTotals, getBuyoutProgress, filterEntries } from '../../store/useAgreementStore';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { getWorkingDays, getDayOffInfo } from '../../constants/namibiaHolidays';
 
 const FILTERS = [
   { key: 'all',       label: 'All Time' },
@@ -33,7 +35,7 @@ const fmtMoney = (n) =>
   `N$${parseFloat(n || 0).toLocaleString('en-NA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // ─── Log Entry Modal (driver only) ───────────────────────────────────────────
-const LogEntryModal = ({ visible, onClose, onSave }) => {
+const LogEntryModal = ({ visible, onClose, onSave, entries = [], dailyAmount = 0 }) => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState('');
@@ -41,7 +43,56 @@ const LogEntryModal = ({ visible, onClose, onSave }) => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes(''); setShowDatePicker(false); };
+  // Drag-to-dismiss animation
+  const translateY = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 80 || g.vy > 0.6) {
+          Animated.timing(translateY, { toValue: 700, duration: 220, useNativeDriver: true })
+            .start(() => { onClose(); translateY.setValue(0); reset(); });
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    }),
+  ).current;
+
+  const dismiss = useCallback(() => {
+    Animated.timing(translateY, { toValue: 700, duration: 200, useNativeDriver: true })
+      .start(() => { onClose(); translateY.setValue(0); reset(); });
+  }, [onClose]);
+
+  const reset = () => {
+    setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes(''); setShowDatePicker(false);
+  };
+
+  // Find an existing unlocked entry for the currently selected date
+  const selectedDateStr = date.toISOString().split('T')[0];
+  const existingEntry = entries.find((e) => e.entry_date === selectedDateStr && !e.is_locked);
+  const isUpdating = !!existingEntry;
+
+  // Pre-fill when selected date changes
+  useEffect(() => {
+    if (existingEntry) {
+      setAmount(parseFloat(existingEntry.amount) > 0 ? String(parseFloat(existingEntry.amount)) : '');
+      setIsHoliday(existingEntry.is_public_holiday || false);
+      const autoNote = existingEntry.notes?.endsWith('– day off');
+      setNotes(autoNote ? '' : (existingEntry.notes || ''));
+    } else {
+      setAmount(''); setIsHoliday(false); setNotes('');
+    }
+  }, [selectedDateStr]);
+
+  // Outstanding shortfall across all non-zero entries below the daily target
+  const totalShortfall = dailyAmount > 0
+    ? entries
+        .filter((e) => parseFloat(e.amount) > 0 && parseFloat(e.amount) < dailyAmount)
+        .reduce((sum, e) => sum + (dailyAmount - parseFloat(e.amount)), 0)
+    : 0;
 
   const handleSave = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
@@ -50,7 +101,7 @@ const LogEntryModal = ({ visible, onClose, onSave }) => {
     }
     setSaving(true);
     try {
-      await onSave({ entry_date: date.toISOString().split('T')[0], amount: parseFloat(amount), is_public_holiday: isHoliday, notes: notes.trim() || null });
+      await onSave({ entry_date: selectedDateStr, amount: parseFloat(amount), is_public_holiday: isHoliday, notes: notes.trim() || null });
       reset();
       onClose();
     } finally {
@@ -59,87 +110,120 @@ const LogEntryModal = ({ visible, onClose, onSave }) => {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss} statusBarTranslucent>
+      {/* Tap-outside backdrop */}
+      <TouchableWithoutFeedback onPress={dismiss}>
+        <View style={modal.backdrop} />
+      </TouchableWithoutFeedback>
+
+      {/* Draggable sheet */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={modal.sheetWrapper}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        pointerEvents="box-none"
       >
-        <View style={modal.overlay}>
-          <View style={modal.sheet}>
+        <Animated.View style={[modal.sheet, { transform: [{ translateY }] }]}>
+          {/* Drag handle — the only area that moves the sheet */}
+          <View style={modal.handleWrap} {...panResponder.panHandlers}>
             <View style={modal.handle} />
-            <Text style={modal.title}>Log Today's Entry</Text>
-
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-              <Text style={modal.label}>Date</Text>
-              <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker((v) => !v)}>
-                <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
-                <Text style={modal.dateBtnText}>{fmt(date.toISOString().split('T')[0])}</Text>
-                <Ionicons name={showDatePicker ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray[400]} />
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={(event, d) => {
-                    setShowDatePicker(false);
-                    if (d) setDate(d);
-                  }}
-                />
-              )}
-
-              <Text style={[modal.label, { marginTop: SPACING.md }]}>
-                Amount I Brought Today (N$) <Text style={{ color: COLORS.error }}>*</Text>
-              </Text>
-              <TextInput
-                style={modal.input}
-                placeholder="e.g. 400"
-                placeholderTextColor={COLORS.gray[400]}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                returnKeyType="done"
-              />
-
-              <View style={modal.row}>
-                <Text style={modal.label}>Public Holiday</Text>
-                <Switch value={isHoliday} onValueChange={setIsHoliday} trackColor={{ true: COLORS.primary }} thumbColor={COLORS.white} />
-              </View>
-
-              <Text style={modal.label}>Notes <Text style={modal.optional}>(optional)</Text></Text>
-              <TextInput
-                style={[modal.input, { height: 70, paddingTop: 10, textAlignVertical: 'top' }]}
-                placeholder="Any notes for this day..."
-                placeholderTextColor={COLORS.gray[400]}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                returnKeyType="done"
-              />
-
-              <View style={modal.actions}>
-                <TouchableOpacity style={modal.cancelBtn} onPress={() => { reset(); onClose(); }}>
-                  <Text style={modal.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={modal.saveBtn} onPress={handleSave} disabled={saving}>
-                  {saving
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={modal.saveBtnText}>Save & Sign</Text>}
-                </TouchableOpacity>
-              </View>
-
-            </ScrollView>
           </View>
-        </View>
+
+          <Text style={modal.title}>{isUpdating ? 'Update Entry' : "Log Today's Entry"}</Text>
+
+          {isUpdating && (
+            <View style={modal.updateBanner}>
+              <Ionicons name="information-circle-outline" size={15} color="#D97706" />
+              <Text style={modal.updateBannerText}>
+                {parseFloat(existingEntry.amount) === 0
+                  ? 'Day-off entry — log your amount to record extra work.'
+                  : 'Updating existing entry for this date.'}
+              </Text>
+            </View>
+          )}
+
+          {totalShortfall > 0 && (
+            <>
+              <View style={modal.shortfallBanner}>
+                <Ionicons name="alert-circle-outline" size={15} color="#92400E" />
+                <Text style={modal.shortfallBannerText}>
+                  Outstanding shortfall: N${totalShortfall.toFixed(0)} across previous entries.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={modal.coverBtn}
+                onPress={() => setAmount(String((dailyAmount + totalShortfall).toFixed(0)))}
+              >
+                <Ionicons name="flash-outline" size={14} color={COLORS.primary} />
+                <Text style={modal.coverBtnText}>
+                  Cover today + shortfall → N${(dailyAmount + totalShortfall).toFixed(0)}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+            <Text style={modal.label}>Date</Text>
+            <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker((v) => !v)}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+              <Text style={modal.dateBtnText}>{fmt(selectedDateStr)}</Text>
+              <Ionicons name={showDatePicker ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray[400]} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                maximumDate={new Date()}
+                onChange={(_, d) => { setShowDatePicker(false); if (d) setDate(d); }}
+              />
+            )}
+
+            <Text style={[modal.label, { marginTop: SPACING.md }]}>
+              Amount I Brought (N$) <Text style={{ color: COLORS.error }}>*</Text>
+            </Text>
+            <TextInput
+              style={modal.input}
+              placeholder="e.g. 400"
+              placeholderTextColor={COLORS.gray[400]}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+
+            <View style={modal.row}>
+              <Text style={modal.label}>Public Holiday</Text>
+              <Switch value={isHoliday} onValueChange={setIsHoliday} trackColor={{ true: COLORS.primary }} thumbColor={COLORS.white} />
+            </View>
+
+            <Text style={modal.label}>Notes <Text style={modal.optional}>(optional)</Text></Text>
+            <TextInput
+              style={[modal.input, { height: 70, paddingTop: 10, textAlignVertical: 'top' }]}
+              placeholder="Any notes for this day..."
+              placeholderTextColor={COLORS.gray[400]}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              returnKeyType="done"
+            />
+
+            <TouchableOpacity style={modal.saveBtn} onPress={handleSave} disabled={saving}>
+              {saving
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={modal.saveBtnText}>{isUpdating ? 'Update & Sign' : 'Save & Sign'}</Text>}
+            </TouchableOpacity>
+
+            <View style={{ height: 8 }} />
+          </ScrollView>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 // ─── Entry Row ───────────────────────────────────────────────────────────────
-const EntryRow = ({ item, isOwner, onConfirm }) => {
+const EntryRow = ({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
   const [confirming, setConfirming] = useState(false);
 
   const handleConfirm = async () => {
@@ -148,8 +232,37 @@ const EntryRow = ({ item, isOwner, onConfirm }) => {
     finally { setConfirming(false); }
   };
 
-  const bothSigned   = item.is_locked;
+  const amt         = parseFloat(item.amount);
+  const bothSigned  = item.is_locked;
   const ownerPending = !item.owner_confirmed_at;
+
+  // Day-off entries: auto-logged N$0 Sunday or public holiday
+  const isDayOff = amt === 0 && (item.is_public_holiday || item.notes?.endsWith('– day off'));
+  const dayOffLabel = item.is_public_holiday
+    ? (item.notes?.replace(' – day off', '') || 'Public Holiday')
+    : 'Sunday';
+
+  // Shortfall: entry below daily target
+  const shortfall = (!isDayOff && dailyAmount > 0 && amt > 0)
+    ? Math.max(0, dailyAmount - amt)
+    : 0;
+
+  if (isDayOff) {
+    return (
+      <View style={styles.dayOffRow}>
+        <View style={styles.dayOffIconWrap}>
+          <Ionicons name="moon-outline" size={16} color="#DC2626" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dayOffDate}>{fmt(item.entry_date)}</Text>
+          <Text style={styles.dayOffLabel}>{dayOffLabel}</Text>
+        </View>
+        <View style={styles.dayOffBadge}>
+          <Text style={styles.dayOffBadgeText}>Day Off</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.entryRow}>
@@ -159,6 +272,12 @@ const EntryRow = ({ item, isOwner, onConfirm }) => {
           {item.is_public_holiday && (
             <View style={styles.holidayChip}>
               <Text style={styles.holidayChipText}>Public Holiday</Text>
+            </View>
+          )}
+          {shortfall > 0 && (
+            <View style={styles.shortfallChip}>
+              <Ionicons name="alert-circle-outline" size={10} color="#92400E" />
+              <Text style={styles.shortfallChipText}>N${shortfall.toFixed(0)} short</Text>
             </View>
           )}
           {bothSigned ? (
@@ -202,6 +321,68 @@ const EntryRow = ({ item, isOwner, onConfirm }) => {
   );
 };
 
+// ─── Monthly Projection Card ─────────────────────────────────────────────────
+
+const MonthlyProjectionCard = ({ agreement, isOwner }) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  endOfMonth.setHours(0, 0, 0, 0);
+
+  const agreementStart = new Date(agreement.start_date);
+  agreementStart.setHours(0, 0, 0, 0);
+  const effectiveStart = agreementStart > today ? agreementStart : today;
+
+  const schedOpts = {
+    offSundays: agreement.off_sundays !== false,
+    offPublicHolidays: agreement.off_public_holidays !== false,
+  };
+  const workingDays = getWorkingDays(effectiveStart, endOfMonth, schedOpts);
+  const monthName = today.toLocaleDateString('en-NA', { month: 'long', year: 'numeric' });
+
+  const dailyAmt = parseFloat(agreement.daily_amount || 0);
+  const ownerPct = parseFloat(agreement.owner_percentage || 0);
+
+  const expectedGross = workingDays * dailyAmt;
+  const driverCutAmt  = expectedGross * (ownerPct / 100);
+  const ownerSalary   = expectedGross - driverCutAmt;
+
+  if (!dailyAmt) return null;
+
+  return (
+    <View style={proj.card}>
+      <View style={proj.header}>
+        <Ionicons name="calendar" size={15} color="#7C3AED" />
+        <Text style={proj.title}>Month-End Projection</Text>
+        <Text style={proj.pill}>{workingDays} working days left</Text>
+      </View>
+      <Text style={proj.sub}>{monthName}</Text>
+
+      <View style={proj.row}>
+        <View style={proj.item}>
+          <Text style={proj.itemLabel}>Expected Total</Text>
+          <Text style={[proj.itemValue, { color: COLORS.text }]}>{fmtMoney(expectedGross)}</Text>
+        </View>
+        <View style={proj.divider} />
+        <View style={proj.item}>
+          <Text style={proj.itemLabel}>{isOwner ? "Driver's Cut" : 'Your Cut'} ({ownerPct}%)</Text>
+          <Text style={[proj.itemValue, { color: '#D97706' }]}>{fmtMoney(driverCutAmt)}</Text>
+        </View>
+        {isOwner && (
+          <>
+            <View style={proj.divider} />
+            <View style={proj.item}>
+              <Text style={proj.itemLabel}>Your Salary</Text>
+              <Text style={[proj.itemValue, { color: '#059669' }]}>{fmtMoney(ownerSalary)}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    </View>
+  );
+};
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 const AgreementDetailScreen = ({ navigation, route }) => {
   const { agreementId } = route.params;
@@ -224,8 +405,45 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const [signing, setSigning]   = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting]   = useState(false);
+  const [dayOffInfo, setDayOffInfo] = useState(null);
 
   useEffect(() => { fetchAgreement(agreementId); }, [agreementId]);
+
+  // Auto-log day-off entries (Sunday / public holiday) for the driver
+  useFocusEffect(
+    useCallback(() => {
+      if (!activeAgreement || !profile) return;
+      const isDriverRole = activeAgreement.driver_id === profile.id;
+      const isActiveAgreement = activeAgreement.status === 'active';
+      const isDailyType = activeAgreement.agreement_type === 'daily_remittance';
+      if (!isDriverRole || !isActiveAgreement || !isDailyType) return;
+
+      const schedOpts = {
+        offSundays: activeAgreement.off_sundays !== false,
+        offPublicHolidays: activeAgreement.off_public_holidays !== false,
+      };
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      const info = getDayOffInfo(today, schedOpts);
+      setDayOffInfo(info);
+
+      if (info.isOff) {
+        const alreadyLogged = entries.some((e) => e.entry_date === todayStr);
+        if (!alreadyLogged) {
+          logEntry(activeAgreement.id, activeAgreement.owner_id, activeAgreement.driver_id, {
+            entry_date: todayStr,
+            amount: 0,
+            is_public_holiday: info.reason === 'holiday',
+            notes: info.reason === 'holiday' ? `${info.name} – day off` : 'Sunday – day off',
+          }).catch(() => {}); // silent — owner is not notified for N$0 entries
+        }
+      } else {
+        setDayOffInfo(null);
+      }
+    }, [activeAgreement?.id, activeAgreement?.status, entries.length, profile?.id]),
+  );
 
   const onRefresh = async () => { setRefreshing(true); await fetchAgreement(agreementId); setRefreshing(false); };
 
@@ -322,6 +540,22 @@ const AgreementDetailScreen = ({ navigation, route }) => {
       const allTotals  = getTotals(entries, activeAgreement, 'all');
 
       const rows = sorted.map((e, idx) => {
+        const isDayOff = parseFloat(e.amount) === 0 &&
+          (e.is_public_holiday || e.notes?.endsWith('– day off'));
+        const dayOffLabel = e.is_public_holiday
+          ? (e.notes?.replace(' – day off', '') || 'Public Holiday')
+          : 'Sunday';
+
+        if (isDayOff) {
+          return `
+            <tr style="background:#FFF1F0;">
+              <td>${fmt(e.entry_date)}</td>
+              <td colspan="2"><span class="chip chip-red">Day Off &mdash; ${dayOffLabel}</span></td>
+              <td class="notes">${e.notes ?? ''}</td>
+              <td>&mdash;</td>
+            </tr>`;
+        }
+
         const status = e.is_locked
           ? '<span class="chip chip-green">&#10003; Confirmed</span>'
           : '<span class="chip chip-amber">Pending</span>';
@@ -432,6 +666,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   .chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
   .chip-green { background: #D1FAE5; color: #059669; }
   .chip-amber { background: #FEF3C7; color: #D97706; }
+  .chip-red   { background: #FEE2E2; color: #B91C1C; }
 
   /* ── Footer ── */
   .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; display: flex; justify-content: space-between; }
@@ -528,8 +763,9 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const otherParty = isOwner ? activeAgreement.driver : activeAgreement.owner;
   const otherName  = otherParty ? `${otherParty.firstname ?? ''} ${otherParty.lastname ?? ''}`.trim() : 'Unknown';
   const isDaily    = activeAgreement.agreement_type === 'daily_remittance';
-  const isPending  = activeAgreement.status === 'pending_signature';
-  const isActive   = activeAgreement.status === 'active';
+  const isPending    = activeAgreement.status === 'pending_signature';
+  const isActive     = activeAgreement.status === 'active';
+  const isEnded      = activeAgreement.status === 'terminated' || activeAgreement.status === 'completed';
   const customRange = filter === 'custom'
     ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
     : null;
@@ -598,6 +834,30 @@ const AgreementDetailScreen = ({ navigation, route }) => {
                   This agreement is waiting for your signature
                 </Text>
               </View>
+            )}
+
+            {/* Re-hire banner — shown to owner when agreement is ended */}
+            {isEnded && isOwner && (
+              <TouchableOpacity
+                style={styles.rehireBanner}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('CreateAgreement', {
+                  driverId: activeAgreement.driver_id,
+                  driverName: otherName,
+                  driverImage: otherParty?.profile_image ?? null,
+                })}
+              >
+                <View style={styles.rehireBannerLeft}>
+                  <Ionicons name="refresh-circle-outline" size={20} color={COLORS.primary} />
+                  <View>
+                    <Text style={styles.rehireBannerTitle}>Start a new agreement</Text>
+                    <Text style={styles.rehireBannerSub}>
+                      This agreement has ended — create a fresh one with {otherName}.
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+              </TouchableOpacity>
             )}
 
             {/* Party card */}
@@ -717,6 +977,11 @@ const AgreementDetailScreen = ({ navigation, route }) => {
               </View>
             )}
 
+            {/* Month-end projection — daily remittance only */}
+            {isActive && isDaily && activeAgreement.daily_amount > 0 && (
+              <MonthlyProjectionCard agreement={activeAgreement} isOwner={isOwner} />
+            )}
+
             {/* Filter row — only when active */}
             {isActive && (
               <>
@@ -787,13 +1052,39 @@ const AgreementDetailScreen = ({ navigation, route }) => {
               </>
             )}
 
+            {/* Day-off banner — driver only */}
+            {isActive && isDriver && isDaily && dayOffInfo?.isOff && (
+              <View style={styles.dayOffBanner}>
+                <Ionicons
+                  name={dayOffInfo.reason === 'holiday' ? 'sunny-outline' : 'cafe-outline'}
+                  size={16}
+                  color="#7C3AED"
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.dayOffBannerTitle}>
+                    {dayOffInfo.reason === 'holiday'
+                      ? `${dayOffInfo.name} – public holiday`
+                      : 'Sunday – day off'}
+                  </Text>
+                  <Text style={styles.dayOffBannerSub}>
+                    You're off today. Tap "Log Today" if you worked extra to cover a shortfall.
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {isActive && (
               <Text style={styles.entriesTitle}>Entries ({visibleEntries.length})</Text>
             )}
           </>
         }
         renderItem={({ item }) => (
-          <EntryRow item={item} isOwner={isOwner} onConfirm={handleConfirmEntry} />
+          <EntryRow
+            item={item}
+            isOwner={isOwner}
+            onConfirm={handleConfirmEntry}
+            dailyAmount={parseFloat(activeAgreement?.daily_amount || 0)}
+          />
         )}
         ListEmptyComponent={
           isActive ? (
@@ -813,7 +1104,13 @@ const AgreementDetailScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       )}
 
-      <LogEntryModal visible={showLog} onClose={() => setShowLog(false)} onSave={handleLogEntry} />
+      <LogEntryModal
+        visible={showLog}
+        onClose={() => setShowLog(false)}
+        onSave={handleLogEntry}
+        entries={entries}
+        dailyAmount={parseFloat(activeAgreement?.daily_amount || 0)}
+      />
     </SafeAreaView>
   );
 };
@@ -847,6 +1144,16 @@ const styles = StyleSheet.create({
   },
   signBannerDriver: { backgroundColor: '#EEF2FF' },
   signBannerText: { flex: 1, fontSize: FONTS.sizes.sm, color: '#D97706', fontWeight: '600' },
+
+  rehireBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.primary + '0D', marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl, padding: SPACING.md,
+    marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.primary + '25',
+  },
+  rehireBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  rehireBannerTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.primary },
+  rehireBannerSub: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 1 },
 
   signBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
@@ -953,6 +1260,42 @@ const styles = StyleSheet.create({
   emptyEntries: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyEntriesText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
 
+  // Day-off entry row (Sunday / public holiday)
+  dayOffRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: '#FFF1F0', marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg, padding: SPACING.md,
+    marginBottom: SPACING.sm, borderWidth: 1, borderColor: '#FECACA',
+  },
+  dayOffIconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center',
+  },
+  dayOffDate: { fontSize: FONTS.sizes.xs, color: '#DC2626', marginBottom: 2 },
+  dayOffLabel: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#B91C1C' },
+  dayOffBadge: {
+    backgroundColor: '#FEE2E2', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm, paddingVertical: 3,
+  },
+  dayOffBadgeText: { fontSize: 10, fontWeight: '700', color: '#DC2626' },
+
+  // Shortfall chip
+  shortfallChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#FEF3C7', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm, paddingVertical: 2,
+  },
+  shortfallChipText: { fontSize: 10, color: '#92400E', fontWeight: '700' },
+
+  dayOffBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm,
+    backgroundColor: '#EDE9FE', marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg, padding: SPACING.md,
+    marginBottom: SPACING.sm, borderWidth: 1, borderColor: '#DDD6FE',
+  },
+  dayOffBannerTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#5B21B6' },
+  dayOffBannerSub: { fontSize: FONTS.sizes.xs, color: '#7C3AED', marginTop: 2 },
+
   fab: {
     position: 'absolute', bottom: SPACING.xl, right: SPACING.lg,
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
@@ -963,10 +1306,41 @@ const styles = StyleSheet.create({
 });
 
 const modal = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACING.lg, paddingBottom: 40, maxHeight: '90%' },
-  handle: { width: 40, height: 4, backgroundColor: COLORS.gray[200], borderRadius: 2, alignSelf: 'center', marginBottom: SPACING.md },
-  title: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md },
+  // Full-screen transparent backdrop (sits behind the sheet, dismisses on tap)
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  // Wrapper that positions the sheet at the bottom
+  sheetWrapper: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', pointerEvents: 'box-none' },
+  // The draggable white sheet
+  sheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: SPACING.lg, paddingBottom: 40,
+    maxHeight: '92%',
+    ...SHADOWS.lg,
+  },
+  // Wider drag-handle hit area
+  handleWrap: { alignItems: 'center', paddingVertical: 12 },
+  handle: { width: 44, height: 5, backgroundColor: COLORS.gray[300], borderRadius: 3 },
+  title: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
+  updateBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: '#FEF3C7', borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.sm, marginBottom: SPACING.sm,
+  },
+  updateBannerText: { flex: 1, fontSize: FONTS.sizes.xs, color: '#92400E', fontWeight: '600' },
+  shortfallBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: '#FFF7ED', borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.sm, marginBottom: SPACING.xs,
+    borderWidth: 1, borderColor: '#FED7AA',
+  },
+  shortfallBannerText: { flex: 1, fontSize: FONTS.sizes.xs, color: '#92400E', fontWeight: '600' },
+  coverBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    backgroundColor: COLORS.primary + '14', borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 8, paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
+  },
+  coverBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: FONTS.sizes.sm },
   label: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },
   optional: { color: COLORS.textSecondary, fontWeight: '400' },
   input: {
@@ -983,11 +1357,34 @@ const modal = StyleSheet.create({
   },
   dateBtnText: { fontSize: FONTS.sizes.sm, color: COLORS.text },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.sm },
-  actions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
-  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: BORDER_RADIUS.xl, alignItems: 'center', backgroundColor: COLORS.gray[100] },
-  cancelBtnText: { color: COLORS.text, fontWeight: '600', fontSize: FONTS.sizes.sm },
-  saveBtn: { flex: 2, paddingVertical: 13, borderRadius: BORDER_RADIUS.xl, alignItems: 'center', backgroundColor: '#7C3AED' },
-  saveBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
+  saveBtn: { paddingVertical: 15, borderRadius: BORDER_RADIUS.xl, alignItems: 'center', backgroundColor: '#7C3AED', marginTop: SPACING.md },
+  saveBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.md },
+});
+
+const proj = StyleSheet.create({
+  card: {
+    backgroundColor: '#F5F3FF',
+    marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: 2 },
+  title: { flex: 1, fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#5B21B6' },
+  pill: {
+    fontSize: 10, fontWeight: '700', color: '#7C3AED',
+    backgroundColor: '#EDE9FE', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  sub: { fontSize: FONTS.sizes.xs, color: '#7C3AED', marginBottom: SPACING.sm, opacity: 0.75 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  divider: { width: 1, height: 36, backgroundColor: '#DDD6FE', marginHorizontal: 4 },
+  item: { flex: 1, alignItems: 'center' },
+  itemLabel: { fontSize: 10, color: '#6B7280', marginBottom: 3, textAlign: 'center' },
+  itemValue: { fontSize: FONTS.sizes.md, fontWeight: '800', textAlign: 'center' },
 });
 
 export default AgreementDetailScreen;

@@ -108,15 +108,6 @@ const QUICK_ACTIONS = [
     route: 'Earnings',
     gated: true,
   },
-  {
-    label: 'Expenses',
-    sub: 'Log vehicle costs',
-    icon: 'receipt',
-    color: '#D97706',
-    bg: '#FEF3C7',
-    route: 'ExpenseLog',
-    gated: true,
-  },
 ];
 
 const OwnerHomeScreen = ({ navigation }) => {

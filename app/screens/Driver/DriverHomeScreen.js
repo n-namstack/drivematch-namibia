@@ -300,16 +300,6 @@ const DriverHomeScreen = ({ navigation }) => {
       gated: true,
       onPress: () => navigation.navigate("Earnings"),
     },
-    {
-      id: "expenses",
-      icon: "receipt-outline",
-      label: "Expenses",
-      sub: "Fuel & costs",
-      color: '#EF4444',
-      bg: '#FEE2E2',
-      gated: true,
-      onPress: () => navigation.navigate("ExpenseLog"),
-    },
   ];
 
   return (

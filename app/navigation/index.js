@@ -19,6 +19,7 @@ import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import RoleSelectionScreen from "../screens/Auth/RoleSelectionScreen";
 import VerifyEmailScreen from "../screens/Auth/VerifyEmailScreen";
+import ResetPasswordScreen from "../screens/Auth/ResetPasswordScreen";
 
 // Driver Screens
 import DriverHomeScreen from "../screens/Driver/DriverHomeScreen";
@@ -73,7 +74,6 @@ import VerifyDocumentsScreen from "../screens/Admin/VerifyDocumentsScreen";
 
 // New feature screens
 import EarningsScreen from "../screens/Common/EarningsScreen";
-import ExpenseLogScreen from "../screens/Owner/ExpenseLogScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -238,7 +238,7 @@ function navigateFromNotification(navigationRef, notification) {
 
 // Main App Navigator
 const AppNavigator = () => {
-  const { user, profile, loading, isGuest, termsGateAccepted } = useAuth();
+  const { user, profile, loading, isGuest, termsGateAccepted, passwordRecovery } = useAuth();
   const navigationRef = useRef(null);
 
   useEffect(() => {
@@ -297,7 +297,9 @@ const AppNavigator = () => {
           headerBackButtonDisplayMode: 'minimal',
         }}
       >
-        {!termsGateAccepted ? (
+        {passwordRecovery ? (
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        ) : !termsGateAccepted ? (
           <Stack.Screen name="AgreementGate" component={AgreementGateScreen} />
         ) : !user && !isGuest ? (
           <Stack.Screen name="Auth" component={AuthStack} />
@@ -458,13 +460,8 @@ const AppNavigator = () => {
               component={EarningsScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="ExpenseLog"
-              component={ExpenseLogScreen}
-              options={{ headerShown: false }}
-            />
 
-          </>
+</>
         )}
       </Stack.Navigator>
     </NavigationContainer>

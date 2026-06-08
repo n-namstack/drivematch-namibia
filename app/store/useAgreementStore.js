@@ -55,7 +55,7 @@ export const filterEntries = (entries, filter, customRange = null) => {
 export const getTotals = (entries, agreement, filter = 'all', customRange = null) => {
   const filtered = filterEntries(entries, filter, customRange);
   const totalBrought = filtered.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-  const daysWorked = filtered.length;
+  const daysWorked = filtered.filter((e) => parseFloat(e.amount) > 0).length;
   const driverCut =
     agreement.agreement_type === 'daily_remittance' && agreement.owner_percentage
       ? totalBrought * (parseFloat(agreement.owner_percentage) / 100)

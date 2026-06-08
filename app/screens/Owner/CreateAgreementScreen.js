@@ -43,6 +43,8 @@ const CreateAgreementScreen = ({ navigation, route }) => {
   const [notes, setNotes] = useState('');
   const [contractFile, setContractFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [offSundays, setOffSundays] = useState(true);
+  const [offPublicHolidays, setOffPublicHolidays] = useState(true);
 
   const isDailyRemittance = type === 'daily_remittance';
 
@@ -89,6 +91,8 @@ const CreateAgreementScreen = ({ navigation, route }) => {
         end_date: endDate,
         vehicle_description: vehicle.trim() || null,
         notes: notes.trim() || null,
+        off_sundays: isDailyRemittance ? offSundays : false,
+        off_public_holidays: isDailyRemittance ? offPublicHolidays : false,
       };
 
       const created = await createAgreement(payload);
@@ -183,7 +187,43 @@ const CreateAgreementScreen = ({ navigation, route }) => {
                 </Text>
               ) : null}
             </View>
-          ) : (
+          ) : null}
+
+          {/* Work Schedule — daily remittance only */}
+          {isDailyRemittance && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Work Schedule</Text>
+              <Text style={styles.scheduleSubtitle}>
+                Off days are auto-logged and excluded from monthly projections.
+              </Text>
+              <View style={styles.scheduleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scheduleToggleLabel}>Sundays off</Text>
+                  <Text style={styles.scheduleToggleSub}>Driver does not log on Sundays</Text>
+                </View>
+                <Switch
+                  value={offSundays}
+                  onValueChange={setOffSundays}
+                  trackColor={{ true: COLORS.primary }}
+                  thumbColor={COLORS.white}
+                />
+              </View>
+              <View style={[styles.scheduleRow, { marginTop: SPACING.sm }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scheduleToggleLabel}>Public holidays off</Text>
+                  <Text style={styles.scheduleToggleSub}>Driver does not log on Namibian public holidays</Text>
+                </View>
+                <Switch
+                  value={offPublicHolidays}
+                  onValueChange={setOffPublicHolidays}
+                  trackColor={{ true: COLORS.primary }}
+                  thumbColor={COLORS.white}
+                />
+              </View>
+            </View>
+          )}
+
+          {!isDailyRemittance ? (
             <>
               {/* Buyout target */}
               <View style={styles.field}>
@@ -252,7 +292,7 @@ const CreateAgreementScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             </>
-          )}
+          ) : null}
 
           {/* Start date */}
           <View style={styles.field}>
@@ -346,6 +386,14 @@ const styles = StyleSheet.create({
   required: { color: COLORS.error },
   optional: { color: COLORS.textSecondary, fontWeight: '400' },
   hint: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  scheduleSubtitle: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginBottom: SPACING.sm },
+  scheduleRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, ...SHADOWS.sm,
+  },
+  scheduleToggleLabel: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text },
+  scheduleToggleSub: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
 
   input: {
     backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg,

@@ -60,7 +60,9 @@ const LoginScreen = ({ navigation }) => {
           text: 'Send Reset Link',
           onPress: async () => {
             setLoading(true);
-            const { error } = await supabase.auth.resetPasswordForEmail(email);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: 'duolink://reset-password',
+              });
             setLoading(false);
 
             if (error) {

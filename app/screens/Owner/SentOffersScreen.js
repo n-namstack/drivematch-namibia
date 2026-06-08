@@ -26,7 +26,7 @@ const JOB_TYPE_LABELS = {
   contract:  'Contract',
 };
 
-const SentOfferCard = ({ offer, hasAgreement, onWithdraw, onCreateAgreement, onViewAgreements }) => {
+const SentOfferCard = ({ offer, agreementId, hadPriorAgreement, onWithdraw, onCreateAgreement, onViewAgreement }) => {
   const [acting, setActing] = useState(false);
   const status = STATUS_CONFIG[offer.status] || STATUS_CONFIG.pending;
   const driverName = offer.driver
@@ -102,10 +102,10 @@ const SentOfferCard = ({ offer, hasAgreement, onWithdraw, onCreateAgreement, onV
             </TouchableOpacity>
           )}
           {offer.status === 'accepted' && (
-            hasAgreement ? (
+            agreementId ? (
               <TouchableOpacity
                 style={[styles.agreementBtn, { backgroundColor: '#059669' }]}
-                onPress={onViewAgreements}
+                onPress={() => onViewAgreement(agreementId)}
                 activeOpacity={0.85}
               >
                 <Ionicons name="document-text" size={16} color={COLORS.white} />
@@ -117,8 +117,8 @@ const SentOfferCard = ({ offer, hasAgreement, onWithdraw, onCreateAgreement, onV
                 onPress={() => onCreateAgreement(offer)}
                 activeOpacity={0.85}
               >
-                <Ionicons name="document-text-outline" size={16} color={COLORS.white} />
-                <Text style={styles.agreementBtnText}>Create Agreement</Text>
+                <Ionicons name={hadPriorAgreement ? 'refresh-outline' : 'document-text-outline'} size={16} color={COLORS.white} />
+                <Text style={styles.agreementBtnText}>{hadPriorAgreement ? 'New Agreement' : 'Create Agreement'}</Text>
               </TouchableOpacity>
             )
           )}
@@ -144,9 +144,16 @@ const SentOffersScreen = ({ navigation }) => {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const activeDriverIds = new Set(
+  // Map driver_id → agreement.id for active/pending agreements
+  const activeAgreementByDriver = new Map(
     agreements
       .filter((a) => a.status === 'active' || a.status === 'pending_signature')
+      .map((a) => [a.driver_id, a.id]),
+  );
+  // Set of driver IDs that had a past agreement (terminated/completed)
+  const pastAgreementDriverIds = new Set(
+    agreements
+      .filter((a) => a.status === 'terminated' || a.status === 'completed')
       .map((a) => a.driver_id),
   );
 
@@ -194,10 +201,11 @@ const SentOffersScreen = ({ navigation }) => {
         renderItem={({ item }) => (
           <SentOfferCard
             offer={item}
-            hasAgreement={activeDriverIds.has(item.driver_id)}
+            agreementId={activeAgreementByDriver.get(item.driver_id) ?? null}
+            hadPriorAgreement={pastAgreementDriverIds.has(item.driver_id)}
             onWithdraw={handleWithdraw}
             onCreateAgreement={handleCreateAgreement}
-            onViewAgreements={() => navigation.navigate('Agreements')}
+            onViewAgreement={(id) => navigation.navigate('AgreementDetail', { agreementId: id })}
           />
         )}
         contentContainerStyle={styles.listContent}

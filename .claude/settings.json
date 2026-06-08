@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(eas --version)",
+      "Bash(eas build *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
