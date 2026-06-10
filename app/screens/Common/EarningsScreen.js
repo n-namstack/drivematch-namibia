@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import useAgreementStore from '../../store/useAgreementStore';
+import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const fmtMoney = (n) =>
@@ -92,7 +93,7 @@ const buildMonthlyBuckets = (allEntries, isOwner, ownerPct) => {
 
 // ── Bar chart ─────────────────────────────────────────────────────────────────
 
-const BarChart = ({ buckets, isOwner }) => {
+const BarChart = ({ buckets }) => {
   const maxVal = Math.max(...buckets.map((b) => b.total), 1);
 
   return (
@@ -102,20 +103,27 @@ const BarChart = ({ buckets, isOwner }) => {
         const isLast = i === buckets.length - 1;
         return (
           <View key={b.key} style={chart.col}>
-            <Text style={chart.valLabel} numberOfLines={1}>
+            <Text style={[chart.valLabel, isLast && { color: COLORS.primary }]} numberOfLines={1}>
               {b.total > 0 ? fmtMoney(b.total) : ''}
             </Text>
-            <View style={chart.barBg}>
+            <View style={[chart.barBg, isLast && chart.barBgActive]}>
               <LinearGradient
                 colors={isLast
                   ? [COLORS.primaryDark, COLORS.primary]
-                  : ['#93C5FD', '#3B82F6']}
-                style={[chart.bar, { height: `${Math.max(pct * 100, b.total > 0 ? 4 : 0)}%` }]}
+                  : ['#BFDBFE', '#60A5FA']}
+                style={[chart.bar, { height: `${Math.max(pct * 100, b.total > 0 ? 5 : 0)}%` }]}
                 start={{ x: 0, y: 1 }}
                 end={{ x: 0, y: 0 }}
               />
             </View>
-            <Text style={chart.xLabel} numberOfLines={1}>{b.label}</Text>
+            <Text style={[chart.xLabel, isLast && { color: COLORS.primary, fontWeight: '700' }]} numberOfLines={1}>
+              {b.label}
+            </Text>
+            {b.days > 0 ? (
+              <Text style={chart.daysLabel}>{b.days}d</Text>
+            ) : (
+              <Text style={chart.daysLabel}> </Text>
+            )}
           </View>
         );
       })}
@@ -134,7 +142,7 @@ const EarningsScreen = ({ navigation }) => {
   const [period, setPeriod]       = useState('weekly'); // 'weekly' | 'monthly'
   const [allEntries, setAllEntries] = useState([]);
   const [byAgreement, setByAgreement] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading]     = useState(agreements.length === 0);
   const [refreshing, setRefreshing] = useState(false);
 
   const isOwner  = profile?.role !== 'driver';
@@ -162,21 +170,10 @@ const EarningsScreen = ({ navigation }) => {
   };
 
   // Fetch entries directly since fetchAgreement mutates store state
-  const supabase_fetch = async (agreementId) => {
-    const { default: supabase } = await import('../../lib/supabase');
-    return supabase
-      .from('agreement_entries')
-      .select('*')
-      .eq('agreement_id', agreementId);
-  };
+  const supabase_fetch = (agreementId) =>
+    supabase.from('agreement_entries').select('*').eq('agreement_id', agreementId);
 
   useEffect(() => { loadData(); }, [profile?.id]);
-
-  // Re-aggregate when agreements load
-  useEffect(() => {
-    if (agreements.length === 0) return;
-    loadData();
-  }, [agreements.length]);
 
   const onRefresh = async () => { setRefreshing(true); await loadData(); setRefreshing(false); };
 
@@ -190,12 +187,18 @@ const EarningsScreen = ({ navigation }) => {
     : buildMonthlyBuckets(allEntries, isOwner, driverPct);
 
   const currentBucket = buckets[buckets.length - 1];
-  const avgTotal = buckets.reduce((s, b) => s + b.total, 0) / Math.max(buckets.filter((b) => b.total > 0).length, 1);
-  const bestBucket = buckets.reduce((best, b) => b.total > best.total ? b : best, buckets[0]);
+  const prevBucket    = buckets.length >= 2 ? buckets[buckets.length - 2] : null;
+  const bestBucket    = buckets.reduce((best, b) => b.total > best.total ? b : best, buckets[0]);
 
-  const thisMonthTotal = allEntries
-    .filter((e) => e.entry_date.startsWith(new Date().toISOString().slice(0, 7)))
-    .reduce((s, e) => s + parseFloat(e.amount), 0);
+  // Trend: % change vs previous period (null if previous period is zero)
+  const trend = prevBucket?.total > 0
+    ? ((currentBucket.total - prevBucket.total) / prevBucket.total) * 100
+    : null;
+
+  // Average per working day in the current period
+  const avgPerDay = currentBucket?.days > 0
+    ? currentBucket.total / currentBucket.days
+    : 0;
 
   if (loading) {
     return (
@@ -232,18 +235,19 @@ const EarningsScreen = ({ navigation }) => {
             value={fmtMoneyFull(currentBucket?.total)}
             icon="trending-up"
             color={COLORS.primary}
+            trend={trend}
           />
           <SumCard
-            label={period === 'weekly' ? 'Avg/Week' : 'Avg/Month'}
-            value={fmtMoneyFull(avgTotal)}
-            icon="analytics"
+            label="Avg / Day"
+            value={fmtMoneyFull(avgPerDay)}
+            icon="stats-chart-outline"
             color="#7C3AED"
           />
           <SumCard
-            label="This Month"
-            value={fmtMoneyFull(thisMonthTotal)}
-            icon="calendar"
-            color="#059669"
+            label={period === 'weekly' ? 'Best Week' : 'Best Month'}
+            value={fmtMoneyFull(bestBucket?.total)}
+            icon="trophy-outline"
+            color="#D97706"
           />
         </View>
 
@@ -265,21 +269,30 @@ const EarningsScreen = ({ navigation }) => {
 
         {/* Bar chart */}
         <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>
-            {period === 'weekly' ? 'Last 8 Weeks' : 'Last 6 Months'}
-          </Text>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>
+              {period === 'weekly' ? 'Last 8 Weeks' : 'Last 6 Months'}
+            </Text>
+            {trend != null && (
+              <View style={[styles.trendBadge, { backgroundColor: trend >= 0 ? '#D1FAE5' : '#FEE2E2' }]}>
+                <Ionicons
+                  name={trend >= 0 ? 'trending-up' : 'trending-down'}
+                  size={12}
+                  color={trend >= 0 ? '#059669' : '#DC2626'}
+                />
+                <Text style={[styles.trendBadgeText, { color: trend >= 0 ? '#059669' : '#DC2626' }]}>
+                  {trend >= 0 ? '+' : ''}{trend.toFixed(0)}% vs prev
+                </Text>
+              </View>
+            )}
+          </View>
           {allEntries.length === 0 ? (
             <View style={styles.emptyChart}>
               <Ionicons name="bar-chart-outline" size={40} color={COLORS.gray[300]} />
               <Text style={styles.emptyText}>No entries yet</Text>
             </View>
           ) : (
-            <BarChart buckets={buckets} isOwner={isOwner} />
-          )}
-          {bestBucket?.total > 0 && (
-            <Text style={styles.bestLabel}>
-              Best: {bestBucket.label} — {fmtMoneyFull(bestBucket.total)}
-            </Text>
+            <BarChart buckets={buckets} />
           )}
         </View>
 
@@ -322,13 +335,21 @@ const EarningsScreen = ({ navigation }) => {
   );
 };
 
-const SumCard = ({ label, value, icon, color }) => (
+const SumCard = ({ label, value, icon, color, trend }) => (
   <View style={styles.sumCard}>
     <View style={[styles.sumIconWrap, { backgroundColor: color + '15' }]}>
       <Ionicons name={icon} size={18} color={color} />
     </View>
     <Text style={[styles.sumValue, { color }]}>{value}</Text>
     <Text style={styles.sumLabel}>{label}</Text>
+    {trend != null && (
+      <View style={[styles.trendPill, { backgroundColor: trend >= 0 ? '#D1FAE5' : '#FEE2E2' }]}>
+        <Ionicons name={trend >= 0 ? 'trending-up' : 'trending-down'} size={9} color={trend >= 0 ? '#059669' : '#DC2626'} />
+        <Text style={[styles.trendPillText, { color: trend >= 0 ? '#059669' : '#DC2626' }]}>
+          {trend >= 0 ? '+' : ''}{trend.toFixed(0)}%
+        </Text>
+      </View>
+    )}
   </View>
 );
 
@@ -355,6 +376,11 @@ const styles = StyleSheet.create({
   sumIconWrap: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
   sumValue: { fontSize: FONTS.sizes.sm, fontWeight: '800' },
   sumLabel: { fontSize: 10, color: COLORS.textSecondary, marginTop: 2, textAlign: 'center' },
+  trendPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    borderRadius: BORDER_RADIUS.full, paddingHorizontal: 5, paddingVertical: 2, marginTop: 4,
+  },
+  trendPillText: { fontSize: 9, fontWeight: '700' },
 
   toggleRow: {
     flexDirection: 'row', marginHorizontal: SPACING.lg, marginTop: SPACING.md,
@@ -370,10 +396,15 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl, padding: SPACING.md,
     marginTop: SPACING.md, ...SHADOWS.sm,
   },
-  chartTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md },
+  chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
+  chartTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text },
+  trendBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    borderRadius: BORDER_RADIUS.full, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  trendBadgeText: { fontSize: 10, fontWeight: '700' },
   emptyChart: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
-  bestLabel: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.sm },
 
   section: { marginHorizontal: SPACING.lg, marginTop: SPACING.lg },
   sectionTitle: { fontSize: FONTS.sizes.md, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
@@ -389,12 +420,14 @@ const styles = StyleSheet.create({
 });
 
 const chart = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'flex-end', height: 160, gap: 4 },
+  wrap: { flexDirection: 'row', alignItems: 'flex-end', height: 180, gap: 3 },
   col: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  valLabel: { fontSize: 8, color: COLORS.primary, fontWeight: '700', marginBottom: 2 },
-  barBg: { width: '80%', flex: 1, justifyContent: 'flex-end', borderRadius: 4, overflow: 'hidden', backgroundColor: COLORS.gray[100] },
-  bar: { width: '100%', borderRadius: 4, minHeight: 2 },
+  valLabel: { fontSize: 8, color: COLORS.textSecondary, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
+  barBg: { width: '82%', flex: 1, justifyContent: 'flex-end', borderRadius: 6, overflow: 'hidden', backgroundColor: COLORS.gray[100] },
+  barBgActive: { backgroundColor: COLORS.primary + '12' },
+  bar: { width: '100%', borderRadius: 6, minHeight: 2 },
   xLabel: { fontSize: 9, color: COLORS.textSecondary, marginTop: 4, textAlign: 'center' },
+  daysLabel: { fontSize: 8, color: COLORS.gray[400], marginTop: 1, textAlign: 'center' },
 });
 
 export default EarningsScreen;

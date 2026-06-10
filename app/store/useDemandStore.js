@@ -26,6 +26,8 @@ const useDemandStore = create((set, get) => ({
   getTopLocations: (count = 5) => {
     return get().insights.slice(0, count);
   },
+
+  resetStore: () => set({ insights: [], loading: false, error: null, lastFetched: 0 }),
 }));
 
 export default useDemandStore;

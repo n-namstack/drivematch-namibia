@@ -5,6 +5,10 @@ import supabase from '../lib/supabase';
 import useDriverStore from '../store/useDriverStore';
 import useChatStore from '../store/useChatStore';
 import useModerationStore from '../store/useModerationStore';
+import useHireOfferStore from '../store/useHireOfferStore';
+import useJobStore from '../store/useJobStore';
+import useAgreementStore from '../store/useAgreementStore';
+import useDemandStore from '../store/useDemandStore';
 import { registerForPushNotifications } from '../services/notificationService';
 
 const AuthContext = createContext({});
@@ -292,14 +296,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      // Reset Zustand stores to prevent data leakage between accounts
+      // Reset all Zustand stores to prevent data leakage between accounts
       useDriverStore.getState().resetStore();
       useChatStore.getState().resetStore();
       useModerationStore.getState().resetStore();
+      useHireOfferStore.getState().resetStore();
+      useJobStore.getState().resetStore();
+      useAgreementStore.getState().resetStore();
+      useDemandStore.getState().resetStore();
       setUser(null);
       setProfile(null);
       setDriverProfile(null);
       setIsGuest(false);
+      setPasswordRecovery(false);
     } catch (err) {
       // Sign-out failed — state already cleared above
     }

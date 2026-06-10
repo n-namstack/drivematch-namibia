@@ -163,9 +163,9 @@ const useAgreementStore = create((set, get) => ({
     }));
   },
 
-  // Driver logs a daily entry and signs it in one step
-  // Refuses to overwrite a locked entry
-  logEntry: async (agreementId, ownerId, driverId, { entry_date, amount, is_public_holiday, notes }) => {
+  // Driver logs a daily entry and signs it in one step.
+  // shortfall_allocations: [{ entry_id, amount }] — optional payments toward prior shortfall days.
+  logEntry: async (agreementId, ownerId, driverId, { entry_date, amount, is_public_holiday, notes, dayoff_status }, shortfall_allocations = []) => {
     const existing = get().entries.find((e) => e.entry_date === entry_date && e.agreement_id === agreementId);
     if (existing?.is_locked) {
       throw new Error('LOCKED');
@@ -178,9 +178,11 @@ const useAgreementStore = create((set, get) => ({
           agreement_id: agreementId, owner_id: ownerId, driver_id: driverId,
           entry_date, amount: parseFloat(amount),
           is_public_holiday: !!is_public_holiday, notes: notes || null,
-          driver_confirmed_at: now,   // driver signs when logging
-          owner_confirmed_at: null,   // owner hasn't confirmed receipt yet
+          driver_confirmed_at: now,
+          owner_confirmed_at: null,
+          owner_rejected_at: null,
           is_locked: false,
+          dayoff_status: dayoff_status || null,
         },
         { onConflict: 'agreement_id,entry_date' },
       )
@@ -195,7 +197,71 @@ const useAgreementStore = create((set, get) => ({
           : [data, ...state.entries].sort((a, b) => b.entry_date.localeCompare(a.entry_date));
       return { entries: updated };
     });
-    return data;
+
+    // Notify owner of day off request (manual only; auto-logged Sundays/holidays stay null)
+    if (dayoff_status === 'pending') {
+      supabase.from('notifications').insert({
+        user_id: ownerId,
+        title: 'Day Off Request',
+        body: `Your driver has requested a day off on ${new Date(entry_date + 'T00:00:00').toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+        type: 'dayoff_request',
+        data: { agreement_id: agreementId, entry_id: data.id },
+      }).catch(() => {});
+    }
+
+    // Apply shortfall allocations to the target entries
+    const allocationErrors = [];
+    if (shortfall_allocations.length > 0) {
+      const currentEntries = get().entries;
+      await Promise.all(
+        shortfall_allocations.map(async ({ entry_id, amount: allocAmt }) => {
+          const target = currentEntries.find((e) => e.id === entry_id);
+          if (!target) return;
+          const newPaid = parseFloat(target.shortfall_paid || 0) + allocAmt;
+          const { data: updated, error: allocErr } = await supabase
+            .from('agreement_entries')
+            .update({ shortfall_paid: newPaid })
+            .eq('id', entry_id)
+            .select()
+            .single();
+          if (allocErr) {
+            allocationErrors.push({ entry_id, date: target.entry_date, error: allocErr.message });
+          } else if (updated) {
+            set((state) => ({
+              entries: state.entries.map((e) => (e.id === entry_id ? updated : e)),
+            }));
+          }
+        }),
+      );
+    }
+
+    return { entry: data, allocationErrors };
+  },
+
+  // Owner rejects an entry — deletes it so the driver must re-log
+  rejectEntry: async (entryId) => {
+    const entry = get().entries.find((e) => e.id === entryId);
+    if (!entry) throw new Error('Entry not found');
+    if (entry.is_locked) throw new Error('LOCKED');
+
+    const { error } = await supabase
+      .from('agreement_entries')
+      .delete()
+      .eq('id', entryId);
+    if (error) throw error;
+
+    // Best-effort notification — silent fail if RLS blocks it
+    supabase.from('notifications').insert({
+      user_id: entry.driver_id,
+      title: 'Entry Rejected',
+      body: `Your entry for ${new Date(entry.entry_date + 'T00:00:00').toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })} was rejected. Please re-log.`,
+      type: 'entry_rejected',
+      data: { agreement_id: entry.agreement_id },
+    }).catch(() => {});
+
+    set((state) => ({
+      entries: state.entries.filter((e) => e.id !== entryId),
+    }));
   },
 
   // Owner confirms receipt of an entry → locked forever
@@ -213,6 +279,48 @@ const useAgreementStore = create((set, get) => ({
     }));
   },
 
+  approveDayOff: async (entryId) => {
+    const entry = get().entries.find((e) => e.id === entryId);
+    if (!entry) throw new Error('Entry not found');
+    if (entry.is_locked) throw new Error('LOCKED');
+    const { data, error } = await supabase
+      .from('agreement_entries')
+      .update({ dayoff_status: 'approved' })
+      .eq('id', entryId)
+      .select()
+      .single();
+    if (error) throw error;
+    supabase.from('notifications').insert({
+      user_id: entry.driver_id,
+      title: 'Day Off Approved',
+      body: `Your day off on ${new Date(entry.entry_date + 'T00:00:00').toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })} has been approved.`,
+      type: 'dayoff_approved',
+      data: { agreement_id: entry.agreement_id, entry_id: entryId },
+    }).catch(() => {});
+    set((state) => ({ entries: state.entries.map((e) => (e.id === entryId ? data : e)) }));
+  },
+
+  rejectDayOff: async (entryId) => {
+    const entry = get().entries.find((e) => e.id === entryId);
+    if (!entry) throw new Error('Entry not found');
+    if (entry.is_locked) throw new Error('LOCKED');
+    const { data, error } = await supabase
+      .from('agreement_entries')
+      .update({ dayoff_status: 'rejected' })
+      .eq('id', entryId)
+      .select()
+      .single();
+    if (error) throw error;
+    supabase.from('notifications').insert({
+      user_id: entry.driver_id,
+      title: 'Day Off Rejected',
+      body: `Your day off request for ${new Date(entry.entry_date + 'T00:00:00').toLocaleDateString('en-NA', { day: 'numeric', month: 'short', year: 'numeric' })} was rejected. You still owe the daily remittance for this day.`,
+      type: 'dayoff_rejected',
+      data: { agreement_id: entry.agreement_id, entry_id: entryId },
+    }).catch(() => {});
+    set((state) => ({ entries: state.entries.map((e) => (e.id === entryId ? data : e)) }));
+  },
+
   updateAgreementStatus: async (id, status) => {
     const { error } = await supabase
       .from('driver_agreements')
@@ -226,6 +334,8 @@ const useAgreementStore = create((set, get) => ({
         : state.activeAgreement,
     }));
   },
+
+  resetStore: () => set({ agreements: [], activeAgreement: null, entries: [], loading: false }),
 
   uploadContractDocument: async (agreementId, fileUri, mimeType) => {
     const ext = fileUri.split('.').pop()?.toLowerCase() || 'pdf';

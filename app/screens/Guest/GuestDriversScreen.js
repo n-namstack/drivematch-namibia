@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import supabase from '../../lib/supabase';
 import DriverCard from '../../components/DriverCard';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
@@ -87,12 +88,33 @@ const GuestDriversScreen = ({ navigation }) => {
   const ListHeader = (
     <View>
       {/* Hero */}
-      <View style={styles.hero}>
-        <Text style={styles.brand}>DuoLink</Text>
-        <Text style={styles.heroTitle}>Find a trusted driver</Text>
+      <LinearGradient
+        colors={[COLORS.primaryDark, COLORS.primary, '#4F46E5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.heroBadge}>
+          <Ionicons name="shield-checkmark" size={12} color={COLORS.white} />
+          <Text style={styles.heroBadgeText}>Namibia's Driver Platform</Text>
+        </View>
+        <Text style={styles.heroTitle}>Find your trusted driver</Text>
         <Text style={styles.heroSubtitle}>
-          Browse Namibia's verified drivers — no account needed
+          Browse verified, experienced drivers — no account needed
         </Text>
+
+        <View style={styles.trustRow}>
+          {[
+            { icon: 'shield-checkmark-outline', label: 'Verified' },
+            { icon: 'star-outline',             label: 'Rated' },
+            { icon: 'eye-outline',              label: 'Free to Browse' },
+          ].map((t) => (
+            <View key={t.label} style={styles.trustChip}>
+              <Ionicons name={t.icon} size={13} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.trustChipText}>{t.label}</Text>
+            </View>
+          ))}
+        </View>
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={COLORS.gray[400]} />
@@ -110,24 +132,28 @@ const GuestDriversScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* Sign-in CTA */}
+      {/* Sign-up CTA */}
       <TouchableOpacity
         style={styles.ctaBanner}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('Login')}
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('Register')}
       >
-        <View style={styles.ctaIcon}>
-          <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary} />
-        </View>
-        <View style={styles.ctaTextWrap}>
-          <Text style={styles.ctaTitle}>Want to hire or message a driver?</Text>
-          <Text style={styles.ctaSubtitle}>Create a free account to get started</Text>
-        </View>
-        <View style={styles.ctaButton}>
-          <Text style={styles.ctaButtonText}>Sign In</Text>
-        </View>
+        <LinearGradient
+          colors={['#4F46E5', COLORS.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.ctaGradient}
+        >
+          <View style={styles.ctaLeft}>
+            <Text style={styles.ctaTitle}>Ready to hire a driver?</Text>
+            <Text style={styles.ctaSubtitle}>Create a free account — takes 30 seconds</Text>
+          </View>
+          <View style={styles.ctaArrow}>
+            <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+          </View>
+        </LinearGradient>
       </TouchableOpacity>
 
       {/* Section title */}
@@ -213,32 +239,60 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: SPACING.xl, flexGrow: 1 },
   cardWrap: { paddingHorizontal: SPACING.lg },
   hero: {
-    backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
-    borderBottomLeftRadius: BORDER_RADIUS.xl || 24,
-    borderBottomRightRadius: BORDER_RADIUS.xl || 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  brand: {
-    fontSize: FONTS.sizes.sm,
-    fontWeight: '700',
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: SPACING.sm,
+  },
+  heroBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '600',
     color: COLORS.white,
-    opacity: 0.8,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   heroTitle: {
     fontSize: FONTS.sizes['3xl'],
     fontWeight: '800',
     color: COLORS.white,
-    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+    lineHeight: 36,
   },
   heroSubtitle: {
     fontSize: FONTS.sizes.sm,
-    color: COLORS.white,
-    opacity: 0.85,
-    marginTop: SPACING.xs,
+    color: 'rgba(255,255,255,0.85)',
     marginBottom: SPACING.md,
+    lineHeight: 20,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  trustChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  trustChipText: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.92)',
   },
   searchBar: {
     flexDirection: 'row',
@@ -252,34 +306,29 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: FONTS.sizes.md, color: COLORS.text, padding: 0 },
   ctaBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.md,
-    ...SHADOWS.sm,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
+    ...SHADOWS.md,
   },
-  ctaIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary + '15',
+  ctaGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    gap: SPACING.md,
+  },
+  ctaLeft: { flex: 1 },
+  ctaTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.white },
+  ctaSubtitle: { fontSize: FONTS.sizes.xs, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  ctaArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaTextWrap: { flex: 1 },
-  ctaTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text },
-  ctaSubtitle: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
-  ctaButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  ctaButtonText: { color: COLORS.white, fontWeight: '600', fontSize: FONTS.sizes.sm },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',

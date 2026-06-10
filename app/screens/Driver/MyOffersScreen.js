@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import useHireOfferStore from '../../store/useHireOfferStore';
+import { SkeletonCard } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const STATUS_CONFIG = {
@@ -167,8 +168,8 @@ const MyOffersScreen = ({ navigation }) => {
   if (loading && receivedOffers.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={[]}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.skeletonContent}>
+          {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
         </View>
       </SafeAreaView>
     );
@@ -206,6 +207,7 @@ const MyOffersScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  skeletonContent: { padding: SPACING.lg },
   listContent: { padding: SPACING.lg, paddingBottom: SPACING.xl },
 
   card: {

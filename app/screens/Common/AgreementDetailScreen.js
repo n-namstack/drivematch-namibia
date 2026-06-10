@@ -5,6 +5,7 @@ import {
   ActivityIndicator, RefreshControl, Modal, TextInput,
   Switch, Platform, Linking, Alert, ScrollView,
   KeyboardAvoidingView, Animated, PanResponder, TouchableWithoutFeedback,
+  Keyboard, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as Print from 'expo-print';
@@ -44,38 +45,78 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
   const [isHoliday, setIsHoliday] = useState(false);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [shortfallAllocations, setShortfallAllocations] = useState({});
+  const { height: screenHeight } = useWindowDimensions();
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKbHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKbHeight(0),
+    );
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // Drag-to-dismiss animation
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY    = useRef(new Animated.Value(600)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
-      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) {
+          translateY.setValue(g.dy);
+          backdropOpacity.setValue(Math.max(0, 1 - g.dy / 400));
+        }
+      },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 80 || g.vy > 0.6) {
-          Animated.timing(translateY, { toValue: 700, duration: 220, useNativeDriver: true })
-            .start(() => { onClose(); translateY.setValue(0); reset(); });
+          Animated.parallel([
+            Animated.timing(translateY,      { toValue: 600, duration: 220, useNativeDriver: true }),
+            Animated.timing(backdropOpacity, { toValue: 0,   duration: 220, useNativeDriver: true }),
+          ]).start(() => { onClose(); reset(); });
         } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+          Animated.parallel([
+            Animated.spring(translateY,      { toValue: 0, useNativeDriver: true }),
+            Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+          ]).start();
         }
       },
     }),
   ).current;
 
   const dismiss = useCallback(() => {
-    Animated.timing(translateY, { toValue: 700, duration: 200, useNativeDriver: true })
-      .start(() => { onClose(); translateY.setValue(0); reset(); });
+    Animated.parallel([
+      Animated.timing(translateY,      { toValue: 600, duration: 200, useNativeDriver: true }),
+      Animated.timing(backdropOpacity, { toValue: 0,   duration: 200, useNativeDriver: true }),
+    ]).start(() => { onClose(); reset(); });
   }, [onClose]);
 
   const reset = () => {
-    setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes(''); setShowDatePicker(false);
+    setDate(new Date()); setAmount(''); setIsHoliday(false); setNotes('');
+    setShowDatePicker(false); setShortfallAllocations({});
   };
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(600);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(translateY,      { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
 
   // Find an existing unlocked entry for the currently selected date
   const selectedDateStr = date.toISOString().split('T')[0];
   const existingEntry = entries.find((e) => e.entry_date === selectedDateStr && !e.is_locked);
   const isUpdating = !!existingEntry;
+  const isDateLocked = entries.some((e) => e.entry_date === selectedDateStr && e.is_locked);
 
   // Pre-fill when selected date changes
   useEffect(() => {
@@ -89,23 +130,66 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
     }
   }, [selectedDateStr]);
 
-  // Outstanding shortfall across all non-zero entries below the daily target
-  const totalShortfall = dailyAmount > 0
-    ? entries
-        .filter((e) => parseFloat(e.amount) > 0 && parseFloat(e.amount) < dailyAmount)
-        .reduce((sum, e) => sum + (dailyAmount - parseFloat(e.amount)), 0)
-    : 0;
+  // Per-day outstanding shortfalls (excluding today's date; rejected day offs count as full daily owed)
+  const shortfallEntries = useMemo(() => {
+    if (dailyAmount <= 0) return [];
+    return entries
+      .filter((e) => {
+        if (e.dayoff_status === 'rejected') {
+          const outstanding = Math.max(0, dailyAmount - parseFloat(e.shortfall_paid || 0));
+          return outstanding > 0 && e.entry_date !== selectedDateStr;
+        }
+        const amt = parseFloat(e.amount);
+        const outstanding = Math.max(0, dailyAmount - amt - parseFloat(e.shortfall_paid || 0));
+        return amt > 0 && outstanding > 0 && e.entry_date !== selectedDateStr;
+      })
+      .map((e) => {
+        if (e.dayoff_status === 'rejected') {
+          return { ...e, outstanding: Math.max(0, dailyAmount - parseFloat(e.shortfall_paid || 0)) };
+        }
+        return { ...e, outstanding: Math.max(0, dailyAmount - parseFloat(e.amount) - parseFloat(e.shortfall_paid || 0)) };
+      })
+      .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+  }, [entries, dailyAmount, selectedDateStr]);
+
+  const totalShortfall = shortfallEntries.reduce((s, e) => s + e.outstanding, 0);
+
+  const totalShortfallPayment = useMemo(() =>
+    shortfallEntries.reduce((s, e) => {
+      const v = parseFloat(shortfallAllocations[e.id] || '0');
+      return s + Math.min(isNaN(v) ? 0 : v, e.outstanding);
+    }, 0),
+    [shortfallEntries, shortfallAllocations],
+  );
+
+  const remainingAfterPayment = useMemo(() =>
+    shortfallEntries.reduce((s, e) => {
+      const v = parseFloat(shortfallAllocations[e.id] || '0');
+      const applied = Math.min(isNaN(v) ? 0 : v, e.outstanding);
+      return s + (e.outstanding - applied);
+    }, 0),
+    [shortfallEntries, shortfallAllocations],
+  );
 
   const handleSave = async () => {
+    if (isDateLocked) return;
     if (!amount || isNaN(parseFloat(amount))) {
       Toast.show({ type: 'error', text1: 'Enter a valid amount' });
       return;
     }
+    const allocations = shortfallEntries
+      .map((e) => ({
+        entry_id: e.id,
+        amount: Math.min(parseFloat(shortfallAllocations[e.id] || '0'), e.outstanding),
+      }))
+      .filter((a) => !isNaN(a.amount) && a.amount > 0);
     setSaving(true);
     try {
-      await onSave({ entry_date: selectedDateStr, amount: parseFloat(amount), is_public_holiday: isHoliday, notes: notes.trim() || null });
-      reset();
-      onClose();
+      await onSave(
+        { entry_date: selectedDateStr, amount: parseFloat(amount), is_public_holiday: isHoliday, notes: notes.trim() || null },
+        allocations,
+      );
+      dismiss();
     } finally {
       setSaving(false);
     }
@@ -115,7 +199,7 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss} statusBarTranslucent>
       {/* Tap-outside backdrop */}
       <TouchableWithoutFeedback onPress={dismiss}>
-        <View style={modal.backdrop} />
+        <Animated.View style={[modal.backdrop, { opacity: backdropOpacity }]} />
       </TouchableWithoutFeedback>
 
       {/* Draggable sheet */}
@@ -124,7 +208,11 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         pointerEvents="box-none"
       >
-        <Animated.View style={[modal.sheet, { transform: [{ translateY }] }]}>
+        <Animated.View style={[
+          modal.sheet,
+          { transform: [{ translateY }] },
+          kbHeight > 0 && { maxHeight: screenHeight - kbHeight - 8 },
+        ]}>
           {/* Drag handle — the only area that moves the sheet */}
           <View style={modal.handleWrap} {...panResponder.panHandlers}>
             <View style={modal.handle} />
@@ -132,7 +220,16 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
 
           <Text style={modal.title}>{isUpdating ? 'Update Entry' : "Log Today's Entry"}</Text>
 
-          {isUpdating && (
+          {isDateLocked && (
+            <View style={modal.lockedBanner}>
+              <Ionicons name="lock-closed" size={14} color="#059669" />
+              <Text style={modal.lockedBannerText}>
+                Confirmed by both parties — pick a different date to log.
+              </Text>
+            </View>
+          )}
+
+          {!isDateLocked && isUpdating && (
             <View style={modal.updateBanner}>
               <Ionicons name="information-circle-outline" size={15} color="#D97706" />
               <Text style={modal.updateBannerText}>
@@ -143,27 +240,62 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
             </View>
           )}
 
-          {totalShortfall > 0 && (
-            <>
-              <View style={modal.shortfallBanner}>
-                <Ionicons name="alert-circle-outline" size={15} color="#92400E" />
-                <Text style={modal.shortfallBannerText}>
-                  Outstanding shortfall: N${totalShortfall.toFixed(0)} across previous entries.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={modal.coverBtn}
-                onPress={() => setAmount(String((dailyAmount + totalShortfall).toFixed(0)))}
-              >
-                <Ionicons name="flash-outline" size={14} color={COLORS.primary} />
-                <Text style={modal.coverBtnText}>
-                  Cover today + shortfall → N${(dailyAmount + totalShortfall).toFixed(0)}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+            {/* ── Shortfall section ── */}
+            {shortfallEntries.length > 0 && (
+              <View style={modal.shortfallSection}>
+                <View style={modal.shortfallHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="alert-circle-outline" size={14} color="#92400E" />
+                    <Text style={modal.shortfallTitle}>Outstanding Shortfalls</Text>
+                    <View style={modal.shortfallTotalChip}>
+                      <Text style={modal.shortfallTotalText}>N${totalShortfall.toFixed(0)} total</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={modal.coverAllBtn}
+                    onPress={() => {
+                      const allocs = {};
+                      shortfallEntries.forEach((e) => { allocs[e.id] = String(e.outstanding.toFixed(0)); });
+                      setShortfallAllocations(allocs);
+                      setAmount(String((dailyAmount + totalShortfall).toFixed(0)));
+                    }}
+                  >
+                    <Text style={modal.coverAllBtnText}>Cover all</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {shortfallEntries.map((e) => (
+                  <View key={e.id} style={modal.shortfallRow}>
+                    <View style={modal.shortfallRowLeft}>
+                      <Text style={modal.shortfallRowDate}>{fmt(e.entry_date)}</Text>
+                      <Text style={modal.shortfallRowOwed}>N${e.outstanding.toFixed(0)} outstanding</Text>
+                    </View>
+                    <TextInput
+                      style={modal.shortfallInput}
+                      placeholder="N$0"
+                      placeholderTextColor={COLORS.gray[400]}
+                      value={shortfallAllocations[e.id] || ''}
+                      onChangeText={(v) => setShortfallAllocations((prev) => ({ ...prev, [e.id]: v }))}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                    />
+                  </View>
+                ))}
+
+                {totalShortfallPayment > 0 && (
+                  <View style={modal.shortfallSummary}>
+                    <Text style={modal.shortfallSummaryLine}>
+                      Today N${parseFloat(amount || '0').toFixed(0)}  +  Shortfall N${totalShortfallPayment.toFixed(0)}  =  N${(parseFloat(amount || '0') + totalShortfallPayment).toFixed(0)} total
+                    </Text>
+                    <Text style={modal.shortfallSummaryRemaining}>
+                      Remaining shortfall after: N${remainingAfterPayment.toFixed(0)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             <Text style={modal.label}>Date</Text>
             <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker((v) => !v)}>
@@ -210,7 +342,7 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
               returnKeyType="done"
             />
 
-            <TouchableOpacity style={modal.saveBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity style={[modal.saveBtn, isDateLocked && { opacity: 0.4 }]} onPress={handleSave} disabled={saving || isDateLocked}>
               {saving
                 ? <ActivityIndicator size="small" color={COLORS.white} />
                 : <Text style={modal.saveBtnText}>{isUpdating ? 'Update & Sign' : 'Save & Sign'}</Text>}
@@ -224,9 +356,147 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
   );
 });
 
+// ─── Day Off Modal (driver only) ─────────────────────────────────────────────
+const DayOffModal = memo(({ visible, onClose, onSave, entries = [] }) => {
+  const [date, setDate]                   = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [reason, setReason]               = useState('');
+  const [saving, setSaving]               = useState(false);
+
+  const translateY      = useRef(new Animated.Value(600)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  const reset = () => { setDate(new Date()); setReason(''); setShowDatePicker(false); };
+
+  const dismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY,      { toValue: 600, duration: 200, useNativeDriver: true }),
+      Animated.timing(backdropOpacity, { toValue: 0,   duration: 200, useNativeDriver: true }),
+    ]).start(() => { onClose(); reset(); });
+  }, [onClose]);
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(600);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(translateY,      { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  const selectedDateStr  = date.toISOString().split('T')[0];
+  const existingEntry    = entries.find((e) => e.entry_date === selectedDateStr);
+  const isRejectedDayOff = existingEntry?.dayoff_status === 'rejected';
+  const alreadyOff       = existingEntry && parseFloat(existingEntry.amount) === 0 && !isRejectedDayOff;
+  const hasWorkedEntry   = existingEntry && parseFloat(existingEntry.amount) > 0;
+  const isLocked         = !!existingEntry?.is_locked;
+
+  const handleSave = async () => {
+    if (isLocked) {
+      Toast.show({ type: 'error', text1: 'This entry is locked and cannot be changed.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const note = reason.trim() ? `${reason.trim()} – day off` : 'Day off';
+      await onSave({ entry_date: selectedDateStr, amount: 0, is_public_holiday: false, notes: note, dayoff_status: 'pending' });
+      dismiss();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss} statusBarTranslucent>
+      <TouchableWithoutFeedback onPress={dismiss}>
+        <Animated.View style={[modal.backdrop, { opacity: backdropOpacity }]} />
+      </TouchableWithoutFeedback>
+      <KeyboardAvoidingView style={modal.sheetWrapper} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} pointerEvents="box-none">
+        <Animated.View style={[modal.sheet, { transform: [{ translateY }] }]}>
+          <View style={modal.handleWrap}>
+            <View style={modal.handle} />
+          </View>
+
+          <Text style={modal.title}>Mark Day Off</Text>
+
+          {alreadyOff && (
+            <View style={modal.updateBanner}>
+              <Ionicons name="information-circle-outline" size={15} color="#D97706" />
+              <Text style={modal.updateBannerText}>This day is already marked as day off. You can update the reason.</Text>
+            </View>
+          )}
+          {hasWorkedEntry && (
+            <View style={[modal.updateBanner, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
+              <Ionicons name="warning-outline" size={15} color="#DC2626" />
+              <Text style={[modal.updateBannerText, { color: '#B91C1C' }]}>
+                You already logged N${parseFloat(existingEntry.amount).toFixed(0)} for this date. Marking it off will clear the amount.
+              </Text>
+            </View>
+          )}
+          {isRejectedDayOff && (
+            <View style={[modal.updateBanner, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+              <Text style={[modal.updateBannerText, { color: '#B91C1C' }]}>
+                Your previous day off request was rejected. You can re-request it here, or log actual work using "Log Today".
+              </Text>
+            </View>
+          )}
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={modal.label}>Date</Text>
+            <TouchableOpacity style={modal.dateBtn} onPress={() => setShowDatePicker((v) => !v)}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+              <Text style={modal.dateBtnText}>{fmt(selectedDateStr)}</Text>
+              <Ionicons name={showDatePicker ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray[400]} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                maximumDate={new Date()}
+                onChange={(_, d) => { setShowDatePicker(false); if (d) setDate(d); }}
+              />
+            )}
+
+            <Text style={[modal.label, { marginTop: SPACING.md }]}>
+              Reason <Text style={modal.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              style={[modal.input, { height: 70, paddingTop: 10, textAlignVertical: 'top' }]}
+              placeholder="e.g. Sick, Personal, Family..."
+              placeholderTextColor={COLORS.gray[400]}
+              value={reason}
+              onChangeText={setReason}
+              multiline
+              returnKeyType="done"
+            />
+
+            <TouchableOpacity
+              style={[modal.saveBtn, { backgroundColor: '#DC2626' }]}
+              onPress={handleSave}
+              disabled={saving || isLocked}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={modal.saveBtnText}>{alreadyOff ? 'Update Day Off' : 'Mark Day Off'}</Text>}
+            </TouchableOpacity>
+            <View style={{ height: 8 }} />
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+});
+
 // ─── Entry Row ───────────────────────────────────────────────────────────────
-const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
-  const [confirming, setConfirming] = useState(false);
+const EntryRow = memo(({ item, isOwner, onConfirm, onReject, onApproveDayOff, onRejectDayOff, dailyAmount = 0 }) => {
+  const [confirming, setConfirming]           = useState(false);
+  const [rejecting, setRejecting]             = useState(false);
+  const [approvingDayOff, setApprovingDayOff] = useState(false);
+  const [rejectingDayOff, setRejectingDayOff] = useState(false);
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -234,33 +504,115 @@ const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
     finally { setConfirming(false); }
   };
 
-  const amt         = parseFloat(item.amount);
-  const bothSigned  = item.is_locked;
-  const ownerPending = !item.owner_confirmed_at;
+  const handleReject = () => {
+    Alert.alert(
+      'Reject Entry',
+      'Reject this entry? The driver will be notified to re-log.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            setRejecting(true);
+            try { await onReject(item.id); }
+            finally { setRejecting(false); }
+          },
+        },
+      ],
+    );
+  };
 
-  // Day-off entries: auto-logged N$0 Sunday or public holiday
-  const isDayOff = amt === 0 && (item.is_public_holiday || item.notes?.endsWith('– day off'));
+  const handleApproveDayOff = async () => {
+    setApprovingDayOff(true);
+    try { await onApproveDayOff(item.id); }
+    finally { setApprovingDayOff(false); }
+  };
+
+  const handleRejectDayOff = () => {
+    Alert.alert(
+      'Reject Day Off',
+      "Reject this day off? The driver will still owe the daily remittance for this day.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            setRejectingDayOff(true);
+            try { await onRejectDayOff(item.id); }
+            finally { setRejectingDayOff(false); }
+          },
+        },
+      ],
+    );
+  };
+
+  const amt          = parseFloat(item.amount);
+  const bothSigned   = item.is_locked;
+  const ownerPending = !item.owner_confirmed_at;
+  const isRejected   = !!item.owner_rejected_at;
+
+  // Day-off entries: auto-logged (Sunday/holiday), manually marked, or pending/rejected requests
+  const isDayOff = amt === 0 && (
+    item.is_public_holiday ||
+    item.notes?.endsWith('– day off') ||
+    item.notes?.toLowerCase() === 'day off' ||
+    item.dayoff_status != null
+  );
   const dayOffLabel = item.is_public_holiday
     ? (item.notes?.replace(' – day off', '') || 'Public Holiday')
-    : 'Sunday';
+    : item.notes?.includes('– day off')
+      ? item.notes.replace(' – day off', '')
+      : 'Day Off';
 
-  // Shortfall: entry below daily target
+  // Remaining shortfall after any subsequent payments toward this entry
   const shortfall = (!isDayOff && dailyAmount > 0 && amt > 0)
-    ? Math.max(0, dailyAmount - amt)
+    ? Math.max(0, dailyAmount - amt - parseFloat(item.shortfall_paid || 0))
     : 0;
 
   if (isDayOff) {
+    const dayoffStatus     = item.dayoff_status;
+    const isPendingDayOff  = dayoffStatus === 'pending';
+    const isRejectedDayOff = dayoffStatus === 'rejected';
+    const isApprovedDayOff = dayoffStatus === 'approved';
+    const badgeBg    = isPendingDayOff ? '#FEF3C7' : isRejectedDayOff ? '#FEE2E2' : isApprovedDayOff ? '#D1FAE5' : '#FEE2E2';
+    const badgeColor = isPendingDayOff ? '#D97706' : isRejectedDayOff ? '#DC2626' : isApprovedDayOff ? '#059669' : '#DC2626';
+    const badgeText  = isPendingDayOff ? 'Pending' : isRejectedDayOff ? 'Rejected' : isApprovedDayOff ? 'Approved' : 'Day Off';
+    const rejectedOwed = isRejectedDayOff && dailyAmount > 0
+      ? Math.max(0, dailyAmount - parseFloat(item.shortfall_paid || 0))
+      : 0;
+
     return (
       <View style={styles.dayOffRow}>
         <View style={styles.dayOffIconWrap}>
-          <Ionicons name="moon-outline" size={16} color="#DC2626" />
+          <Ionicons name={isRejectedDayOff ? 'close-circle-outline' : 'moon-outline'} size={16} color="#DC2626" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.dayOffDate}>{fmt(item.entry_date)}</Text>
           <Text style={styles.dayOffLabel}>{dayOffLabel}</Text>
+          {isRejectedDayOff && rejectedOwed > 0 && (
+            <Text style={styles.dayOffRejectedOwed}>N${rejectedOwed.toFixed(0)} still owed</Text>
+          )}
         </View>
-        <View style={styles.dayOffBadge}>
-          <Text style={styles.dayOffBadgeText}>Day Off</Text>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <View style={[styles.dayOffBadge, { backgroundColor: badgeBg }]}>
+            <Text style={[styles.dayOffBadgeText, { color: badgeColor }]}>{badgeText}</Text>
+          </View>
+          {isOwner && isPendingDayOff && (
+            <View style={styles.entryActionCol}>
+              <TouchableOpacity style={styles.confirmBtn} onPress={handleApproveDayOff} disabled={approvingDayOff || rejectingDayOff}>
+                {approvingDayOff
+                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  : <Text style={styles.confirmBtnText}>Approve</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.rejectEntryBtn} onPress={handleRejectDayOff} disabled={approvingDayOff || rejectingDayOff}>
+                {rejectingDayOff
+                  ? <ActivityIndicator size="small" color={COLORS.error} />
+                  : <Text style={styles.rejectEntryBtnText}>Reject</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -287,6 +639,11 @@ const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
               <Ionicons name="lock-closed" size={10} color="#059669" />
               <Text style={styles.lockedChipText}>Both confirmed</Text>
             </View>
+          ) : isRejected ? (
+            <View style={styles.rejectedChip}>
+              <Ionicons name="close-circle" size={10} color="#DC2626" />
+              <Text style={styles.rejectedChipText}>Rejected — re-log required</Text>
+            </View>
           ) : (
             <View style={styles.pendingChip}>
               <Ionicons name="time-outline" size={10} color="#D97706" />
@@ -311,12 +668,19 @@ const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
 
       <View style={styles.entryRight}>
         <Text style={styles.entryAmount}>{fmtMoney(item.amount)}</Text>
-        {isOwner && ownerPending && !bothSigned && (
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={confirming}>
-            {confirming
-              ? <ActivityIndicator size="small" color={COLORS.white} />
-              : <Text style={styles.confirmBtnText}>Confirm</Text>}
-          </TouchableOpacity>
+        {isOwner && ownerPending && !bothSigned && !isRejected && (
+          <View style={styles.entryActionCol}>
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={confirming || rejecting}>
+              {confirming
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={styles.confirmBtnText}>Confirm</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rejectEntryBtn} onPress={handleReject} disabled={confirming || rejecting}>
+              {rejecting
+                ? <ActivityIndicator size="small" color={COLORS.error} />
+                : <Text style={styles.rejectEntryBtnText}>Reject</Text>}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -325,7 +689,9 @@ const EntryRow = memo(({ item, isOwner, onConfirm, dailyAmount = 0 }) => {
   prev.item.id === next.item.id &&
   prev.item.is_locked === next.item.is_locked &&
   prev.item.owner_confirmed_at === next.item.owner_confirmed_at &&
+  prev.item.owner_rejected_at === next.item.owner_rejected_at &&
   prev.item.amount === next.item.amount &&
+  prev.item.dayoff_status === next.item.dayoff_status &&
   prev.isOwner === next.isOwner &&
   prev.dailyAmount === next.dailyAmount
 );
@@ -403,6 +769,9 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const logEntry        = useAgreementStore((s) => s.logEntry);
   const signAgreement   = useAgreementStore((s) => s.signAgreement);
   const confirmEntry    = useAgreementStore((s) => s.confirmEntry);
+  const rejectEntry     = useAgreementStore((s) => s.rejectEntry);
+  const approveDayOff   = useAgreementStore((s) => s.approveDayOff);
+  const rejectDayOff    = useAgreementStore((s) => s.rejectDayOff);
   const updateAgreementStatus = useAgreementStore((s) => s.updateAgreementStatus);
 
   const [filter, setFilter]     = useState('all');
@@ -415,6 +784,8 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting]   = useState(false);
   const [dayOffInfo, setDayOffInfo] = useState(null);
+  const [showDayOff, setShowDayOff] = useState(false);
+  const [declining, setDeclining]   = useState(false);
 
   useEffect(() => { fetchAgreement(agreementId); }, [agreementId]);
 
@@ -456,10 +827,19 @@ const AgreementDetailScreen = ({ navigation, route }) => {
 
   const onRefresh = async () => { setRefreshing(true); await fetchAgreement(agreementId); setRefreshing(false); };
 
-  const handleLogEntry = async (data) => {
+  const handleLogEntry = async (data, allocations = []) => {
     try {
-      await logEntry(agreementId, activeAgreement.owner_id, activeAgreement.driver_id, data);
-      Toast.show({ type: 'success', text1: 'Entry logged!', text2: 'Owner will be notified to confirm receipt.' });
+      const result = await logEntry(agreementId, activeAgreement.owner_id, activeAgreement.driver_id, data, allocations);
+      if (result?.allocationErrors?.length > 0) {
+        Toast.show({ type: 'success', text1: 'Entry logged!', text2: 'Owner will be notified to confirm receipt.' });
+        Toast.show({
+          type: 'error',
+          text1: 'Shortfall payment failed',
+          text2: `Could not record payment toward ${result.allocationErrors.length === 1 ? '1 day' : `${result.allocationErrors.length} days`}. Please try again.`,
+        });
+      } else {
+        Toast.show({ type: 'success', text1: 'Entry logged!', text2: 'Owner will be notified to confirm receipt.' });
+      }
     } catch (err) {
       const msg = err?.message === 'LOCKED'
         ? 'This entry is locked and confirmed by both parties.'
@@ -503,6 +883,72 @@ const AgreementDetailScreen = ({ navigation, route }) => {
       Toast.show({ type: 'error', text1: 'Could not confirm. Please try again.' });
     }
   }, [confirmEntry]);
+
+  const handleRejectEntry = useCallback(async (entryId) => {
+    try {
+      await rejectEntry(entryId);
+      Toast.show({ type: 'info', text1: 'Entry rejected', text2: 'Driver will need to re-log this entry.' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Could not reject. Please try again.' });
+    }
+  }, [rejectEntry]);
+
+  const handleApproveDayOff = useCallback(async (entryId) => {
+    try {
+      await approveDayOff(entryId);
+      Toast.show({ type: 'success', text1: 'Day off approved', text2: 'Driver has been notified.' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Could not approve. Please try again.' });
+    }
+  }, [approveDayOff]);
+
+  const handleRejectDayOff = useCallback(async (entryId) => {
+    try {
+      await rejectDayOff(entryId);
+      Toast.show({ type: 'info', text1: 'Day off rejected', text2: 'Driver still owes the daily remittance for this day.' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Could not reject. Please try again.' });
+    }
+  }, [rejectDayOff]);
+
+  const handleDeclineAgreement = () => {
+    Alert.alert(
+      'Decline Agreement',
+      'Are you sure you want to decline this agreement? The owner will be notified.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setDeclining(true);
+            try {
+              await updateAgreementStatus(agreementId, 'terminated');
+              Toast.show({ type: 'info', text1: 'Agreement declined' });
+              navigation.goBack();
+            } catch {
+              Toast.show({ type: 'error', text1: 'Could not decline. Please try again.' });
+            } finally {
+              setDeclining(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDayOffSave = async (data) => {
+    try {
+      await logEntry(agreementId, activeAgreement.owner_id, activeAgreement.driver_id, data);
+      Toast.show({ type: 'success', text1: 'Day off logged', text2: 'Entry saved for this date.' });
+    } catch (err) {
+      const msg = err?.message === 'LOCKED'
+        ? 'This entry is locked and cannot be changed.'
+        : 'Could not save day off.';
+      Toast.show({ type: 'error', text1: msg });
+      throw err;
+    }
+  };
 
   const handleStatusChange = (status) => {
     Alert.alert(
@@ -758,6 +1204,48 @@ const AgreementDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // ── All hooks must be called unconditionally (Rules of Hooks) ───────────────
+  const customRange = useMemo(() =>
+    filter === 'custom'
+      ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
+      : null,
+    [filter, customFrom, customTo],
+  );
+  const totals = useMemo(() =>
+    activeAgreement
+      ? getTotals(entries, activeAgreement, filter, customRange)
+      : { totalBrought: 0, driverCut: 0, daysWorked: 0 },
+    [entries, activeAgreement, filter, customRange],
+  );
+  const buyout = useMemo(() => {
+    const isDailyRemittance = activeAgreement?.agreement_type === 'daily_remittance';
+    return activeAgreement && !isDailyRemittance ? getBuyoutProgress(activeAgreement, entries) : null;
+  }, [activeAgreement, entries]);
+  const visibleEntries = useMemo(() =>
+    filterEntries(entries, filter, customRange)
+      .slice()
+      .sort((a, b) => a.entry_date.localeCompare(b.entry_date)),
+    [entries, filter, customRange],
+  );
+  const dailyAmountParsed = useMemo(() =>
+    parseFloat(activeAgreement?.daily_amount || 0),
+    [activeAgreement?.daily_amount],
+  );
+  // keyExtractor and renderItem extracted here so all hooks are unconditional
+  const keyExtractor = useCallback((item) => item.id, []);
+  const renderItem = useCallback(({ item }) => (
+    <EntryRow
+      item={item}
+      isOwner={activeAgreement?.owner_id === profile?.id}
+      onConfirm={handleConfirmEntry}
+      onReject={handleRejectEntry}
+      onApproveDayOff={handleApproveDayOff}
+      onRejectDayOff={handleRejectDayOff}
+      dailyAmount={dailyAmountParsed}
+    />
+  ), [activeAgreement?.owner_id, profile?.id, handleConfirmEntry, handleRejectEntry, handleApproveDayOff, handleRejectDayOff, dailyAmountParsed]);
+  // ────────────────────────────────────────────────────────────────────────────
+
   if (loading && !activeAgreement) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -774,31 +1262,16 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   const otherParty = isOwner ? activeAgreement.driver : activeAgreement.owner;
   const otherName  = otherParty ? `${otherParty.firstname ?? ''} ${otherParty.lastname ?? ''}`.trim() : 'Unknown';
   const isDaily    = activeAgreement.agreement_type === 'daily_remittance';
-  const isPending    = activeAgreement.status === 'pending_signature';
-  const isActive     = activeAgreement.status === 'active';
-  const isEnded      = activeAgreement.status === 'terminated' || activeAgreement.status === 'completed';
-  const customRange = useMemo(() =>
-    filter === 'custom'
-      ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
-      : null,
-    [filter, customFrom, customTo],
-  );
-  const totals     = useMemo(() => getTotals(entries, activeAgreement, filter, customRange), [entries, activeAgreement, filter, customRange]);
-  const buyout     = useMemo(() => !isDaily ? getBuyoutProgress(activeAgreement, entries) : null, [isDaily, activeAgreement, entries]);
-  const visibleEntries = useMemo(() =>
-    filterEntries(entries, filter, customRange)
-      .slice()
-      .sort((a, b) => a.entry_date.localeCompare(b.entry_date)),
-    [entries, filter, customRange],
-  );
+  const isPending  = activeAgreement.status === 'pending_signature';
+  const isActive   = activeAgreement.status === 'active';
+  const isEnded    = activeAgreement.status === 'terminated' || activeAgreement.status === 'completed';
   const typeColor  = isDaily ? COLORS.primary : '#7C3AED';
-  const dailyAmountParsed = useMemo(() => parseFloat(activeAgreement?.daily_amount || 0), [activeAgreement?.daily_amount]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <FlatList
         data={visibleEntries}
-        keyExtractor={useCallback((item) => item.id, [])}
+        keyExtractor={keyExtractor}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
         windowSize={5}
@@ -932,17 +1405,28 @@ const AgreementDetailScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Driver sign button */}
+            {/* Driver sign + decline buttons */}
             {isPending && isDriver && (
-              <TouchableOpacity style={styles.signBtn} onPress={handleSign} disabled={signing} activeOpacity={0.85}>
-                {signing
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
-                  : <>
-                      <Ionicons name="pen" size={18} color={COLORS.white} />
-                      <Text style={styles.signBtnText}>Sign Agreement</Text>
-                    </>
-                }
-              </TouchableOpacity>
+              <View style={{ gap: SPACING.sm, marginHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
+                <TouchableOpacity style={styles.signBtn} onPress={handleSign} disabled={signing || declining} activeOpacity={0.85}>
+                  {signing
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <>
+                        <Ionicons name="pen" size={18} color={COLORS.white} />
+                        <Text style={styles.signBtnText}>Sign Agreement</Text>
+                      </>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.declineAgreementBtn} onPress={handleDeclineAgreement} disabled={signing || declining} activeOpacity={0.85}>
+                  {declining
+                    ? <ActivityIndicator size="small" color={COLORS.error} />
+                    : <>
+                        <Ionicons name="close-circle-outline" size={18} color={COLORS.error} />
+                        <Text style={styles.declineAgreementBtnText}>Decline Agreement</Text>
+                      </>
+                  }
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Vehicle + dates */}
@@ -1100,14 +1584,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
             )}
           </>
         }
-        renderItem={useCallback(({ item }) => (
-          <EntryRow
-            item={item}
-            isOwner={isOwner}
-            onConfirm={handleConfirmEntry}
-            dailyAmount={dailyAmountParsed}
-          />
-        ), [isOwner, handleConfirmEntry, dailyAmountParsed])}
+        renderItem={renderItem}
         ListEmptyComponent={
           isActive ? (
             <View style={styles.emptyEntries}>
@@ -1118,12 +1595,18 @@ const AgreementDetailScreen = ({ navigation, route }) => {
         }
       />
 
-      {/* Log Entry FAB — driver only, active agreements */}
+      {/* FAB row — driver only, active agreements */}
       {isDriver && isActive && (
-        <TouchableOpacity style={styles.fab} onPress={() => setShowLog(true)} activeOpacity={0.85}>
-          <Ionicons name="add" size={24} color={COLORS.white} />
-          <Text style={styles.fabText}>Log Today</Text>
-        </TouchableOpacity>
+        <View style={styles.fabRow}>
+          <TouchableOpacity style={[styles.fab, styles.fabSecondary]} onPress={() => setShowDayOff(true)} activeOpacity={0.85}>
+            <Ionicons name="moon-outline" size={18} color={COLORS.primary} />
+            <Text style={[styles.fabText, { color: COLORS.primary }]}>Day Off</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.fab} onPress={() => setShowLog(true)} activeOpacity={0.85}>
+            <Ionicons name="add" size={22} color={COLORS.white} />
+            <Text style={styles.fabText}>Log Today</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       <LogEntryModal
@@ -1132,6 +1615,12 @@ const AgreementDetailScreen = ({ navigation, route }) => {
         onSave={handleLogEntry}
         entries={entries}
         dailyAmount={parseFloat(activeAgreement?.daily_amount || 0)}
+      />
+      <DayOffModal
+        visible={showDayOff}
+        onClose={() => setShowDayOff(false)}
+        onSave={handleDayOffSave}
+        entries={entries}
       />
     </SafeAreaView>
   );
@@ -1180,8 +1669,8 @@ const styles = StyleSheet.create({
 
   signBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
-    backgroundColor: COLORS.primary, marginHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.xl, paddingVertical: 15, marginBottom: SPACING.md, ...SHADOWS.md,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.xl, paddingVertical: 15, ...SHADOWS.md,
   },
   signBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.md },
 
@@ -1274,11 +1763,25 @@ const styles = StyleSheet.create({
   sigItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   sigLabel: { fontSize: 10, color: COLORS.textSecondary },
 
+  entryActionCol: { gap: 6 },
   confirmBtn: {
     backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.md, paddingVertical: 7,
+    width: 82, height: 32, alignItems: 'center', justifyContent: 'center',
   },
   confirmBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.xs },
+  rejectEntryBtn: {
+    backgroundColor: 'transparent', borderRadius: BORDER_RADIUS.lg,
+    width: 82, height: 32, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: COLORS.error,
+  },
+  rejectEntryBtnText: { color: COLORS.error, fontWeight: '700', fontSize: FONTS.sizes.xs },
+
+  rejectedChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#FEE2E2', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm, paddingVertical: 2,
+  },
+  rejectedChipText: { fontSize: 10, color: '#DC2626', fontWeight: '700' },
 
   emptyEntries: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyEntriesText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
@@ -1301,6 +1804,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm, paddingVertical: 3,
   },
   dayOffBadgeText: { fontSize: 10, fontWeight: '700', color: '#DC2626' },
+  dayOffRejectedOwed: { fontSize: FONTS.sizes.xs, color: '#DC2626', fontWeight: '600', marginTop: 2 },
 
   // Shortfall chip
   shortfallChip: {
@@ -1319,13 +1823,26 @@ const styles = StyleSheet.create({
   dayOffBannerTitle: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#5B21B6' },
   dayOffBannerSub: { fontSize: FONTS.sizes.xs, color: '#7C3AED', marginTop: 2 },
 
-  fab: {
+  fabRow: {
     position: 'absolute', bottom: SPACING.xl, right: SPACING.lg,
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: '#7C3AED', borderRadius: BORDER_RADIUS.full,
+  },
+  fab: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.full,
     paddingVertical: 14, paddingHorizontal: SPACING.lg, ...SHADOWS.lg,
   },
+  fabSecondary: {
+    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.primary,
+  },
   fabText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
+
+  declineAgreementBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    borderRadius: BORDER_RADIUS.xl, paddingVertical: 13,
+    borderWidth: 1.5, borderColor: COLORS.error,
+  },
+  declineAgreementBtnText: { color: COLORS.error, fontWeight: '700', fontSize: FONTS.sizes.md },
 });
 
 const modal = StyleSheet.create({
@@ -1345,25 +1862,58 @@ const modal = StyleSheet.create({
   handleWrap: { alignItems: 'center', paddingVertical: 12 },
   handle: { width: 44, height: 5, backgroundColor: COLORS.gray[300], borderRadius: 3 },
   title: { fontSize: FONTS.sizes.lg, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
+  lockedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#DCFCE7', borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.sm, marginBottom: SPACING.sm,
+    borderWidth: 1, borderColor: '#86EFAC',
+  },
+  lockedBannerText: { flex: 1, fontSize: FONTS.sizes.xs, color: '#166534', fontWeight: '600' },
   updateBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
     backgroundColor: '#FEF3C7', borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.sm, marginBottom: SPACING.sm,
   },
   updateBannerText: { flex: 1, fontSize: FONTS.sizes.xs, color: '#92400E', fontWeight: '600' },
-  shortfallBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+  shortfallSection: {
     backgroundColor: '#FFF7ED', borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.sm, marginBottom: SPACING.xs,
+    padding: SPACING.sm, marginBottom: SPACING.sm,
     borderWidth: 1, borderColor: '#FED7AA',
   },
-  shortfallBannerText: { flex: 1, fontSize: FONTS.sizes.xs, color: '#92400E', fontWeight: '600' },
-  coverBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    backgroundColor: COLORS.primary + '14', borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 8, paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
+  shortfallHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xs,
   },
-  coverBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: FONTS.sizes.sm },
+  shortfallTitle: { fontSize: FONTS.sizes.xs, fontWeight: '700', color: '#92400E' },
+  shortfallTotalChip: {
+    backgroundColor: '#FED7AA', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  shortfallTotalText: { fontSize: 10, fontWeight: '700', color: '#92400E' },
+  coverAllBtn: {
+    backgroundColor: COLORS.primary + '18', borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm, paddingVertical: 5,
+  },
+  coverAllBtnText: { fontSize: FONTS.sizes.xs, fontWeight: '700', color: COLORS.primary },
+  shortfallRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingVertical: SPACING.sm, borderTopWidth: 1, borderTopColor: '#FED7AA',
+  },
+  shortfallRowLeft: { flex: 1 },
+  shortfallRowDate: { fontSize: FONTS.sizes.xs, fontWeight: '600', color: '#92400E' },
+  shortfallRowOwed: { fontSize: FONTS.sizes.xs, color: '#B45309', marginTop: 1 },
+  shortfallInput: {
+    width: 82, backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.sm, paddingVertical: 8,
+    fontSize: FONTS.sizes.sm, color: COLORS.text,
+    borderWidth: 1, borderColor: '#FED7AA', textAlign: 'right',
+  },
+  shortfallSummary: {
+    backgroundColor: '#FEF3C7', borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm, marginTop: SPACING.xs,
+    borderTopWidth: 1, borderTopColor: '#FED7AA',
+  },
+  shortfallSummaryLine: { fontSize: FONTS.sizes.xs, fontWeight: '700', color: '#92400E' },
+  shortfallSummaryRemaining: { fontSize: FONTS.sizes.xs, color: '#B45309', marginTop: 2 },
   label: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },
   optional: { color: COLORS.textSecondary, fontWeight: '400' },
   input: {

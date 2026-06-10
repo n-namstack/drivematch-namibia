@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../context/AuthContext";
 import supabase from "../../lib/supabase";
 import {
@@ -26,6 +27,7 @@ const DriverProfileScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [workCount, setWorkCount] = useState(0);
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
 
   const statusInfo =
     VERIFICATION_STATUS[driverProfile?.verification_status] ||
@@ -36,8 +38,11 @@ const DriverProfileScreen = ({ navigation }) => {
   }, []);
 
   const fetchCounts = async () => {
+    if (!driverProfile?.id) {
+      setDocumentsLoaded(true);
+      return;
+    }
     try {
-      if (!driverProfile?.id) return;
       const [docs, work] = await Promise.all([
         supabase
           .from("driver_documents")
@@ -52,6 +57,8 @@ const DriverProfileScreen = ({ navigation }) => {
       setWorkCount(work.count || 0);
     } catch (err) {
       // Non-critical - counts will show 0
+    } finally {
+      setDocumentsLoaded(true);
     }
   };
 
@@ -117,7 +124,12 @@ const DriverProfileScreen = ({ navigation }) => {
         }
       >
         {/* Hero Header */}
-        <View style={styles.heroSection}>
+        <LinearGradient
+          colors={[COLORS.primaryDark, COLORS.primary, '#4F46E5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroSection}
+        >
           <View style={styles.heroContent}>
             <View style={styles.avatarWrapper}>
               {profile?.profile_image ? (
@@ -127,41 +139,39 @@ const DriverProfileScreen = ({ navigation }) => {
                 />
               ) : (
                 <View style={[styles.avatar, styles.placeholderAvatar]}>
-                  <Ionicons name="person" size={36} color={COLORS.white} />
+                  <Ionicons name="person" size={40} color={COLORS.white} />
                 </View>
               )}
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: statusInfo.color },
-                ]}
-              />
+              <TouchableOpacity
+                style={styles.editAvatarBtn}
+                onPress={() => navigation.navigate("EditDriverProfile")}
+              >
+                <Ionicons name="camera" size={14} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
 
             <Text style={styles.heroName}>
               {profile?.firstname} {profile?.lastname}
             </Text>
 
+            <View style={[styles.verifiedBadge, { backgroundColor: statusInfo.color + '30', borderColor: statusInfo.color + '70' }]}>
+              <Ionicons name="shield-checkmark" size={13} color={statusInfo.color} />
+              <Text style={[styles.verifiedBadgeText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+            </View>
+
             <View style={styles.heroMeta}>
               <View style={styles.heroMetaItem}>
-                <Ionicons
-                  name="location-outline"
-                  size={14}
-                  color="rgba(255,255,255,0.8)"
-                />
-                <Text style={styles.heroMetaText}>
-                  {profile?.location || "Namibia"}
-                </Text>
+                <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.heroMetaText}>{profile?.location || "Namibia"}</Text>
               </View>
-              <View style={styles.heroMetaItem}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    { backgroundColor: statusInfo.color },
-                  ]}
-                />
-                <Text style={styles.heroMetaText}>{statusInfo.label}</Text>
-              </View>
+              {driverProfile?.availability && (
+                <View style={styles.heroMetaItem}>
+                  <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
+                  <Text style={styles.heroMetaText}>
+                    {driverProfile.availability === 'full_time' ? 'Full Time' : driverProfile.availability === 'part_time' ? 'Part Time' : 'Weekends'}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.ratingRow}>
@@ -170,11 +180,11 @@ const DriverProfileScreen = ({ navigation }) => {
                 {(driverProfile?.rating || 0).toFixed(1)}
               </Text>
               <Text style={styles.reviewCount}>
-                ({driverProfile?.total_reviews || 0})
+                ({driverProfile?.total_reviews || 0} reviews)
               </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Stats Card (overlapping hero) */}
         <View style={styles.statsContainer}>
@@ -249,7 +259,7 @@ const DriverProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Profile Completion */}
-        {completionPercent < 100 && (
+        {documentsLoaded && completionPercent < 100 && (
           <View style={styles.completionCard}>
             <View style={styles.completionTop}>
               <View style={styles.completionInfo}>
@@ -496,14 +506,13 @@ const styles = StyleSheet.create({
 
   // Hero
   heroSection: {
-    backgroundColor: COLORS.primary,
     paddingBottom: SPACING.xl + SPACING.sm,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
   heroContent: {
     alignItems: "center",
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.xl,
     paddingHorizontal: SPACING.lg,
   },
   avatarWrapper: {
@@ -511,32 +520,50 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: COLORS.white,
   },
   placeholderAvatar: {
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
-  statusDot: {
+  editAvatarBtn: {
     position: "absolute",
     bottom: 2,
     right: 2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+    ...SHADOWS.sm,
   },
   heroName: {
     fontSize: FONTS.sizes["2xl"],
-    fontWeight: "700",
+    fontWeight: "800",
     color: COLORS.white,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
+    textAlign: "center",
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    marginBottom: SPACING.sm,
+  },
+  verifiedBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   heroMeta: {
     flexDirection: "row",
@@ -552,11 +579,6 @@ const styles = StyleSheet.create({
   heroMetaText: {
     fontSize: FONTS.sizes.sm,
     color: "rgba(255,255,255,0.85)",
-  },
-  statusIndicator: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
   },
   ratingRow: {
     flexDirection: "row",

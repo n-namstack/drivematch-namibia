@@ -55,8 +55,7 @@ import NotificationsScreen from "../screens/Common/NotificationsScreen";
 import BlockedUsersScreen from "../screens/Common/BlockedUsersScreen";
 
 // Guest Screens
-import GuestSignInScreen from "../screens/Guest/GuestSignInScreen";
-import GuestDriversScreen from "../screens/Guest/GuestDriversScreen";
+import GuestHomeScreen from "../screens/Guest/GuestHomeScreen";
 
 // Onboarding Screens
 import AgreementGateScreen from "../screens/Onboarding/AgreementGateScreen";
@@ -190,12 +189,10 @@ const GuestTabs = () => (
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-        if (route.name === "Drivers") {
-          iconName = focused ? "people" : "people-outline";
+        if (route.name === "Home") {
+          iconName = focused ? "home" : "home-outline";
         } else if (route.name === "Jobs") {
           iconName = focused ? "briefcase" : "briefcase-outline";
-        } else if (route.name === "Sign In") {
-          iconName = focused ? "log-in" : "log-in-outline";
         }
         return <Ionicons name={iconName} size={size} color={color} />;
       },
@@ -204,9 +201,8 @@ const GuestTabs = () => (
       headerShown: false,
     })}
   >
-    <Tab.Screen name="Drivers" component={GuestDriversScreen} />
+    <Tab.Screen name="Home" component={GuestHomeScreen} />
     <Tab.Screen name="Jobs" component={JobBoardScreen} />
-    <Tab.Screen name="Sign In" component={GuestSignInScreen} />
   </Tab.Navigator>
 );
 

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../context/AuthContext";
 import useDriverStore from "../../store/useDriverStore";
 import useChatStore from "../../store/useChatStore";
@@ -47,6 +48,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
   const [jobPostInfo, setJobPostInfo] = useState(null);
   const [profileInfo, setProfileInfo] = useState(null);
   const [hasAcceptedOffer, setHasAcceptedOffer] = useState(false);
+  const [activeAgreementId, setActiveAgreementId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -103,6 +105,19 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       .limit(1)
       .then(({ data }) => setHasAcceptedOffer((data?.length ?? 0) > 0));
   }, [driver?.user_id, currentUser?.id]);
+
+  // If already hired, check for an active/pending agreement to show the right button
+  useEffect(() => {
+    if (!hasAcceptedOffer || !driver?.user_id || currentUser?.role !== 'owner') return;
+    supabase
+      .from('driver_agreements')
+      .select('id')
+      .eq('owner_id', currentUser.id)
+      .eq('driver_id', driver.user_id)
+      .in('status', ['active', 'pending_signature'])
+      .limit(1)
+      .then(({ data }) => setActiveAgreementId(data?.[0]?.id ?? null));
+  }, [hasAcceptedOffer, driver?.user_id, currentUser?.id]);
 
   const handleCall = async () => {
     if (!requireAuth(user, navigation, "Sign in to contact drivers.")) return;
@@ -175,7 +190,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     if (messaging) return;
     setMessaging(true);
     try {
-      const { data, error } = await startConversation(user.id, driver.id);
+      const { data, error } = await startConversation(user.id, driver.user_id);
       if (error) {
         Alert.alert("Error", "Could not start conversation. Please try again.");
         return;
@@ -403,7 +418,12 @@ const DriverDetailsScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* Hero Section */}
-        <View style={styles.heroSection}>
+        <LinearGradient
+          colors={[COLORS.primaryDark, COLORS.primary, '#4F46E5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroSection}
+        >
           {/* Navigation */}
           <SafeAreaView edges={["top"]} style={styles.navBar}>
             <TouchableOpacity
@@ -452,18 +472,16 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 />
               ) : (
                 <View style={[styles.avatar, styles.placeholderAvatar]}>
-                  <Ionicons name="person" size={36} color={COLORS.white} />
+                  <Ionicons name="person" size={42} color={COLORS.white} />
                 </View>
               )}
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: statusInfo.color },
-                ]}
-              />
             </View>
 
             <Text style={styles.heroName}>{fullName}</Text>
+
+            <View style={[styles.verifiedBadge, { backgroundColor: statusInfo.color + '28', borderColor: statusInfo.color + '60' }]}>
+              <Text style={[styles.verifiedBadgeText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+            </View>
 
             <View style={styles.heroMeta}>
               {userProfile?.location && (
@@ -478,15 +496,6 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                   </Text>
                 </View>
               )}
-              <View style={styles.heroMetaItem}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    { backgroundColor: statusInfo.color },
-                  ]}
-                />
-                <Text style={styles.heroMetaText}>{statusInfo.label}</Text>
-              </View>
             </View>
 
             <View style={styles.ratingRow}>
@@ -495,7 +504,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
               <Text style={styles.reviewCount}>({actualReviewCount})</Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Stats Card */}
         <View style={styles.statsContainer}>
@@ -918,21 +927,35 @@ const DriverDetailsScreen = ({ route, navigation }) => {
       <View style={styles.actionBar}>
         {currentUser?.role === "owner" && (
           <View style={styles.ownerActionRow}>
-            <TouchableOpacity
-              style={[styles.hireBtn, { flex: 1 }]}
-              onPress={() =>
-                navigation.navigate("SendOffer", {
-                  driverId: driver.user_id,
-                  driverName: fullName,
-                  driverImage: userProfile?.profile_image ?? null,
-                })
-              }
-              activeOpacity={0.85}
-            >
-              <Ionicons name="paper-plane-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.hireBtnText}>Hire Directly</Text>
-            </TouchableOpacity>
-            {hasAcceptedOffer && (
+            {!hasAcceptedOffer ? (
+              <TouchableOpacity
+                style={[styles.hireBtn, { flex: 1 }]}
+                onPress={() =>
+                  navigation.navigate("SendOffer", {
+                    driverId: driver.user_id,
+                    driverName: fullName,
+                    driverImage: userProfile?.profile_image ?? null,
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons name="paper-plane-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.hireBtnText}>Hire Directly</Text>
+              </TouchableOpacity>
+            ) : activeAgreementId ? (
+              <TouchableOpacity
+                style={[styles.hireBtn, { flex: 1, borderColor: '#7C3AED' }]}
+                onPress={() =>
+                  navigation.navigate("AgreementDetail", {
+                    agreementId: activeAgreementId,
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
+                <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>View Agreement</Text>
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity
                 style={[styles.hireBtn, { flex: 1, borderColor: '#7C3AED' }]}
                 onPress={() =>
@@ -945,7 +968,7 @@ const DriverDetailsScreen = ({ route, navigation }) => {
                 activeOpacity={0.85}
               >
                 <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
-                <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>New Agreement</Text>
+                <Text style={[styles.hireBtnText, { color: '#7C3AED' }]}>Create Agreement</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1002,10 +1025,10 @@ const styles = StyleSheet.create({
 
   // Hero
   heroSection: {
-    backgroundColor: COLORS.primary,
     paddingBottom: SPACING.xl + SPACING.sm,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    overflow: 'hidden',
   },
   navBar: {
     flexDirection: "row",
@@ -1032,26 +1055,31 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: COLORS.white,
   },
   placeholderAvatar: {
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
-  statusDot: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  verifiedBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   heroName: {
     fontSize: FONTS.sizes["2xl"],

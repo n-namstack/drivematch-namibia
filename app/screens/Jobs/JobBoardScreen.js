@@ -133,13 +133,6 @@ const JobBoardScreen = ({ navigation }) => {
     return result;
   }, [jobs, searchQuery, myInterests, filters, blockedIds]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchJobs(true);
-      if (driverProfile?.id) fetchMyInterests(driverProfile.id);
-    }, [driverProfile?.id]),
-  );
-
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchJobs(true);

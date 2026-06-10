@@ -70,6 +70,7 @@ const useHireOfferStore = create((set, get) => ({
 
   // Driver: accept or reject an offer
   respondToOffer: async (offerId, status) => {
+    const offer = get().receivedOffers.find((o) => o.id === offerId);
     const { error } = await supabase
       .from('hire_offers')
       .update({ status })
@@ -80,6 +81,18 @@ const useHireOfferStore = create((set, get) => ({
         o.id === offerId ? { ...o, status } : o,
       ),
     }));
+    if (offer?.owner_id) {
+      const body = status === 'accepted'
+        ? `A driver has accepted your hire offer: "${offer.title || 'Hire Offer'}".`
+        : `A driver has declined your hire offer: "${offer.title || 'Hire Offer'}".`;
+      supabase.from('notifications').insert({
+        user_id: offer.owner_id,
+        title: status === 'accepted' ? 'Offer Accepted' : 'Offer Declined',
+        body,
+        type: 'offer_responded',
+        data: { offer_id: offerId },
+      }).catch(() => {});
+    }
   },
 
   // Owner: withdraw a pending offer
@@ -99,6 +112,8 @@ const useHireOfferStore = create((set, get) => ({
   // Derived: number of pending offers for a driver
   pendingCount: () =>
     get().receivedOffers.filter((o) => o.status === 'pending').length,
+
+  resetStore: () => set({ sentOffers: [], receivedOffers: [], loading: false }),
 }));
 
 export default useHireOfferStore;

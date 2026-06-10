@@ -13,8 +13,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { useAuth } from "../../context/AuthContext";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useDocumentStore from "../../store/useDocumentStore";
 import useHireOfferStore from "../../store/useHireOfferStore";
+import useAgreementStore from "../../store/useAgreementStore";
 import supabase from "../../lib/supabase";
 import PromoCarousel from "../../components/PromoCarousel";
 
@@ -76,12 +78,24 @@ const DriverHomeScreen = ({ navigation }) => {
   const fetchReceivedOffers = useHireOfferStore((s) => s.fetchReceivedOffers);
   const receivedOffers = useHireOfferStore((s) => s.receivedOffers);
   const pendingOfferCount = receivedOffers.filter((o) => o.status === 'pending').length;
+  const fetchAgreements = useAgreementStore((s) => s.fetchAgreements);
   const [refreshing, setRefreshing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [docsLoaded, setDocsLoaded] = useState(false);
   const [hasBeenHired, setHasBeenHired] = useState(false);
   const [hiringCheckDone, setHiringCheckDone] = useState(false);
+
+  // Read cached hiring status instantly so gated actions show without waiting for network
+  useEffect(() => {
+    if (!profile?.id) return;
+    AsyncStorage.getItem(`driver_hired_${profile.id}`).then(val => {
+      if (val !== null && !hiringCheckDone) {
+        setHasBeenHired(val === 'true');
+        setHiringCheckDone(true);
+      }
+    });
+  }, [profile?.id]);
 
   // Re-fetch unread count and recent jobs every time the screen gains focus
   useFocusEffect(
@@ -90,12 +104,18 @@ const DriverHomeScreen = ({ navigation }) => {
       if (driverProfile?.id) fetchDocuments(driverProfile.id).then(() => setDocsLoaded(true));
       if (profile?.id) {
         fetchReceivedOffers(profile.id);
+        fetchAgreements(profile.id);
         supabase
           .from('hire_offers')
           .select('id', { count: 'exact', head: true })
           .eq('driver_id', profile.id)
           .eq('status', 'accepted')
-          .then(({ count }) => { setHasBeenHired((count || 0) > 0); setHiringCheckDone(true); });
+          .then(({ count }) => {
+            const hired = (count || 0) > 0;
+            setHasBeenHired(hired);
+            setHiringCheckDone(true);
+            AsyncStorage.setItem(`driver_hired_${profile.id}`, String(hired));
+          });
       }
     }, [profile?.id, driverProfile?.id]),
   );

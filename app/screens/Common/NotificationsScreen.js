@@ -66,7 +66,7 @@ const NotificationsScreen = ({ navigation }) => {
         .update({ is_read: true })
         .eq("user_id", profile.id)
         .eq("is_read", false)
-        .then();
+        .catch(() => {});
     }
   };
 

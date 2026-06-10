@@ -13,8 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useDriverStore from '../../store/useDriverStore';
 import useModerationStore from '../../store/useModerationStore';
+import useAgreementStore from '../../store/useAgreementStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
@@ -66,14 +68,6 @@ const OWNER_PROMOS = [
 
 const QUICK_ACTIONS = [
   {
-    label: 'Post a Job',
-    sub: 'Hire the right driver',
-    icon: 'megaphone',
-    color: COLORS.primary,
-    bg: '#EEF2FF',
-    route: 'CreateJobPost',
-  },
-  {
     label: 'Browse Drivers',
     sub: 'Search & filter',
     icon: 'people',
@@ -119,12 +113,24 @@ const OwnerHomeScreen = ({ navigation }) => {
     ? allFeaturedDrivers.filter((d) => !blockedIds.has(d.user_id))
     : allFeaturedDrivers;
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
+  const fetchAgreements = useAgreementStore((s) => s.fetchAgreements);
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeJobCount, setActiveJobCount] = useState(0);
   const [hasHiredDriver, setHasHiredDriver] = useState(false);
   const [hiringCheckDone, setHiringCheckDone] = useState(false);
+
+  // Read cached hiring status instantly so gated actions show without waiting for network
+  useEffect(() => {
+    if (!profile?.id) return;
+    AsyncStorage.getItem(`owner_hired_${profile.id}`).then(val => {
+      if (val !== null && !hiringCheckDone) {
+        setHasHiredDriver(val === 'true');
+        setHiringCheckDone(true);
+      }
+    });
+  }, [profile?.id]);
 
   const fetchUnreadCount = async () => {
     if (!profile?.id) return;
@@ -158,7 +164,9 @@ const OwnerHomeScreen = ({ navigation }) => {
         .select('id', { count: 'exact', head: true })
         .eq('owner_id', profile.id)
         .eq('status', 'accepted');
-      setHasHiredDriver((count || 0) > 0);
+      const hired = (count || 0) > 0;
+      setHasHiredDriver(hired);
+      AsyncStorage.setItem(`owner_hired_${profile.id}`, String(hired));
     } catch {}
     setHiringCheckDone(true);
   };
@@ -168,6 +176,7 @@ const OwnerHomeScreen = ({ navigation }) => {
       fetchUnreadCount();
       fetchActiveJobCount();
       fetchHiredDriver();
+      if (profile?.id) fetchAgreements(profile.id);
     }, [profile?.id]),
   );
 
@@ -306,8 +315,8 @@ const OwnerHomeScreen = ({ navigation }) => {
         </View>
 
         {/* ── Top Drivers ── */}
-        <View style={[styles.section, styles.sectionLast, styles.sectionNoHPad]}>
-          <View style={[styles.sectionHeader, styles.sectionHPad]}>
+        <View style={[styles.section, styles.sectionLast]}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Drivers</Text>
             <TouchableOpacity onPress={() => navigation.navigate('AllDrivers', { showAll: true })}>
               <Text style={styles.seeAll}>See all →</Text>
@@ -320,20 +329,16 @@ const OwnerHomeScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>No drivers available yet</Text>
             </View>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.driversCarousel}
-            >
-              {featuredDrivers.slice(0, 5).map((item) => (
+            <View style={styles.driversList}>
+              {featuredDrivers.slice(0, 4).map((item) => (
                 <DriverCard
                   key={item.id}
                   driver={item}
                   onPress={() => navigation.navigate('DriverDetails', { driverId: item.id })}
-                  horizontal
+                  compact
                 />
               ))}
-            </ScrollView>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -451,9 +456,7 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: COLORS.text },
   actionSub: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
 
-  sectionNoHPad: { paddingHorizontal: 0 },
-  sectionHPad: { paddingHorizontal: SPACING.lg },
-  driversCarousel: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, paddingBottom: SPACING.sm },
+  driversList: { gap: SPACING.xs },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: SPACING['2xl'] },
