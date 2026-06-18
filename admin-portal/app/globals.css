@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-outfit:  'Outfit', sans-serif;
+  --font-manrope: 'Manrope', sans-serif;
+  --font-inter:   'Inter', sans-serif;
+  --font-lobster: 'Lobster', cursive;
+}
+
+body {
+  background-color: #f8fafc;
+  font-family: var(--font-outfit), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
