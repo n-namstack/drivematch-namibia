@@ -47,7 +47,7 @@ export default function OwnerHiresDrawer({ ownerId, ownerName, closeHref }: Prop
   return (
     <>
       <Link href={closeHref} className="fixed inset-0 z-30 bg-black/20" />
-      <div className="fixed right-0 top-0 bottom-0 w-96 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col">
+      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-96 z-40 bg-white shadow-2xl border-l border-slate-200 flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div>
             <h2 className="text-base font-semibold text-slate-900">Hired Drivers</h2>
