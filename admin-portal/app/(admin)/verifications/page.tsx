@@ -122,16 +122,16 @@ export default async function VerificationsPage({ searchParams }: { searchParams
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Verifications</h1>
-        <p className="text-slate-500 mt-1">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+      <div className="mb-5">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Verifications</h1>
+        <p className="text-slate-500 mt-1 text-sm">
           {counts.pending} driver{counts.pending !== 1 ? 's' : ''} pending review
         </p>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1.5 mb-6">
+      <div className="flex flex-wrap gap-1.5 mb-5">
         {tabs.map(tab => (
           <a
             key={tab.key}
