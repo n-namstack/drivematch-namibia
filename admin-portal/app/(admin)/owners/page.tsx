@@ -18,7 +18,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Searc
   const { data: owners } = await admin
     .from('profiles')
     .select('id, firstname, lastname, email, created_at, phone')
-    .eq('is_owner', true)
+    .eq('role', 'owner')
     .order('created_at', { ascending: false })
 
   const ownerIds = (owners ?? []).map((o) => o.id)
@@ -56,7 +56,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Searc
   const closeHref = '/owners'
 
   return (
-    <div className="p-6 relative">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto relative">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
           <Car size={20} className="text-blue-600" />

@@ -105,7 +105,7 @@ export async function setUserAdmin(userId: string, isAdmin: boolean) {
   const user = await getAdminUser()
   const admin = createAdminClient()
 
-  await admin.from('profiles').update({ is_admin: isAdmin }).eq('id', userId)
+  await admin.from('profiles').update({ role: isAdmin ? 'admin' : 'owner' }).eq('id', userId)
 
   await admin.from('admin_actions').insert({
     admin_id: user.id,

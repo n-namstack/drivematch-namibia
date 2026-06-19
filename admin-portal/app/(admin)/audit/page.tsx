@@ -65,18 +65,18 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   const page = Math.max(0, parseInt(searchParams.page ?? '0', 10))
 
   let query = admin
-    .from('audit_logs')
-    .select('id, action, performed_by, target_id, target_type, metadata, created_at', { count: 'exact' })
+    .from('admin_actions')
+    .select('id, action_type, admin_id, target_id, target_type, reason, created_at', { count: 'exact' })
 
   const filterActions = FILTER_ACTIONS[filter]
   if (filterActions) {
-    query = query.in('action', filterActions)
+    query = query.in('action_type', filterActions)
   }
 
   const { data: logs, count } = await query.order('created_at', { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
   const allProfileIds = Array.from(new Set([
-    ...(logs ?? []).map((l) => l.performed_by),
+    ...(logs ?? []).map((l) => l.admin_id),
     ...(logs ?? []).filter((l) => ['driver_profile', 'profile'].includes(l.target_type)).map((l) => l.target_id),
   ].filter(Boolean)))
 
@@ -99,7 +99,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   const filterCounts: Record<string, number> = { all: count ?? 0 }
 
   return (
-    <div className="p-6">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
           <Activity size={20} className="text-slate-600" />
@@ -145,16 +145,16 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
 
             <div className="space-y-2 ml-0">
               {(grouped[dateKey] ?? []).map((log) => {
-                const cfg = ACTION_CONFIG[log.action] ?? { label: log.action, icon: Activity, bg: 'bg-slate-100', iconColor: 'text-slate-600' }
+                const cfg = ACTION_CONFIG[log.action_type] ?? { label: log.action_type, icon: Activity, bg: 'bg-slate-100', iconColor: 'text-slate-600' }
                 const Icon = cfg.icon
-                const performer = profileMap[log.performed_by]
+                const performer = profileMap[log.admin_id]
                 const performerName = performer
                   ? [performer.firstname, performer.lastname].filter(Boolean).join(' ') || performer.email || 'Unknown'
                   : 'Unknown Admin'
                 const target = ['driver_profile', 'profile'].includes(log.target_type) ? profileMap[log.target_id] : null
                 const targetName = target
                   ? [target.firstname, target.lastname].filter(Boolean).join(' ') || target.email
-                  : log.metadata?.document_type || log.target_id?.slice(0, 8) || null
+                  : log.target_id?.slice(0, 8) || null
 
                 return (
                   <div key={log.id} className="flex items-start gap-3">
@@ -174,14 +174,10 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">by {performerName}</p>
-                      {log.metadata && Object.keys(log.metadata).length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {Object.entries(log.metadata).map(([k, v]) => (
-                            <span key={k} className="text-[10px] bg-slate-50 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                              {k}: {String(v)}
-                            </span>
-                          ))}
-                        </div>
+                      {log.reason && (
+                        <p className="mt-1.5 text-[10px] bg-slate-50 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full inline-block">
+                          reason: {log.reason}
+                        </p>
                       )}
                     </div>
                   </div>

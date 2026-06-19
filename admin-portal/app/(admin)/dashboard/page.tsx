@@ -34,10 +34,10 @@ export default async function DashboardPage() {
     { data: allHiresRaw },
     { data: hiresLast30Raw },
   ] = await Promise.all([
-    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('is_driver', true),
-    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('is_owner', true),
-    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('is_driver', true).eq('is_verified', false),
-    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('is_driver', true).eq('is_verified', true),
+    admin.from('driver_profiles').select('user_id', { count: 'exact', head: true }),
+    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'owner'),
+    admin.from('driver_profiles').select('user_id', { count: 'exact', head: true }).in('verification_status', ['pending', 'submitted']),
+    admin.from('driver_profiles').select('user_id', { count: 'exact', head: true }).eq('verification_status', 'verified'),
     admin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo),
     admin.from('agreement_entries').select('entry_date, amount'),
     admin.from('agreement_entries').select('entry_date, amount').gte('entry_date', thirtyDaysAgo.split('T')[0]!),
@@ -88,7 +88,7 @@ export default async function DashboardPage() {
   const avgDailyEarnings = distinctDates > 0 ? Math.round(totalEntryAmount / distinctDates) : 0
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-0.5">Platform overview · Last updated just now</p>
