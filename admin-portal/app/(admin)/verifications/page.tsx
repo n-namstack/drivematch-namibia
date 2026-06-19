@@ -36,7 +36,7 @@ export default async function VerificationsPage({ searchParams }: { searchParams
   // Always fetch all three statuses so we can show per-tab counts
   const { data: driverProfiles } = await admin
     .from('driver_profiles')
-    .select('id, user_id, verification_status, rejection_reason, years_of_experience')
+    .select('id, user_id, verification_status, rejection_reason, years_of_experience, created_at')
     .in('verification_status', ['pending', 'submitted', 'verified'])
     .order('created_at', { ascending: true })
 
@@ -91,6 +91,7 @@ export default async function VerificationsPage({ searchParams }: { searchParams
         verification_status: dp.verification_status,
         rejection_reason: dp.rejection_reason,
         years_of_experience: dp.years_of_experience,
+        submitted_at: dp.created_at,
         license_number: null,
         profiles: profile,
         driver_documents: docsWithUrls,

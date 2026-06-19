@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { approveDriver, rejectDriver, approveDocument, rejectDocument } from '@/lib/actions'
-import { CheckCircle, XCircle, Eye, FileText, Loader2, ChevronDown, ChevronUp, FolderOpen } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, FileText, Loader2, ChevronDown, ChevronUp, FolderOpen, Clock } from 'lucide-react'
 
 function DocumentViewer({ url, label }: { url: string | null; label: string }) {
   const [open, setOpen] = useState(false)
@@ -105,6 +105,7 @@ interface Driver {
   verification_status: string
   rejection_reason: string | null
   years_of_experience: number | null
+  submitted_at: string | null
   license_number: string | null
   profiles: { firstname: string | null; lastname: string | null; email: string | null; phone: string | null } | null
   driver_documents: Document[]
@@ -163,6 +164,15 @@ export default function VerificationPanel({ driver }: { driver: Driver }) {
               <div className="min-w-0">
                 <div className="font-semibold text-slate-900 truncate">{name}</div>
                 <div className="text-xs text-slate-400 truncate">{profile?.email}</div>
+                {driver.submitted_at && (
+                  <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400">
+                    <Clock size={10} className="flex-shrink-0" />
+                    Submitted{' '}
+                    {new Date(driver.submitted_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {' · '}
+                    {new Date(driver.submitted_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
               </div>
             </div>
 
