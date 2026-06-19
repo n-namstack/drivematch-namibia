@@ -88,7 +88,7 @@ export default async function DashboardPage() {
   const avgDailyEarnings = distinctDates > 0 ? Math.round(totalEntryAmount / distinctDates) : 0
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-0.5">Platform overview · Last updated just now</p>
