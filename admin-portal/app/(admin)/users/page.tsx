@@ -6,7 +6,7 @@ import { Users } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 interface SearchParams { q?: string; tab?: string; page?: string }
 
@@ -50,15 +50,18 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
   if (tab === 'owners')   query = query.eq('role', 'owner')
   if (tab === 'inactive') query = query.eq('is_active', false)
 
-  const [{ data: users, count }, { data: authData }] = await Promise.all([
-    query.order('created_at', { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
-    admin.auth.admin.listUsers({ perPage: 1000 }),
-  ])
+  const { data: users, count } = await query
+    .order('created_at', { ascending: false })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
+  // Only fetch auth data for the users on this page (not all 1000+)
   const lastSignInMap: Record<string, string | null> = {}
-  for (const u of authData?.users ?? []) {
-    lastSignInMap[u.id] = u.last_sign_in_at ?? null
-  }
+  await Promise.all(
+    (users ?? []).map(async (u) => {
+      const { data } = await admin.auth.admin.getUserById(u.id)
+      lastSignInMap[u.id] = data?.user?.last_sign_in_at ?? null
+    })
+  )
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
   const pages = pageNumbers(page, totalPages)
@@ -123,7 +126,11 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-semibold text-xs flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 ${
+                          u.role === 'admin'  ? 'bg-violet-100 text-violet-700' :
+                          u.role === 'driver' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-emerald-100 text-emerald-700'
+                        }`}>
                           {name.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-slate-900">{name}</span>
@@ -142,8 +149,15 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                         {u.is_active !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-slate-500 text-xs whitespace-nowrap">
-                      {lastLogin ? new Date(lastLogin).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : <span className="text-slate-300">Never</span>}
+                    <td className="px-5 py-3.5 text-xs whitespace-nowrap">
+                      {lastLogin ? (
+                        <div>
+                          <div className="text-slate-700">{new Date(lastLogin).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                          <div className="text-slate-400 mt-0.5">{new Date(lastLogin).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-300">Never</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5 text-slate-500 text-xs whitespace-nowrap">
                       {new Date(u.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}

@@ -17,61 +17,69 @@ async function signUrl(admin: ReturnType<typeof createAdminClient>, url: string 
   } catch { return url }
 }
 
-export default async function VerificationsPage() {
+const FILTER_STATUSES: Record<string, string[]> = {
+  all:      ['pending', 'submitted', 'verified'],
+  pending:  ['pending', 'submitted'],
+  verified: ['verified'],
+}
+
+interface SearchParams { filter?: string }
+
+export default async function VerificationsPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
+  const filter = (searchParams.filter && FILTER_STATUSES[searchParams.filter]) ? searchParams.filter : 'all'
 
-  // Step 1: fetch pending/submitted driver profiles
+  // Always fetch all three statuses so we can show per-tab counts
   const { data: driverProfiles } = await admin
     .from('driver_profiles')
     .select('id, user_id, verification_status, rejection_reason, years_of_experience')
-    .in('verification_status', ['pending', 'submitted'])
+    .in('verification_status', ['pending', 'submitted', 'verified'])
     .order('created_at', { ascending: true })
 
-  if (!driverProfiles || driverProfiles.length === 0) {
-    return (
-      <div className="p-8 max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Verifications</h1>
-          <p className="text-slate-500 mt-1">0 drivers pending review</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 text-center py-16">
-          <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-1">All caught up!</h2>
-          <p className="text-slate-500">No drivers pending verification</p>
-        </div>
-      </div>
-    )
+  const allProfiles = driverProfiles ?? []
+
+  const counts = {
+    all:      allProfiles.length,
+    pending:  allProfiles.filter(dp => ['pending', 'submitted'].includes(dp.verification_status)).length,
+    verified: allProfiles.filter(dp => dp.verification_status === 'verified').length,
   }
 
-  const userIds = driverProfiles.map((dp) => dp.user_id)
-  const profileIds = driverProfiles.map((dp) => dp.id)
+  // Filter to the active tab
+  const filteredProfiles = allProfiles.filter(dp =>
+    FILTER_STATUSES[filter]!.includes(dp.verification_status)
+  )
 
-  // Step 2: fetch profiles and documents in parallel
-  const [{ data: profiles }, { data: documents }] = await Promise.all([
-    admin.from('profiles').select('id, firstname, lastname, email, phone').in('id', userIds),
-    admin.from('driver_documents')
-      .select('id, driver_id, document_type, document_url, selfie_url, verification_status, rejection_reason, verified_at, verified_by')
-      .in('driver_id', profileIds),
-  ])
+  const userIds  = filteredProfiles.map(dp => dp.user_id)
+  const profileIds = filteredProfiles.map(dp => dp.id)
 
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))
+  // Fetch profiles and documents for filtered set
+  const [{ data: profiles }, { data: documents }] = profileIds.length > 0
+    ? await Promise.all([
+        admin.from('profiles').select('id, firstname, lastname, email, phone').in('id', userIds),
+        admin.from('driver_documents')
+          .select('id, driver_id, document_type, document_url, selfie_url, verification_status, rejection_reason, verified_at, verified_by')
+          .in('driver_id', profileIds),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }]
+
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
   const docsByDriverId: Record<string, typeof documents> = {}
   for (const doc of documents ?? []) {
     if (!docsByDriverId[doc.driver_id]) docsByDriverId[doc.driver_id] = []
     docsByDriverId[doc.driver_id]!.push(doc)
   }
 
-  // Step 3: generate signed URLs
+  // Sign URLs
   const drivers = await Promise.all(
-    driverProfiles.map(async (dp) => {
+    filteredProfiles.map(async dp => {
       const profile = profileMap[dp.user_id] ?? null
       const docs = docsByDriverId[dp.id] ?? []
       const docsWithUrls = await Promise.all(
-        docs.map(async (doc) => ({
+        docs.map(async doc => ({
           ...doc,
           file_url: doc.document_url,
           signed_url: await signUrl(admin, doc.document_url),
@@ -90,19 +98,69 @@ export default async function VerificationsPage() {
     })
   )
 
+  const tabs = [
+    { key: 'all',      label: 'All',      count: counts.all      },
+    { key: 'pending',  label: 'Pending',  count: counts.pending  },
+    { key: 'verified', label: 'Verified', count: counts.verified },
+  ]
+
+  const TAB_ACTIVE: Record<string, string> = {
+    all:      'bg-slate-800 text-white',
+    pending:  'bg-amber-500 text-white',
+    verified: 'bg-emerald-600 text-white',
+  }
+  const TAB_INACTIVE: Record<string, string> = {
+    all:      'text-slate-600 hover:bg-slate-100',
+    pending:  'text-amber-700 hover:bg-amber-50',
+    verified: 'text-emerald-700 hover:bg-emerald-50',
+  }
+
+  const emptyMessages: Record<string, string> = {
+    all:      'No drivers in the verification pipeline',
+    pending:  'No drivers pending verification',
+    verified: 'No verified drivers yet',
+  }
+
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="mb-8">
+    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Verifications</h1>
         <p className="text-slate-500 mt-1">
-          {drivers.length} driver{drivers.length !== 1 ? 's' : ''} pending review
+          {counts.pending} driver{counts.pending !== 1 ? 's' : ''} pending review
         </p>
       </div>
-      <div className="space-y-4">
-        {drivers.map((driver) => (
-          <VerificationPanel key={driver.user_id} driver={driver as any} />
+
+      {/* Filter tabs */}
+      <div className="flex gap-1.5 mb-6">
+        {tabs.map(tab => (
+          <a
+            key={tab.key}
+            href={`/verifications?filter=${tab.key}`}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${filter === tab.key ? TAB_ACTIVE[tab.key] : TAB_INACTIVE[tab.key]}`}
+          >
+            {tab.label}
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === tab.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+              {tab.count}
+            </span>
+          </a>
         ))}
       </div>
+
+      {drivers.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 text-center py-16">
+          <div className="text-5xl mb-4">{filter === 'verified' ? '✅' : '📋'}</div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">
+            {filter === 'verified' ? 'No verified drivers yet' : 'All caught up!'}
+          </h2>
+          <p className="text-slate-500">{emptyMessages[filter]}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {drivers.map(driver => (
+            <VerificationPanel key={driver.user_id} driver={driver as any} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

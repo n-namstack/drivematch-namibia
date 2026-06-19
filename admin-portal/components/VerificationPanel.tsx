@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { approveDriver, rejectDriver, approveDocument, rejectDocument } from '@/lib/actions'
-import { CheckCircle, XCircle, Eye, FileText, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, FileText, Loader2, ChevronDown, ChevronUp, FolderOpen } from 'lucide-react'
 
 function DocumentViewer({ url, label }: { url: string | null; label: string }) {
   const [open, setOpen] = useState(false)
@@ -153,19 +153,27 @@ export default function VerificationPanel({ driver }: { driver: Driver }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              driver.verification_status === 'verified'  ? 'bg-emerald-100 text-emerald-700' :
+              driver.verification_status === 'rejected'  ? 'bg-red-100 text-red-700' :
+                                                           'bg-amber-100 text-amber-700'
+            }`}>
               {driver.verification_status}
             </span>
-            <button onClick={handleApprove} disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-              {isPending ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-              Approve All
-            </button>
-            <button onClick={() => setShowReject(true)} disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 text-xs font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors">
-              <XCircle size={12} />
-              Reject
-            </button>
+            {driver.verification_status !== 'verified' && (
+              <>
+                <button onClick={handleApprove} disabled={isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                  {isPending ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                  Approve All
+                </button>
+                <button onClick={() => setShowReject(true)} disabled={isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 text-xs font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors">
+                  <XCircle size={12} />
+                  Reject
+                </button>
+              </>
+            )}
             <button onClick={() => setExpanded(!expanded)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
               {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
@@ -174,27 +182,34 @@ export default function VerificationPanel({ driver }: { driver: Driver }) {
 
         {/* Documents */}
         {expanded && (
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {driver.driver_documents.map((doc) => (
-              <div key={doc.id} className="border border-slate-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText size={14} className="text-slate-400" />
-                  <span className="text-sm font-medium text-slate-700 capitalize">
-                    {doc.document_type?.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <DocumentViewer url={doc.signed_url} label="View Document" />
-                  {doc.signed_selfie_url && (
-                    <DocumentViewer url={doc.signed_selfie_url} label="View Selfie" />
+          driver.driver_documents.length === 0 ? (
+            <div className="flex items-center gap-3 px-5 py-6 text-slate-400">
+              <FolderOpen size={18} className="flex-shrink-0" />
+              <p className="text-sm">No documents uploaded</p>
+            </div>
+          ) : (
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {driver.driver_documents.map((doc) => (
+                <div key={doc.id} className="border border-slate-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText size={14} className="text-slate-400" />
+                    <span className="text-sm font-medium text-slate-700 capitalize">
+                      {doc.document_type?.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <DocumentViewer url={doc.signed_url} label="View Document" />
+                    {doc.signed_selfie_url && (
+                      <DocumentViewer url={doc.signed_selfie_url} label="View Selfie" />
+                    )}
+                  </div>
+                  {doc.rejection_reason && (
+                    <p className="text-xs text-red-600 mt-2">Rejected: {doc.rejection_reason}</p>
                   )}
                 </div>
-                {doc.rejection_reason && (
-                  <p className="text-xs text-red-600 mt-2">Rejected: {doc.rejection_reason}</p>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
       </div>
     </>

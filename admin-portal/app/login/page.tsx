@@ -2,14 +2,12 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -27,19 +25,19 @@ export default function LoginPage() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_admin')
+      .select('role')
       .eq('id', data.user.id)
       .single()
 
-    if (!profile?.is_admin) {
+    if (profile?.role !== 'admin') {
       await supabase.auth.signOut()
       setError('You do not have admin access to this portal.')
       setLoading(false)
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // Hard navigation ensures all auth cookies are sent with the first server request
+    window.location.href = '/dashboard'
   }
 
   return (

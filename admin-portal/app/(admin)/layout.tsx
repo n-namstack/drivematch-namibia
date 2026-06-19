@@ -9,11 +9,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_admin, firstname, lastname, email')
+    .select('role, firstname, lastname, email')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.is_admin) redirect('/login')
+  if (profile?.role !== 'admin') redirect('/login')
 
   const displayName = [profile.firstname, profile.lastname].filter(Boolean).join(' ') || user.email!
 
