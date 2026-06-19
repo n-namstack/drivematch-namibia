@@ -107,7 +107,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Searc
   ]
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto relative">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto relative">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
           <Car size={20} className="text-blue-600" />
@@ -141,7 +141,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Searc
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-5 py-3.5 font-semibold text-slate-600 text-xs uppercase tracking-wide">Name</th>

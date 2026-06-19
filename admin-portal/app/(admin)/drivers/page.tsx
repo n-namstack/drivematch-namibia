@@ -92,7 +92,7 @@ export default async function DriversPage({ searchParams }: { searchParams: { fi
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Drivers</h1>
         <p className="text-slate-500 mt-1">{rows.length} registered drivers</p>
@@ -109,7 +109,8 @@ export default async function DriversPage({ searchParams }: { searchParams: { fi
         <SearchInput defaultValue={searchTerm} placeholder="Search drivers…" paramKey="search" />
       </div>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[660px] text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-3 text-slate-600 font-medium">Driver</th>
@@ -144,6 +145,7 @@ export default async function DriversPage({ searchParams }: { searchParams: { fi
             })}
           </tbody>
         </table>
+        </div>
         {filteredRows.length === 0 && <div className="text-center py-12 text-slate-400"><Users size={32} className="mx-auto mb-2 opacity-40" /><p>{searchTerm ? `No drivers match "${searchTerm}"` : 'No drivers found'}</p></div>}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
