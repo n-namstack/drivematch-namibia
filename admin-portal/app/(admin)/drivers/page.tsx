@@ -106,7 +106,7 @@ export default async function DriversPage({ searchParams }: { searchParams: { fi
             </Link>
           ))}
         </div>
-        <SearchInput defaultValue={searchTerm} placeholder="Search drivers…" />
+        <SearchInput defaultValue={searchTerm} placeholder="Search drivers…" paramKey="search" />
       </div>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <table className="w-full text-sm">

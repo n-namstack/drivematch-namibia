@@ -99,7 +99,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
           ))}
         </div>
         <div className="flex-1 max-w-xs">
-          <SearchInput placeholder="Search users..." />
+          <SearchInput defaultValue={q} placeholder="Search users..." />
         </div>
       </div>
 

@@ -7,9 +7,10 @@ import { Search, X } from 'lucide-react'
 interface Props {
   defaultValue?: string
   placeholder?: string
+  paramKey?: string
 }
 
-export default function SearchInput({ defaultValue = '', placeholder = 'Search…' }: Props) {
+export default function SearchInput({ defaultValue = '', placeholder = 'Search…', paramKey = 'q' }: Props) {
   const [value, setValue] = useState(defaultValue)
   const router = useRouter()
   const pathname = usePathname()
@@ -18,15 +19,15 @@ export default function SearchInput({ defaultValue = '', placeholder = 'Search�
     const timeout = setTimeout(() => {
       const url = new URL(window.location.href)
       if (value.trim()) {
-        url.searchParams.set('search', value.trim())
+        url.searchParams.set(paramKey, value.trim())
       } else {
-        url.searchParams.delete('search')
+        url.searchParams.delete(paramKey)
       }
       url.searchParams.delete('page')
       router.replace(url.pathname + (url.searchParams.size ? '?' + url.searchParams.toString() : ''))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [value, pathname])
+  }, [value, pathname, paramKey])
 
   return (
     <div className="relative">
