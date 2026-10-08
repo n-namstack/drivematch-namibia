@@ -288,7 +288,6 @@ const JobStatusDashboard = ({ navigation }) => {
         .eq("driver_id", driverProfile.id)
         .order("created_at", { ascending: false });
 
-      console.log("[JobStatus] fetched interests", { count: data?.length, error });
       if (error) throw error;
 
       // Try to fetch status history (table may not exist yet)
@@ -335,7 +334,7 @@ const JobStatusDashboard = ({ navigation }) => {
       );
       setStatsData(counts);
     } catch (error) {
-      console.log("[JobStatus] fetch error", error);
+      // silently handled — UI shows empty/stale state
     } finally {
       setLoading(false);
       setRefreshing(false);

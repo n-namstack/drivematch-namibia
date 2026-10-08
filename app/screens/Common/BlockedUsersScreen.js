@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ const BlockedUsersScreen = () => {
     load();
   }, [user?.id]);
 
-  const handleUnblock = (item) => {
+  const handleUnblock = useCallback((item) => {
     const name = `${item.blocked?.firstname || ''} ${item.blocked?.lastname || ''}`.trim() || 'this user';
     Alert.alert(
       `Unblock ${name}?`,
@@ -46,9 +46,9 @@ const BlockedUsersScreen = () => {
         },
       ]
     );
-  };
+  }, [unblockUser, user?.id]);
 
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     const name = `${item.blocked?.firstname || ''} ${item.blocked?.lastname || ''}`.trim() || 'User';
     return (
       <View style={styles.row}>
@@ -65,7 +65,7 @@ const BlockedUsersScreen = () => {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [handleUnblock]);
 
   if (loading) {
     return (

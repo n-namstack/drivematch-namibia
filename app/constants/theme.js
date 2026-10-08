@@ -42,6 +42,11 @@ export const COLORS = {
   info: '#3B82F6',
   infoLight: '#EEF2FF',
 
+  // Extended semantic colors
+  violet: '#7C3AED',       // agreement/hire CTA buttons
+  violetLight: '#EDE9FE',  // light violet background for badges
+  danger: '#DC2626',       // darker red for critical text (rejected day-off owed, overdue)
+
   // UI Colors
   saved: '#FF6B6B',
 

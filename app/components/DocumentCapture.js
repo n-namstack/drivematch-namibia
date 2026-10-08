@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import documentService from '../services/documentService';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, DOCUMENT_TYPES } from '../constants/theme';
@@ -59,7 +60,7 @@ const DocumentCapture = ({ docType, existingDoc, onCapture, onBack }) => {
         </View>
 
         <View style={styles.previewContainer}>
-          <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} resizeMode="contain" />
+          <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} contentFit="contain" cachePolicy="memory-disk" />
         </View>
 
         <View style={styles.previewActions}>
@@ -98,7 +99,7 @@ const DocumentCapture = ({ docType, existingDoc, onCapture, onBack }) => {
       {existingDoc?.document_url && (
         <View style={styles.existingContainer}>
           <Text style={styles.existingLabel}>Current document:</Text>
-          <Image source={{ uri: existingDoc.document_url }} style={styles.existingThumb} resizeMode="cover" />
+          <Image source={{ uri: existingDoc.document_url }} style={styles.existingThumb} contentFit="cover" cachePolicy="memory-disk" />
           <Text style={styles.existingHint}>Upload a new photo to replace</Text>
         </View>
       )}

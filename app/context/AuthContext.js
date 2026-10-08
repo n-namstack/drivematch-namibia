@@ -11,6 +11,25 @@ import useAgreementStore from '../store/useAgreementStore';
 import useDemandStore from '../store/useDemandStore';
 import { registerForPushNotifications } from '../services/notificationService';
 
+// Supabase wraps gateway/network failures (e.g. 502) in AuthRetryableFetchError,
+// whose message is the whole serialized Response. Swap it for something readable.
+const normalizeAuthError = (err) => {
+  const status = err?.status;
+  const isRetryable = err?.name === 'AuthRetryableFetchError';
+  const raw = err?.message || '';
+  if (isRetryable || status >= 500 || raw.startsWith('{')) {
+    const friendly = new Error(
+      status >= 500
+        ? 'Our server is temporarily unavailable. Please try again in a moment.'
+        : 'Could not reach the server. Please check your connection and try again.'
+    );
+    friendly.status = status;
+    friendly.original = err;
+    return friendly;
+  }
+  return err;
+};
+
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
@@ -237,7 +256,8 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }
@@ -254,7 +274,8 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       setIsGuest(false);
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }
@@ -269,7 +290,8 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }
@@ -286,7 +308,8 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }
@@ -327,7 +350,8 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       setProfile(data);
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }
@@ -363,7 +387,8 @@ export const AuthProvider = ({ children }) => {
 
       setDriverProfile(data);
       return { data, error: null };
-    } catch (err) {
+    } catch (e) {
+      const err = normalizeAuthError(e);
       setError(err.message);
       return { data: null, error: err };
     }

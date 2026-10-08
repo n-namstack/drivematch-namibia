@@ -117,7 +117,6 @@ export const documentService = {
   },
 
   uploadDocument: async (userId, file, documentType) => {
-    console.log('[DocumentService] uploadDocument called', { userId, documentType, fileUri: file?.uri });
     try {
       if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
         return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
@@ -149,7 +148,6 @@ export const documentService = {
         });
 
       if (error) {
-        console.log('[DocumentService] uploadDocument storage error', error);
         throw error;
       }
 
@@ -157,16 +155,13 @@ export const documentService = {
         .from(BUCKET_NAME)
         .getPublicUrl(storagePath);
 
-      console.log('[DocumentService] uploadDocument success', { url: urlData.publicUrl, storagePath });
       return { data: { ...data, url: urlData.publicUrl, storagePath }, error: null };
     } catch (err) {
-      console.log('[DocumentService] uploadDocument caught error', err);
       return { data: null, error: err };
     }
   },
 
   uploadSelfie: async (userId, file, documentId) => {
-    console.log('[DocumentService] uploadSelfie called', { userId, documentId });
     try {
       if (file.fileSize && file.fileSize > 10 * 1024 * 1024) {
         return { data: null, error: { message: 'File is too large. Maximum size is 10MB.' } };
@@ -244,7 +239,6 @@ export const documentService = {
   },
 
   saveDocumentRecord: async (driverId, documentData) => {
-    console.log('[DocumentService] saveDocumentRecord called', { driverId, documentData });
     try {
       const { data, error } = await supabase
         .from('driver_documents')
@@ -259,20 +253,16 @@ export const documentService = {
         .select();
 
       if (error) {
-        console.log('[DocumentService] saveDocumentRecord error', error);
         throw error;
       }
       const record = data?.[0] ?? null;
-      console.log('[DocumentService] saveDocumentRecord success', { recordId: record?.id });
       return { data: record, error: null };
     } catch (err) {
-      console.log('[DocumentService] saveDocumentRecord caught error', err);
       return { data: null, error: err };
     }
   },
 
   updateDocumentRecord: async (documentId, updates) => {
-    console.log('[DocumentService] updateDocumentRecord called', { documentId, updates });
     try {
       const { data, error } = await supabase
         .from('driver_documents')
@@ -327,7 +317,6 @@ export const documentService = {
   },
 
   replaceDocument: async (userId, existingDoc, file, documentType) => {
-    console.log('[DocumentService] replaceDocument called', { userId, existingDocId: existingDoc?.id, documentType });
     try {
       // Remove old files from storage
       const pathsToRemove = [];

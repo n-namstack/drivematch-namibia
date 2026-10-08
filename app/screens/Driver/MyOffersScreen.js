@@ -18,11 +18,11 @@ import { SkeletonCard } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const STATUS_CONFIG = {
-  pending:   { label: 'Pending',   bg: '#FEF3C7', color: '#D97706' },
-  viewed:    { label: 'Viewed',    bg: '#EEF2FF', color: COLORS.primary },
-  accepted:  { label: 'Accepted',  bg: '#D1FAE5', color: '#059669' },
-  rejected:  { label: 'Declined',  bg: '#FEE2E2', color: COLORS.error },
-  withdrawn: { label: 'Withdrawn', bg: COLORS.gray[100], color: COLORS.textSecondary },
+  pending:   { label: 'Pending',   bg: COLORS.warningLight,  color: COLORS.accentDark },
+  viewed:    { label: 'Viewed',    bg: COLORS.infoLight,     color: COLORS.primary },
+  accepted:  { label: 'Accepted',  bg: COLORS.successLight,  color: COLORS.secondaryDark },
+  rejected:  { label: 'Declined',  bg: COLORS.errorLight,    color: COLORS.error },
+  withdrawn: { label: 'Withdrawn', bg: COLORS.gray[100],     color: COLORS.textSecondary },
 };
 
 const JOB_TYPE_LABELS = {
@@ -150,20 +150,26 @@ const MyOffersScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleRespond = async (offerId, status) => {
+  const handleRespond = useCallback(async (offerId, status) => {
     try {
       await respondToOffer(offerId, status);
       Toast.show({
         type: 'success',
         text1: status === 'accepted' ? 'Offer Accepted!' : 'Offer Declined',
-        text2: status === 'accepted'
-          ? 'The owner has been notified.'
-          : 'The owner has been notified.',
+        text2: 'The owner has been notified.',
       });
     } catch {
       Toast.show({ type: 'error', text1: 'Something went wrong', text2: 'Please try again.' });
     }
-  };
+  }, [respondToOffer]);
+
+  const renderItem = useCallback(({ item }) => (
+    <OfferCard
+      offer={item}
+      onRespond={handleRespond}
+      onViewAgreements={() => navigation.navigate('Agreements')}
+    />
+  ), [handleRespond, navigation]);
 
   if (loading && receivedOffers.length === 0) {
     return (
@@ -180,15 +186,13 @@ const MyOffersScreen = ({ navigation }) => {
       <FlatList
         data={receivedOffers}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <OfferCard
-            offer={item}
-            onRespond={handleRespond}
-            onViewAgreements={() => navigation.navigate('Agreements')}
-          />
-        )}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
   agreementsBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: SPACING.md, paddingVertical: 11, borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: '#7C3AED',
+    backgroundColor: COLORS.violet,
   },
   agreementsBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
 

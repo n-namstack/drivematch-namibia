@@ -28,11 +28,9 @@ const JOB_TYPES = [
 const formatDate = (date) =>
   date.toLocaleDateString('en-NA', { day: 'numeric', month: 'long', year: 'numeric' });
 
-const toISODate = (date) => date.toISOString().split('T')[0];
-
-const tomorrow = new Date();
-tomorrow.setDate(tomorrow.getDate() + 1);
-tomorrow.setHours(0, 0, 0, 0);
+// Format in local time — toISOString() converts to UTC, which shifts the date back a day in Namibia (UTC+2)
+const toISODate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const SendOfferScreen = ({ navigation, route }) => {
   const { driverId, driverName, driverImage } = route.params;
@@ -158,10 +156,9 @@ const SendOfferScreen = ({ navigation, route }) => {
 
             {showDatePicker && (
               <DateTimePicker
-                value={startDate || tomorrow}
+                value={startDate || new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                minimumDate={tomorrow}
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(Platform.OS === 'ios');
                   if (selectedDate) setStartDate(selectedDate);

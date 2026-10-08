@@ -15,11 +15,11 @@ import { SkeletonCard } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 
 const STATUS_CONFIG = {
-  pending:   { label: 'Pending',   bg: '#FEF3C7', color: '#D97706' },
-  viewed:    { label: 'Viewed',    bg: '#EEF2FF', color: COLORS.primary },
-  accepted:  { label: 'Accepted',  bg: '#D1FAE5', color: '#059669' },
-  rejected:  { label: 'Declined',  bg: '#FEE2E2', color: COLORS.error },
-  withdrawn: { label: 'Withdrawn', bg: COLORS.gray[100], color: COLORS.textSecondary },
+  pending:   { label: 'Pending',   bg: COLORS.warningLight,  color: COLORS.accentDark },
+  viewed:    { label: 'Viewed',    bg: COLORS.infoLight,     color: COLORS.primary },
+  accepted:  { label: 'Accepted',  bg: COLORS.successLight,  color: COLORS.secondaryDark },
+  rejected:  { label: 'Declined',  bg: COLORS.errorLight,    color: COLORS.error },
+  withdrawn: { label: 'Withdrawn', bg: COLORS.gray[100],     color: COLORS.textSecondary },
 };
 
 const JOB_TYPE_LABELS = {
@@ -290,14 +290,14 @@ const styles = StyleSheet.create({
   withdrawBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: SPACING.md, paddingVertical: 11, borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.errorLight,
   },
   withdrawBtnText: { color: COLORS.error, fontWeight: '700', fontSize: FONTS.sizes.sm },
 
   agreementBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: SPACING.md, paddingVertical: 11, borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: '#7C3AED',
+    backgroundColor: COLORS.violet,
   },
   agreementBtnText: { color: COLORS.white, fontWeight: '700', fontSize: FONTS.sizes.sm },
 

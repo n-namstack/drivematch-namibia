@@ -123,6 +123,14 @@ const AgreementsScreen = ({ navigation }) => {
       : a.status === 'completed' || a.status === 'terminated',
   );
 
+  const renderItem = useCallback(({ item }) => (
+    <AgreementCard
+      agreement={item}
+      currentUserId={profile?.id}
+      onPress={() => navigation.navigate('AgreementDetail', { agreementId: item.id })}
+    />
+  ), [profile?.id, navigation]);
+
   if (loading && agreements.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={[]}>
@@ -153,15 +161,13 @@ const AgreementsScreen = ({ navigation }) => {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <AgreementCard
-            agreement={item}
-            currentUserId={profile?.id}
-            onPress={() => navigation.navigate('AgreementDetail', { agreementId: item.id })}
-          />
-        )}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>

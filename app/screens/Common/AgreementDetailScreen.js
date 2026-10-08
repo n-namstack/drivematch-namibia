@@ -173,7 +173,7 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
 
   const handleSave = async () => {
     if (isDateLocked) return;
-    if (!amount || isNaN(parseFloat(amount))) {
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 0) {
       Toast.show({ type: 'error', text1: 'Enter a valid amount' });
       return;
     }
@@ -429,7 +429,7 @@ const DayOffModal = memo(({ visible, onClose, onSave, entries = [] }) => {
           )}
           {hasWorkedEntry && (
             <View style={[modal.updateBanner, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
-              <Ionicons name="warning-outline" size={15} color="#DC2626" />
+              <Ionicons name="warning-outline" size={15} color={COLORS.danger} />
               <Text style={[modal.updateBannerText, { color: '#B91C1C' }]}>
                 You already logged N${parseFloat(existingEntry.amount).toFixed(0)} for this date. Marking it off will clear the amount.
               </Text>
@@ -437,7 +437,7 @@ const DayOffModal = memo(({ visible, onClose, onSave, entries = [] }) => {
           )}
           {isRejectedDayOff && (
             <View style={[modal.updateBanner, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+              <Ionicons name="close-circle-outline" size={15} color={COLORS.danger} />
               <Text style={[modal.updateBannerText, { color: '#B91C1C' }]}>
                 Your previous day off request was rejected. You can re-request it here, or log actual work using "Log Today".
               </Text>
@@ -475,7 +475,7 @@ const DayOffModal = memo(({ visible, onClose, onSave, entries = [] }) => {
             />
 
             <TouchableOpacity
-              style={[modal.saveBtn, { backgroundColor: '#DC2626' }]}
+              style={[modal.saveBtn, { backgroundColor: COLORS.danger }]}
               onPress={handleSave}
               disabled={saving || isLocked}
             >
@@ -577,7 +577,7 @@ const EntryRow = memo(({ item, isOwner, onConfirm, onReject, onApproveDayOff, on
     const isRejectedDayOff = dayoffStatus === 'rejected';
     const isApprovedDayOff = dayoffStatus === 'approved';
     const badgeBg    = isPendingDayOff ? '#FEF3C7' : isRejectedDayOff ? '#FEE2E2' : isApprovedDayOff ? '#D1FAE5' : '#FEE2E2';
-    const badgeColor = isPendingDayOff ? '#D97706' : isRejectedDayOff ? '#DC2626' : isApprovedDayOff ? '#059669' : '#DC2626';
+    const badgeColor = isPendingDayOff ? '#D97706' : isRejectedDayOff ? COLORS.danger : isApprovedDayOff ? '#059669' : COLORS.danger;
     const badgeText  = isPendingDayOff ? 'Pending' : isRejectedDayOff ? 'Rejected' : isApprovedDayOff ? 'Approved' : 'Day Off';
     const rejectedOwed = isRejectedDayOff && dailyAmount > 0
       ? Math.max(0, dailyAmount - parseFloat(item.shortfall_paid || 0))
@@ -586,7 +586,7 @@ const EntryRow = memo(({ item, isOwner, onConfirm, onReject, onApproveDayOff, on
     return (
       <View style={styles.dayOffRow}>
         <View style={styles.dayOffIconWrap}>
-          <Ionicons name={isRejectedDayOff ? 'close-circle-outline' : 'moon-outline'} size={16} color="#DC2626" />
+          <Ionicons name={isRejectedDayOff ? 'close-circle-outline' : 'moon-outline'} size={16} color={COLORS.danger} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.dayOffDate}>{fmt(item.entry_date)}</Text>
@@ -641,7 +641,7 @@ const EntryRow = memo(({ item, isOwner, onConfirm, onReject, onApproveDayOff, on
             </View>
           ) : isRejected ? (
             <View style={styles.rejectedChip}>
-              <Ionicons name="close-circle" size={10} color="#DC2626" />
+              <Ionicons name="close-circle" size={10} color={COLORS.danger} />
               <Text style={styles.rejectedChipText}>Rejected — re-log required</Text>
             </View>
           ) : (
@@ -698,28 +698,46 @@ const EntryRow = memo(({ item, isOwner, onConfirm, onReject, onApproveDayOff, on
 
 // ─── Monthly Projection Card ─────────────────────────────────────────────────
 
-const MonthlyProjectionCard = ({ agreement, isOwner }) => {
+const MonthlyProjectionCard = ({ agreement, entries, isOwner }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   endOfMonth.setHours(0, 0, 0, 0);
 
   const agreementStart = new Date(agreement.start_date);
   agreementStart.setHours(0, 0, 0, 0);
-  const effectiveStart = agreementStart > today ? agreementStart : today;
 
   const schedOpts = {
     offSundays: agreement.off_sundays !== false,
     offPublicHolidays: agreement.off_public_holidays !== false,
   };
-  const workingDays = getWorkingDays(effectiveStart, endOfMonth, schedOpts);
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const monthPrefix = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-`;
+  const todayKey = `${monthPrefix}${pad(today.getDate())}`;
+  const monthEntries = (entries || []).filter((e) => e.entry_date?.startsWith(monthPrefix));
+  const collected = monthEntries.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
+  // Remaining days start today, or tomorrow if today's payment is already logged
+  const remainingStart = agreementStart > today ? new Date(agreementStart) : new Date(today);
+  const todayLogged = monthEntries.some((e) => e.entry_date === todayKey && parseFloat(e.amount) > 0);
+  if (todayLogged && remainingStart.getTime() === today.getTime()) {
+    remainingStart.setDate(remainingStart.getDate() + 1);
+  }
+  const workingDays = getWorkingDays(remainingStart, endOfMonth, schedOpts);
+  const monthStart = agreementStart > startOfMonth ? agreementStart : startOfMonth;
+  const monthWorkingDays = getWorkingDays(monthStart, endOfMonth, schedOpts);
   const monthName = today.toLocaleDateString('en-NA', { month: 'long', year: 'numeric' });
 
   const dailyAmt = parseFloat(agreement.daily_amount || 0);
   const ownerPct = parseFloat(agreement.owner_percentage || 0);
 
-  const expectedGross = workingDays * dailyAmt;
+  const stillExpected = workingDays * dailyAmt;
+  const monthTotal    = monthWorkingDays * dailyAmt;
+  // Owner sees the full month; driver keeps the remaining-days view
+  const expectedGross = isOwner ? monthTotal : stillExpected;
   const driverCutAmt  = expectedGross * (ownerPct / 100);
   const ownerSalary   = expectedGross - driverCutAmt;
 
@@ -734,12 +752,35 @@ const MonthlyProjectionCard = ({ agreement, isOwner }) => {
       </View>
       <Text style={proj.sub}>{monthName}</Text>
 
-      <View style={proj.row}>
-        <View style={proj.item}>
-          <Text style={proj.itemLabel}>Expected Total</Text>
-          <Text style={[proj.itemValue, { color: COLORS.text }]}>{fmtMoney(expectedGross)}</Text>
+      {isOwner && (
+        <View style={[proj.row, proj.rowSpaced]}>
+          <View style={proj.item}>
+            <Text style={proj.itemLabel}>Month Total ({monthWorkingDays} days)</Text>
+            <Text style={[proj.itemValue, { color: COLORS.text }]}>{fmtMoney(monthTotal)}</Text>
+          </View>
+          <View style={proj.divider} />
+          <View style={proj.item}>
+            <Text style={proj.itemLabel}>Collected So Far</Text>
+            <Text style={[proj.itemValue, { color: '#059669' }]}>{fmtMoney(collected)}</Text>
+          </View>
+          <View style={proj.divider} />
+          <View style={proj.item}>
+            <Text style={proj.itemLabel}>Still Expected</Text>
+            <Text style={[proj.itemValue, { color: '#7C3AED' }]}>{fmtMoney(stillExpected)}</Text>
+          </View>
         </View>
-        <View style={proj.divider} />
+      )}
+
+      <View style={proj.row}>
+        {!isOwner && (
+          <>
+            <View style={proj.item}>
+              <Text style={proj.itemLabel}>Expected Total</Text>
+              <Text style={[proj.itemValue, { color: COLORS.text }]}>{fmtMoney(expectedGross)}</Text>
+            </View>
+            <View style={proj.divider} />
+          </>
+        )}
         <View style={proj.item}>
           <Text style={proj.itemLabel}>{isOwner ? "Driver's Cut" : 'Your Cut'} ({ownerPct}%)</Text>
           <Text style={[proj.itemValue, { color: '#D97706' }]}>{fmtMoney(driverCutAmt)}</Text>
@@ -1485,7 +1526,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
 
             {/* Month-end projection — daily remittance only */}
             {isActive && isDaily && activeAgreement.daily_amount > 0 && (
-              <MonthlyProjectionCard agreement={activeAgreement} isOwner={isOwner} />
+              <MonthlyProjectionCard agreement={activeAgreement} entries={entries} isOwner={isOwner} />
             )}
 
             {/* Filter row — only when active */}
@@ -1781,7 +1822,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2', borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.sm, paddingVertical: 2,
   },
-  rejectedChipText: { fontSize: 10, color: '#DC2626', fontWeight: '700' },
+  rejectedChipText: { fontSize: 10, color: COLORS.danger, fontWeight: '700' },
 
   emptyEntries: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyEntriesText: { fontSize: FONTS.sizes.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
@@ -1797,14 +1838,14 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center',
   },
-  dayOffDate: { fontSize: FONTS.sizes.xs, color: '#DC2626', marginBottom: 2 },
+  dayOffDate: { fontSize: FONTS.sizes.xs, color: COLORS.danger, marginBottom: 2 },
   dayOffLabel: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#B91C1C' },
   dayOffBadge: {
     backgroundColor: '#FEE2E2', borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.sm, paddingVertical: 3,
   },
-  dayOffBadgeText: { fontSize: 10, fontWeight: '700', color: '#DC2626' },
-  dayOffRejectedOwed: { fontSize: FONTS.sizes.xs, color: '#DC2626', fontWeight: '600', marginTop: 2 },
+  dayOffBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.danger },
+  dayOffRejectedOwed: { fontSize: FONTS.sizes.xs, color: COLORS.danger, fontWeight: '600', marginTop: 2 },
 
   // Shortfall chip
   shortfallChip: {
@@ -1954,6 +1995,7 @@ const proj = StyleSheet.create({
   },
   sub: { fontSize: FONTS.sizes.xs, color: '#7C3AED', marginBottom: SPACING.sm, opacity: 0.75 },
   row: { flexDirection: 'row', alignItems: 'center' },
+  rowSpaced: { marginBottom: SPACING.sm, paddingBottom: SPACING.sm, borderBottomWidth: 1, borderBottomColor: '#DDD6FE' },
   divider: { width: 1, height: 36, backgroundColor: '#DDD6FE', marginHorizontal: 4 },
   item: { flex: 1, alignItems: 'center' },
   itemLabel: { fontSize: 10, color: '#6B7280', marginBottom: 3, textAlign: 'center' },

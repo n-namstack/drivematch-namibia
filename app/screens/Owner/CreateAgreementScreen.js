@@ -25,6 +25,10 @@ tomorrow.setHours(0, 0, 0, 0);
 const fmt = (d) =>
   d.toLocaleDateString('en-NA', { day: 'numeric', month: 'long', year: 'numeric' });
 
+// Format in local time — toISOString() converts to UTC, which shifts the date back a day in Namibia (UTC+2)
+const toLocalISODate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 const CreateAgreementScreen = ({ navigation, route }) => {
   const { driverId, driverName, driverImage } = route.params;
   const { profile } = useAuth();
@@ -48,9 +52,14 @@ const CreateAgreementScreen = ({ navigation, route }) => {
 
   const isDailyRemittance = type === 'daily_remittance';
 
+  const dailyAmountNum = parseFloat(dailyAmount);
+  const ownerPctNum = parseFloat(ownerPct);
+  const buyoutTargetNum = parseFloat(buyoutTarget);
+
   const canSubmit =
-    dailyAmount.trim().length > 0 &&
-    (!isDailyRemittance ? buyoutTarget.trim().length > 0 : true) &&
+    !isNaN(dailyAmountNum) && dailyAmountNum > 0 &&
+    (!isDailyRemittance ? (!isNaN(buyoutTargetNum) && buyoutTargetNum > 0) : true) &&
+    (!isDailyRemittance || ownerPct === '' || (!isNaN(ownerPctNum) && ownerPctNum >= 0 && ownerPctNum <= 100)) &&
     !submitting;
 
   const pickDocument = async () => {
@@ -69,13 +78,21 @@ const CreateAgreementScreen = ({ navigation, route }) => {
 
   const handleCreate = async () => {
     if (!canSubmit) return;
+    if (isNaN(dailyAmountNum) || dailyAmountNum <= 0) {
+      Toast.show({ type: 'error', text1: 'Invalid daily amount', text2: 'Enter a positive number.' });
+      return;
+    }
+    if (isDailyRemittance && ownerPct !== '' && (isNaN(ownerPctNum) || ownerPctNum < 0 || ownerPctNum > 100)) {
+      Toast.show({ type: 'error', text1: 'Invalid percentage', text2: 'Owner percentage must be between 0 and 100.' });
+      return;
+    }
     setSubmitting(true);
     try {
       const endDate = !isDailyRemittance && durationMonths
         ? (() => {
             const d = new Date(startDate);
             d.setMonth(d.getMonth() + parseInt(durationMonths, 10));
-            return d.toISOString().split('T')[0];
+            return toLocalISODate(d);
           })()
         : null;
 
@@ -87,7 +104,7 @@ const CreateAgreementScreen = ({ navigation, route }) => {
         owner_percentage: isDailyRemittance ? parseFloat(ownerPct) : null,
         buyout_target: !isDailyRemittance ? parseFloat(buyoutTarget) : null,
         service_responsibility: isDailyRemittance ? 'owner' : serviceBy,
-        start_date: startDate.toISOString().split('T')[0],
+        start_date: toLocalISODate(startDate),
         end_date: endDate,
         vehicle_description: vehicle.trim() || null,
         notes: notes.trim() || null,
