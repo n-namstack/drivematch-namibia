@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import supabase from "../lib/supabase";
+import { toLocalISODate } from "../utils/dates";
 
 const useJobStore = create((set, get) => ({
   // State
@@ -26,7 +27,7 @@ const useJobStore = create((set, get) => ({
     try {
       const offset = resetList ? 0 : pagination.page * pagination.limit;
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = toLocalISODate();
 
       const { data, error } = await supabase
         .from("job_posts")

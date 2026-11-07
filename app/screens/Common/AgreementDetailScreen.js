@@ -11,7 +11,7 @@ import { Image } from 'expo-image';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import useAgreementStore, { getTotals, getBuyoutProgress, filterEntries } from '
 import { SkeletonEntryRow } from '../../components/SkeletonLoader';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { getWorkingDays, getDayOffInfo } from '../../constants/namibiaHolidays';
+import { toLocalISODate } from '../../utils/dates';
 
 const FILTERS = [
   { key: 'all',       label: 'All Time' },
@@ -113,7 +114,7 @@ const LogEntryModal = memo(({ visible, onClose, onSave, entries = [], dailyAmoun
   }, [visible]);
 
   // Find an existing unlocked entry for the currently selected date
-  const selectedDateStr = date.toISOString().split('T')[0];
+  const selectedDateStr = toLocalISODate(date);
   const existingEntry = entries.find((e) => e.entry_date === selectedDateStr && !e.is_locked);
   const isUpdating = !!existingEntry;
   const isDateLocked = entries.some((e) => e.entry_date === selectedDateStr && e.is_locked);
@@ -386,7 +387,7 @@ const DayOffModal = memo(({ visible, onClose, onSave, entries = [] }) => {
     }
   }, [visible]);
 
-  const selectedDateStr  = date.toISOString().split('T')[0];
+  const selectedDateStr  = toLocalISODate(date);
   const existingEntry    = entries.find((e) => e.entry_date === selectedDateStr);
   const isRejectedDayOff = existingEntry?.dayoff_status === 'rejected';
   const alreadyOff       = existingEntry && parseFloat(existingEntry.amount) === 0 && !isRejectedDayOff;
@@ -846,7 +847,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = toLocalISODate(today);
       const info = getDayOffInfo(today, schedOpts);
       setDayOffInfo(info);
 
@@ -1226,7 +1227,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
 
   <div class="footer">
     <span>DuoLink &mdash; Connecting Owners &amp; Drivers in Namibia</span>
-    <span>Exported ${new Date().toISOString().split('T')[0]}</span>
+    <span>Exported ${toLocalISODate()}</span>
   </div>
 
 </body></html>`;
@@ -1248,7 +1249,7 @@ const AgreementDetailScreen = ({ navigation, route }) => {
   // ── All hooks must be called unconditionally (Rules of Hooks) ───────────────
   const customRange = useMemo(() =>
     filter === 'custom'
-      ? { from: customFrom.toISOString().split('T')[0], to: customTo.toISOString().split('T')[0] }
+      ? { from: toLocalISODate(customFrom), to: toLocalISODate(customTo) }
       : null,
     [filter, customFrom, customTo],
   );

@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import useAgreementStore from '../../store/useAgreementStore';
 import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { toLocalISODate } from '../../utils/dates';
 
 const fmtMoney = (n) =>
   `N$${parseFloat(n || 0).toLocaleString('en-NA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -19,7 +20,7 @@ const fmtMoneyFull = (n) =>
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
-const isoDate = (d) => d.toISOString().split('T')[0];
+const isoDate = toLocalISODate;
 
 // Returns Monday of the ISO week containing d
 const weekStart = (d) => {

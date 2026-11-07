@@ -21,6 +21,7 @@ import {
   COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS,
   VEHICLE_TYPES, AVAILABILITY_OPTIONS,
 } from '../../constants/theme';
+import { toLocalISODate } from '../../utils/dates';
 
 const EXPERIENCE_OPTIONS = [
   { id: 'any', label: 'Any Level' },
@@ -74,7 +75,7 @@ const CreateJobPostScreen = ({ route, navigation }) => {
       experience_level: experienceLevel,
       availability_type: availabilityType,
       positions_available: positionsAvailable,
-      due_date: dueDate ? dueDate.toISOString().split('T')[0] : null,
+      due_date: dueDate ? toLocalISODate(dueDate) : null,
     };
 
     let error;

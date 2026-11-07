@@ -8,12 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "description": "DuoLink connects car owners with trusted, verified drivers in Namibia. Browse driver profiles, check reviews, verify credentials, and find the perfect driver for your vehicle.",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E40AF"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.namstack.namdriver",
@@ -34,7 +28,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E40AF"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.namstack.namdriver",
       "versionCode": 4,
       "permissions": [
@@ -70,9 +63,21 @@
           "androidCollapsedTitle": "DuoLink"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1E40AF",
+          "imageWidth": 200
+        }
+      ]
     ],
-    "privacy": "public",
     "scheme": "duolink",
     "extra": {
       "supabaseUrl": "https://lpggxqfljjrqdukmwcrk.supabase.co",

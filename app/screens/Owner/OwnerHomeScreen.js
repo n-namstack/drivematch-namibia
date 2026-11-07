@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import supabase from '../../lib/supabase';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import DriverCard from '../../components/DriverCard';
 import PromoCarousel from '../../components/PromoCarousel';
+import HiringJourney from '../../components/HiringJourney';
+import OwnerFleetSummary, { localIsoDate, summarizeAgreement } from '../../components/OwnerFleetSummary';
 
 const OWNER_PROMOS = [
   {
@@ -115,9 +117,18 @@ const OwnerHomeScreen = ({ navigation }) => {
   const fetchFeaturedDrivers = useDriverStore((s) => s.fetchFeaturedDrivers);
   const fetchAgreements = useAgreementStore((s) => s.fetchAgreements);
   const fetchSavedDrivers = useDriverStore((s) => s.fetchSavedDrivers);
+  const agreements = useAgreementStore((s) => s.agreements);
+  const activeAgreements = useMemo(
+    () => agreements.filter((a) => a.owner_id === profile?.id && a.status === 'active'),
+    [agreements, profile?.id],
+  );
+  const activeAgreementKey = activeAgreements.map((a) => a.id).join(',');
+  const [fleetEntries, setFleetEntries] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeJobCount, setActiveJobCount] = useState(0);
+  const [newApplicants, setNewApplicants] = useState(0);
+  const [offerStats, setOfferStats] = useState({ pending: 0, acceptedOffers: [] });
   const [hasHiredDriver, setHasHiredDriver] = useState(false);
   const [hiringCheckDone, setHiringCheckDone] = useState(false);
 
@@ -147,12 +158,36 @@ const OwnerHomeScreen = ({ navigation }) => {
   const fetchActiveJobCount = async () => {
     if (!profile?.id) return;
     try {
-      const { count } = await supabase
+      const { data: jobs } = await supabase
         .from('job_posts')
-        .select('id', { count: 'exact', head: true })
+        .select('id')
         .eq('owner_id', profile.id)
         .eq('status', 'open');
-      setActiveJobCount(count || 0);
+      const jobIds = (jobs || []).map((j) => j.id);
+      setActiveJobCount(jobIds.length);
+      if (jobIds.length === 0) { setNewApplicants(0); return; }
+      const { count } = await supabase
+        .from('job_interests')
+        .select('id', { count: 'exact', head: true })
+        .in('job_post_id', jobIds)
+        .eq('status', 'pending');
+      setNewApplicants(count || 0);
+    } catch {}
+  };
+
+  const fetchOfferStats = async () => {
+    if (!profile?.id) return;
+    try {
+      const { data } = await supabase
+        .from('hire_offers')
+        .select('id, status, driver_id, driver:driver_id ( firstname, lastname, profile_image )')
+        .eq('owner_id', profile.id)
+        .in('status', ['pending', 'accepted']);
+      const rows = data || [];
+      setOfferStats({
+        pending: rows.filter((o) => o.status === 'pending').length,
+        acceptedOffers: rows.filter((o) => o.status === 'accepted'),
+      });
     } catch {}
   };
 
@@ -171,13 +206,58 @@ const OwnerHomeScreen = ({ navigation }) => {
     setHiringCheckDone(true);
   };
 
+  // Recent entries across all active agreements — powers the "My Drivers" section
+  const fetchFleetEntries = async () => {
+    if (!activeAgreementKey) { setFleetEntries([]); return; }
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    try {
+      const { data } = await supabase
+        .from('agreement_entries')
+        .select('id, agreement_id, entry_date, amount, owner_confirmed_at, dayoff_status, shortfall_paid')
+        .in('agreement_id', activeAgreementKey.split(','))
+        .gte('entry_date', localIsoDate(since));
+      setFleetEntries(data || []);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchFleetEntries();
+    if (!profile?.id || !activeAgreementKey) return;
+    const entriesChannel = supabase
+      .channel('owner-home-entries')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agreement_entries', filter: `owner_id=eq.${profile.id}` }, () => {
+        fetchFleetEntries();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(entriesChannel); };
+  }, [activeAgreementKey, profile?.id]);
+
+  const fleetTotals = useMemo(() => activeAgreements.reduce((t, a) => {
+    const s = summarizeAgreement(a, fleetEntries);
+    return {
+      collected: t.collected + s.monthCollected,
+      toReview: t.toReview + s.toConfirm.length + s.dayOffRequests.length,
+    };
+  }, { collected: 0, toReview: 0 }), [activeAgreements, fleetEntries]);
+  const hasFleet = activeAgreements.length > 0;
+
+  // Hiring-phase data: accepted offers with no agreement yet, and agreements awaiting driver signature
+  const ownerAgreements = agreements.filter((a) => a.owner_id === profile?.id);
+  const awaitingSignature = ownerAgreements.filter((a) => a.status === 'pending_signature').length;
+  const unsignedHire = offerStats.acceptedOffers.find(
+    (o) => !ownerAgreements.some((a) => a.driver_id === o.driver_id && a.status !== 'terminated'),
+  );
+
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
       fetchActiveJobCount();
       fetchHiredDriver();
+      fetchOfferStats();
+      fetchFleetEntries();
       if (profile?.id) fetchAgreements(profile.id);
-    }, [profile?.id]),
+    }, [profile?.id, activeAgreementKey]),
   );
 
   useEffect(() => {
@@ -214,6 +294,9 @@ const OwnerHomeScreen = ({ navigation }) => {
         fetchUnreadCount(),
         fetchActiveJobCount(),
         fetchHiredDriver(),
+        fetchOfferStats(),
+        profile?.id ? fetchAgreements(profile.id) : Promise.resolve(),
+        fetchFleetEntries(),
       ]);
     } catch {
       Toast.show({ type: 'error', text1: 'Connection issue', text2: 'Could not load data. Pull to refresh.' });
@@ -259,7 +342,13 @@ const OwnerHomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.headerSub}>Ready to find your perfect driver?</Text>
+          <Text style={styles.headerSub}>
+            {hasFleet
+              ? fleetTotals.toReview > 0
+                ? `You have ${fleetTotals.toReview} ${fleetTotals.toReview === 1 ? 'item' : 'items'} to review today.`
+                : "You're all caught up with your drivers."
+              : 'Ready to find your perfect driver?'}
+          </Text>
 
           <TouchableOpacity
             style={styles.searchBar}
@@ -272,21 +361,66 @@ const OwnerHomeScreen = ({ navigation }) => {
 
         {/* ── Stats Row (overlaps gradient) ── */}
         <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{activeJobCount}</Text>
-            <Text style={styles.statLabel}>Active Jobs</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{savedDrivers?.length ?? 0}</Text>
-            <Text style={styles.statLabel}>Saved Drivers</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{featuredDrivers.length}</Text>
-            <Text style={styles.statLabel}>Available</Text>
-          </View>
+          {(hasFleet
+            ? [
+                { value: `N$${Math.round(fleetTotals.collected).toLocaleString('en-NA')}`, label: 'Collected (month)' },
+                { value: activeAgreements.length, label: activeAgreements.length === 1 ? 'Active Driver' : 'Active Drivers' },
+                { value: fleetTotals.toReview, label: 'To Review', highlight: fleetTotals.toReview > 0 },
+              ]
+            : [
+                { value: activeJobCount, label: 'Active Jobs' },
+                { value: savedDrivers?.length ?? 0, label: 'Saved Drivers' },
+                { value: featuredDrivers.length, label: 'Available' },
+              ]
+          ).map((stat, i) => (
+            <View key={stat.label} style={styles.statWrap}>
+              {i > 0 && <View style={styles.statDivider} />}
+              <View style={styles.statItem}>
+                <Text
+                  style={[styles.statValue, stat.highlight && { color: COLORS.accentDark }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {stat.value}
+                </Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            </View>
+          ))}
         </View>
+
+        {/* ── My Drivers (only once the owner has an active agreement) ── */}
+        {hasFleet && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Drivers — Today</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Agreements')}>
+                <Text style={styles.seeAll}>All agreements →</Text>
+              </TouchableOpacity>
+            </View>
+            <OwnerFleetSummary
+              agreements={activeAgreements}
+              entries={fleetEntries}
+              onOpenAgreement={(id) => navigation.navigate('AgreementDetail', { agreementId: id })}
+            />
+          </View>
+        )}
+
+        {/* ── Hiring progress (until the owner has an active driver) ── */}
+        {!hasFleet && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Hiring Progress</Text>
+            <HiringJourney
+              openJobs={activeJobCount}
+              newApplicants={newApplicants}
+              pendingOffers={offerStats.pending}
+              acceptedOffers={offerStats.acceptedOffers.length}
+              unsignedHire={unsignedHire}
+              awaitingSignature={awaitingSignature}
+              navigation={navigation}
+            />
+          </View>
+        )}
 
         {/* ── Promo Carousel ── */}
         <View style={{ marginTop: SPACING.lg }}>
@@ -419,7 +553,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
     ...SHADOWS.md,
   },
-  statItem: { flex: 1, alignItems: 'center', paddingVertical: SPACING.md },
+  statWrap: { flex: 1, flexDirection: 'row' },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: SPACING.md, paddingHorizontal: 4 },
   statValue: { fontSize: FONTS.sizes['2xl'], fontWeight: '700', color: COLORS.text },
   statLabel: { fontSize: FONTS.sizes.xs, color: COLORS.textSecondary, marginTop: 2 },
   statDivider: { width: 1, alignSelf: 'center', height: '55%', backgroundColor: COLORS.gray[200] },

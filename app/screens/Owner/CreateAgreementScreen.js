@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import useAgreementStore from '../../store/useAgreementStore';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { toLocalISODate } from '../../utils/dates';
 
 const AGREEMENT_TYPES = [
   { key: 'daily_remittance', label: 'Daily Remittance', icon: 'cash-outline' },
@@ -25,9 +26,6 @@ tomorrow.setHours(0, 0, 0, 0);
 const fmt = (d) =>
   d.toLocaleDateString('en-NA', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// Format in local time — toISOString() converts to UTC, which shifts the date back a day in Namibia (UTC+2)
-const toLocalISODate = (date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const CreateAgreementScreen = ({ navigation, route }) => {
   const { driverId, driverName, driverImage } = route.params;

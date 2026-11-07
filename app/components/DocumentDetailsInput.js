@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Platform } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS, DOCUMENT_TYPES } from '../constants/theme';
+import { toLocalISODate } from '../utils/dates';
 
 const DocumentDetailsInput = ({ docType, existingDoc, onSubmit, onBack }) => {
   const docTypeConfig = DOCUMENT_TYPES.find((d) => d.id === docType);
@@ -24,7 +25,7 @@ const DocumentDetailsInput = ({ docType, existingDoc, onSubmit, onBack }) => {
 
   const handleContinue = () => {
     onSubmit({
-      expiryDate: expiryDate ? expiryDate.toISOString().split('T')[0] : null,
+      expiryDate: expiryDate ? toLocalISODate(expiryDate) : null,
       documentNumber: docNumber.trim() || null,
     });
   };

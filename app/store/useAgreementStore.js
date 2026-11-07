@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import supabase from '../lib/supabase';
+import { toLocalISODate } from '../utils/dates';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const isoDate = (d) => d.toISOString().split('T')[0];
+const isoDate = toLocalISODate;
 
 const startOfMonth = () => {
   const d = new Date();
